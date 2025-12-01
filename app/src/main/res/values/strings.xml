@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">rentr</string>
+    <string name="title_activity_splash">SplashActivity</string>
+</resources>
