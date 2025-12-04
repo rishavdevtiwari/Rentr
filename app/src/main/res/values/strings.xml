@@ -7,4 +7,5 @@
     <string name="title_activity_login">LoginActivity</string>
     <string name="title_activity_change_pass">ChangePassActivity</string>
     <string name="title_activity_privacy_policy_activity.kt">PrivacyPolicyActivity.kt</string>
+    <string name="title_activity_terms">TermsActivity</string>
 </resources>
