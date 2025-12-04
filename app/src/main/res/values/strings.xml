@@ -1,4 +1,11 @@
 <resources>
     <string name="app_name">rentr</string>
     <string name="title_activity_splash">SplashActivity</string>
+    <string name="title_activity_forgot_pass_gmail">ForgotPassGmailActivity</string>
+    <string name="title_activity_forgot_pass_otpactivity">ForgotPassOTPActivity</string>
+    <string name="title_activity_forgot_pass_new_pass">ForgotPassNewPassActivity</string>
+    <string name="title_activity_login">LoginActivity</string>
+    <string name="title_activity_change_pass">ChangePassActivity</string>
+    <string name="title_activity_privacy_policy_activity.kt">PrivacyPolicyActivity.kt</string>
+    <string name="title_activity_terms">TermsActivity</string>
 </resources>
