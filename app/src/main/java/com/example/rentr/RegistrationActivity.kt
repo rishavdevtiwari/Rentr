@@ -112,9 +112,11 @@ fun LoginBody() {
                     fontSize = 30.sp
                 )
             )
+            Spacer(modifier = Modifier.height(10.dp))
+
             Text(
                 " Account",
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
                 style = TextStyle(
                     color = White,
                     fontWeight = FontWeight.Bold,
