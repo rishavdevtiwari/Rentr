@@ -1,6 +1,8 @@
 package com.example.rentr
 
+import android.app.Activity
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -42,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -67,6 +70,9 @@ class KYC : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KYCScreen() {
+    val context = LocalContext.current
+    val activity = context as? Activity
+
     var currentStep by remember { mutableStateOf(1) }
     val steps = listOf("Citizenship Front", "Citizenship Back", "Pan Card", "Bank A/c Details", "Profile Pic")
 
@@ -95,7 +101,11 @@ fun KYCScreen() {
             Spacer(modifier = Modifier.weight(1f))
 
             Button(
-                onClick = { if (currentStep < steps.size) currentStep++ else { /* TODO: Final submission */ } },
+                onClick = { if (currentStep < steps.size) currentStep++ else {
+                    Toast.makeText(context, "Verification Successful", Toast.LENGTH_SHORT).show()
+                    activity?.finish()
+                }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),

@@ -1,11 +1,15 @@
 package com.example.rentr
 
+import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -22,11 +26,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.rentr.ui.theme.Field
+import com.example.rentr.ui.theme.Orange
 
 // --- YOUR COLOR PALETTE ---
 val Purple80 = Color(0xFFD0BCFF)
@@ -74,6 +83,10 @@ fun FillProfileScreen() {
     var phoneNumber by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
 
+    val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
+    val activity = context as? Activity
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -84,15 +97,6 @@ fun FillProfileScreen() {
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { /* Handle Back */ }) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
-                    }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = BG40
@@ -106,7 +110,12 @@ fun FillProfileScreen() {
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(horizontal = 24.dp)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = {
+                        focusManager.clearFocus()
+                    })
+                },
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // --- Profile Image Section ---
@@ -225,7 +234,12 @@ fun FillProfileScreen() {
 
             // --- Continue Button ---
             Button(
-                onClick = { /* Handle Continue */ },
+                onClick = {
+                    Toast.makeText(context, "Logged In.", Toast.LENGTH_SHORT).show()
+                    val intent = Intent(context, DashboardActivity::class.java)
+                    context.startActivity(intent)
+                    activity?.finish()
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 30.dp)
@@ -263,6 +277,7 @@ fun RentrTextField(
     keyboardType: KeyboardType = KeyboardType.Text,
     readOnly: Boolean = false
 ) {
+
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -270,29 +285,22 @@ fun RentrTextField(
         placeholder = {
             Text(text = placeholder, color = outline) // Using your 'outline' color for hint
         },
-        textStyle = LocalTextStyle.current.copy(
-            color = Color.White,
-            fontSize = 16.sp
-        ),
         shape = RoundedCornerShape(12.dp),
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = Field,  // Your 'Field' color
+            focusedContainerColor = Color.White,
             unfocusedContainerColor = Field,
-            disabledContainerColor = Field,
-            focusedIndicatorColor = Orange, // Orange border when focused
-            unfocusedIndicatorColor = Color.Transparent, // No border when unfocused
-            cursorColor = Orange,
-            selectionColors = TextSelectionColors(
-                handleColor = Orange,
-                backgroundColor = Orange.copy(alpha = 0.3f)
-            )
+            focusedIndicatorColor = Orange,
+            unfocusedIndicatorColor = Color.Transparent,
+            focusedTextColor = Color.Black,
+            unfocusedTextColor = Color.White,
+            focusedTrailingIconColor = Color.Black,
+            unfocusedTrailingIconColor = Color.White
         ),
         trailingIcon = trailingIcon?.let {
             {
                 Icon(
                     imageVector = it,
-                    contentDescription = null,
-                    tint = outline // Using 'outline' for icons
+                    contentDescription = null
                 )
             }
         },

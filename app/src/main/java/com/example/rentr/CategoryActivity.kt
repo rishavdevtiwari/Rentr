@@ -92,7 +92,7 @@ val categories1 = listOf(
 @Composable
 fun CategoryScreen1(categoryName: String) {
     val context = LocalContext.current
-    val activity = context as Activity
+    val activity = context as? Activity
 
     val products = remember(categoryName) {
         (1..10).map { i ->
@@ -141,7 +141,7 @@ fun CategoryScreen1(categoryName: String) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     IconButton(
-                        onClick = { activity.finish() }, // Use safe cast
+                        onClick = { activity?.finish() }, // Use safe cast
                         modifier = Modifier
                             .padding(16.dp)
                             .background(background, CircleShape)

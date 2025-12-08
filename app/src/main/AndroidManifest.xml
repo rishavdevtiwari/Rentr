@@ -11,60 +11,97 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Rentr">
-        <activity
-            android:name=".AccountSetupActivity"
-            android:exported="true"
-            android:label="@string/title_activity_account_setup"
-            android:theme="@style/Theme.Rentr">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
 
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        <activity
-            android:name=".FaqScreenActivity"
-            android:exported="false"
-            android:label="@string/title_activity_faq_screen"
-            android:theme="@style/Theme.Rentr" />
-        <activity
-            android:name=".MainActivity"
-            android:exported="false"
-            android:label="@string/title_activity_main"
-            android:theme="@style/Theme.Rentr">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        <activity
-            android:name=".ui.theme.FaqScreenActivity"
-            android:exported="false"
-            android:label="@string/title_activity_faq_screen"
-            android:theme="@style/Theme.Rentr" />
-        <activity
-            android:name=".ui.theme.RegistrationActivity"
-            android:exported="true"
-            android:label="@string/title_activity_registration"
-            android:theme="@style/Theme.Rentr">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+        <!-- Launcher Activity -->
         <activity
             android:name=".SplashActivity"
             android:exported="true"
-            android:label="@string/title_activity_splash"
             android:theme="@style/Theme.Rentr">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Other Activities -->
+        <activity
+            android:name=".FillProfileActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".ChangePassActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".KYC"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".CategoryActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".DashboardActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".EditListedActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".EditProfile"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".FaqScreenActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".FillProfileActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".ForgotPassGmailActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".ForgotPassNewPassActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".ForgotPassOTPActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".ListImageActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".LoginActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".NewListingActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".PrivacyPolicyActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".ProductActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".RegistrationActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".TermsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+
+
     </application>
 
 </manifest>
