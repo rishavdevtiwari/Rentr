@@ -25,10 +25,6 @@
 
         <!-- Other Activities -->
         <activity
-            android:name=".FillProfileActivity"
-            android:exported="false"
-            android:theme="@style/Theme.Rentr" />
-        <activity
             android:name=".ChangePassActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
@@ -57,7 +53,7 @@
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".AccountSetupActivity"
+            android:name=".FillProfileActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
