@@ -53,6 +53,7 @@ import com.example.rentr.ui.theme.BG40
 import com.example.rentr.ui.theme.Button
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
+import kotlin.jvm.java
 
 class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -193,7 +194,7 @@ fun LoginBody(){
             }
             Button(
                 onClick = {
-                    val intent = Intent(context, SplashActivity::class.java)
+                    val intent = Intent(context, DashboardActivity::class.java)
                     context.startActivity(intent)
                     activity?.finish()
                 },
@@ -214,7 +215,10 @@ fun LoginBody(){
                 Text("Log In")
             }
             TextButton(
-                onClick = { /*TODO*/ },
+                onClick = {
+                    val intent = Intent(context, ForgotPassGmailActivity::class.java)
+                    context.startActivity(intent)
+                },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
@@ -236,7 +240,10 @@ fun LoginBody(){
                     text = "Sign up",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clickable { /* TODO: Navigate to Sign up screen */ }
+                    modifier = Modifier.clickable {
+                        val intent = Intent(context, RegistrationActivity::class.java)
+                        context.startActivity(intent)
+                    }
                 )
             }
 

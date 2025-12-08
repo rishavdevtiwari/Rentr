@@ -1,6 +1,10 @@
 package com.example.rentr
 
+import android.app.Activity
+import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,6 +55,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -68,6 +75,10 @@ private val cardBackgroundColor = Color(0xFF2C2C2E)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen() {
+    val context = LocalContext.current
+    val activity = context as? Activity
+    val focusManager = LocalFocusManager.current
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -94,7 +105,13 @@ fun ProfileScreen() {
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(horizontal = 20.dp)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = {
+                        focusManager.clearFocus()
+                    })
+                }
+            ,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(20.dp))
@@ -110,6 +127,8 @@ fun ProfileScreen() {
 
 @Composable
 private fun ProfileCard() {
+    val context = LocalContext.current
+    val activity = context as? Activity
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -138,7 +157,10 @@ private fun ProfileCard() {
             }
             Spacer(modifier = Modifier.height(16.dp))
             Button(
-                onClick = { /*TODO*/ },
+                onClick = {
+                    val intent = Intent(context,KYC::class.java)
+                    activity?.startActivity(intent)
+                },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = accentColor),
@@ -182,25 +204,30 @@ private fun PillBadge(text: String, icon: ImageVector) {
     }
 }
 
-data class SettingInfo(val icon: ImageVector, val title: String)
+data class SettingInfo(val icon: ImageVector, val title: String, val destination: Class<out Activity>? = null)
 
 @Composable
 private fun SettingsList() {
+    val context = LocalContext.current
     val settings = listOf(
-        SettingInfo(Icons.Default.Person, "Edit Profile"),
+        SettingInfo(Icons.Default.Person, "Edit Profile", EditProfile::class.java),
         SettingInfo(Icons.Default.LocationOn, "Address"),
         SettingInfo(Icons.Default.Notifications, "Notification"),
         SettingInfo(Icons.Default.CreditCard, "Payment"),
-        SettingInfo(Icons.Default.Lock, "Security"),
+        SettingInfo(Icons.Default.Lock, "Security", ChangePassActivity::class.java),
         SettingInfo(Icons.Default.Language, "Language"),
-        SettingInfo(Icons.Default.Info, "Privacy Policy"),
-        SettingInfo(Icons.AutoMirrored.Filled.HelpOutline, "Help Center"),
+        SettingInfo(Icons.Default.Info, "Privacy Policy", PrivacyPolicyActivity::class.java),
+        SettingInfo(Icons.AutoMirrored.Filled.HelpOutline, "Help Center", FaqScreenActivity::class.java),
         SettingInfo(Icons.Default.Group, "Invite Friends"),
     )
 
     Column(modifier = Modifier.fillMaxWidth()) {
         settings.forEachIndexed { index, setting ->
-            SettingItem(icon = setting.icon, title = setting.title)
+            SettingItem(icon = setting.icon, title = setting.title) {
+                setting.destination?.let {
+                    context.startActivity(Intent(context, it))
+                }
+            }
             if (index < settings.size - 1) {
                 HorizontalDivider(color = Color(0xFF3A3A3A), thickness = 1.dp)
             }
@@ -215,11 +242,12 @@ private fun SettingsList() {
 }
 
 @Composable
-fun SettingItem(icon: ImageVector, title: String) {
+fun SettingItem(icon: ImageVector, title: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 20.dp),
+            .padding(vertical = 20.dp)
+            .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, contentDescription = null, tint = textColor, modifier = Modifier.size(24.dp))

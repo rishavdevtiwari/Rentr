@@ -74,7 +74,7 @@ val sampleListedItems = listOf(
 @Composable
 fun ListedScreen() {
     val context = LocalContext.current
-    val activity = context as Activity
+    val activity = context as? Activity
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     // Tabs updated to reflect the desired sections
     val tabs = listOf("Available/Unavailable", "Rented Out")
@@ -95,7 +95,7 @@ fun ListedScreen() {
             FloatingActionButton(
                 onClick = {
                     val intent = Intent(context, NewListingActivity::class.java)
-                    activity.startActivity(intent)
+                    activity?.startActivity(intent)
                 },
                 containerColor = Orange,
                 shape = CircleShape
@@ -178,7 +178,7 @@ fun ListedItemCard(item: ListedItem) {
     val isRented = item.status.equals("Rented Out", ignoreCase = true)
 
     val context = LocalContext.current
-    val activity = context as Activity
+    val activity = context as? Activity
 
     val cardAlpha = 1f
 
