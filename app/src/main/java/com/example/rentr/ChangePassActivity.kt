@@ -92,7 +92,9 @@ fun ChangePassBody() {
                     containerColor = Color.Black
                 ),
                 navigationIcon = {
-                    IconButton(onClick = {}) {
+                    IconButton(onClick = {
+                        activity?.finish()
+                    }) {
                         Icon(
                             painter = painterResource(R.drawable.baseline_arrow_back_24),
                             contentDescription = null
@@ -157,7 +159,6 @@ fun ChangePassBody() {
                         Icon(
                             painter = painterResource(id = R.drawable.baseline_lock_24),
                             contentDescription = "Old Password Icon",
-                            tint = if (oldPassword.isNotBlank()) Color.Black else Color.White
                         )
                     },
                     trailingIcon = {
@@ -168,7 +169,6 @@ fun ChangePassBody() {
                                 } else {
                                     painterResource(R.drawable.baseline_visibility_off_24)
                                 }, contentDescription = null,
-                                tint = if (oldPassword.isNotBlank()) Color.Black else Color.White
                             )
                         }
                     },
@@ -204,7 +204,6 @@ fun ChangePassBody() {
                         Icon(
                             painter = painterResource(id = R.drawable.baseline_lock_24),
                             contentDescription = "New Password Icon",
-                            tint = if (newPassword.isNotBlank()) Color.Black else Color.White
                         )
                     },
                     trailingIcon = {
@@ -215,7 +214,6 @@ fun ChangePassBody() {
                                 } else {
                                     painterResource(R.drawable.baseline_visibility_off_24)
                                 }, contentDescription = null,
-                                tint = if (newPassword.isNotBlank()) Color.Black else Color.White
                             )
                         }
                     },
@@ -250,8 +248,7 @@ fun ChangePassBody() {
                     leadingIcon = {
                         Icon(
                             painter = painterResource(id = R.drawable.baseline_lock_24),
-                            contentDescription = "Confirm New Password Icon",
-                            tint = if (confirmPassword.isNotBlank()) Color.Black else Color.White
+                            contentDescription = "Confirm New Password Icon"
                         )
                     },
                     trailingIcon = {
@@ -261,8 +258,7 @@ fun ChangePassBody() {
                                     painterResource(R.drawable.baseline_visibility_24)
                                 } else {
                                     painterResource(R.drawable.baseline_visibility_off_24)
-                                }, contentDescription = null,
-                                tint = if (confirmPassword.isNotBlank()) Color.Black else Color.White
+                                }, contentDescription = null
                             )
                         }
                     },

@@ -44,7 +44,7 @@ fun SplashScreen() {
 
     LaunchedEffect(progress) {
         if (progress == 1f) {
-            val intent = Intent(context, DashboardActivity::class.java)
+            val intent = Intent(context, LoginActivity::class.java)
             context.startActivity(intent)
             activity.finish()
         }

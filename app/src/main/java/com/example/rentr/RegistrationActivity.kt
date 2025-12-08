@@ -1,13 +1,16 @@
 package com.example.rentr
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -40,7 +44,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.Black
 import androidx.compose.ui.graphics.Color.Companion.White
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -54,33 +60,36 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.rentr.ui.theme.Blue
+import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.splash
 import com.example.rentr.ui.theme.PurpleGrey80
+import kotlin.jvm.java
 
 class RegistrationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            LoginBody()
+            RegistrationBody()
         }
     }
 }
 
 @Composable
-fun LoginBody() {
+fun RegistrationBody() {
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var visibility by remember { mutableStateOf(false) }
     var confirmVisibility by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
 
     val isFormFilled = email.isNotEmpty() && password.isNotEmpty() && confirmPassword.isNotEmpty()
 
     val context = LocalContext.current
+    val activity = context as? Activity
 
     Scaffold { padding ->
         Column(
@@ -88,20 +97,21 @@ fun LoginBody() {
                 .fillMaxSize()
                 .padding(padding)
                 .background(Black)
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = {
+                        focusManager.clearFocus()
+                    })
+                }
         ) {
-            Spacer(modifier = Modifier.height(30.dp))
-            
             // App Logo
             Image(
-                painter = painterResource(id = R.drawable.logo),
+                painter = painterResource(id = R.drawable.rentrimage),
                 contentDescription = "App Logo",
                 modifier = Modifier
-                    .size(250.dp)
+                    .size(350.dp)
                     .align(Alignment.CenterHorizontally)
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
-            
             Text(
                 "Register Your ",
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp),
@@ -149,12 +159,14 @@ fun LoginBody() {
                     Text("abc@gmail.com")
                 },
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Orange,
-                    unfocusedContainerColor = splash,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Field,
                     focusedIndicatorColor = Orange,
                     unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = splash,
-                    unfocusedTextColor = Color.White
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.White,
+                    focusedLeadingIconColor = Color.Black,
+                    unfocusedLeadingIconColor = Color.White
                 )
             )
             Spacer(modifier = Modifier.height(20.dp))
@@ -186,10 +198,14 @@ fun LoginBody() {
                     Text("Enter password")
                 },
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Orange,
-                    unfocusedContainerColor = splash,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Field,
                     focusedIndicatorColor = Orange,
-                    unfocusedIndicatorColor = Color.Transparent
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.White,
+                    focusedTrailingIconColor = Color.Black,
+                    unfocusedTrailingIconColor = Color.White
                 )
             )
 
@@ -222,10 +238,14 @@ fun LoginBody() {
                     Text("Confirm Password")
                 },
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Orange,
-                    unfocusedContainerColor = splash,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Field,
                     focusedIndicatorColor = Orange,
-                    unfocusedIndicatorColor = Color.Transparent
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.White,
+                    focusedTrailingIconColor = Color.Black,
+                    unfocusedTrailingIconColor = Color.White
                 )
             )
 
@@ -233,16 +253,19 @@ fun LoginBody() {
 
             Button(
                 onClick = {
-//                    if (isFormFilled) {
-//                        if (context is android.app.Activity) {
-//                            val intent = Intent(
-//                                context, DashboardActivity::class.java
-//                            )
-//                            intent.putExtra("email", email)
-//                            intent.putExtra("password", password)
-//                            context.startActivity(intent)
-//                        }
-//                    }
+                        if(isFormFilled){
+                            if(password == confirmPassword){
+                                Toast.makeText(context, "Registration Successful. Continue to Setup.", Toast.LENGTH_SHORT).show()
+                                val intent = Intent(context, FillProfileActivity::class.java)
+                                context.startActivity(intent)
+                                activity?.finish()
+                            }else{
+                                Toast.makeText(context,"Please match the passwords", Toast.LENGTH_SHORT).show()
+                            }
+
+                        }else{
+                            Toast.makeText(context, "Please fill all fields", Toast.LENGTH_SHORT).show()
+                        }
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isFormFilled) Orange else splash
@@ -256,7 +279,7 @@ fun LoginBody() {
                     .height(100.dp)
                     .padding(horizontal = 15.dp, vertical = 20.dp),
             ) {
-                Text("SignUp")
+                Text("Sign Up")
             }
             Spacer(modifier = Modifier.height(20.dp))
             Text(
@@ -266,7 +289,7 @@ fun LoginBody() {
                     }
 
                     withStyle(style = SpanStyle(color = Blue)) {
-                        append(" LogIn")
+                        append("LogIn")
                     }
                 }, modifier = Modifier
                     .clickable{
@@ -305,5 +328,5 @@ fun SocialMediaCard(modifier: Modifier, image: Int, label: String) {
 @Preview
 @Composable
 fun LoginPreview() {
-    LoginBody()
+    RegistrationBody()
 }

@@ -85,7 +85,11 @@ fun ForgotPassGmailBody() {
                     containerColor = Color.Black
                 ),
                 navigationIcon = {
-                    IconButton(onClick = {}) {
+                    IconButton(onClick = {
+                        val intent = Intent(context, LoginActivity::class.java)
+                        context.startActivity(intent)
+                        activity?.finish()
+                    }) {
                         Icon(
                             painter = painterResource(R.drawable.baseline_arrow_back_24),
                             contentDescription = null
@@ -142,8 +146,8 @@ fun ForgotPassGmailBody() {
                     // Using a placeholder icon; replace with your R.drawable.gmail_icon or similar
                     Icon(
                         painter = painterResource(id = android.R.drawable.ic_dialog_email),
-                        contentDescription = "Email Icon",
-                        tint = if (email.isNotBlank()) Color.Black else Color.White
+                        contentDescription = "Email Icon"
+
                     )
                 },
                 placeholder = {
@@ -170,12 +174,9 @@ fun ForgotPassGmailBody() {
             // Proceed Button
             Button(
                 onClick = {
-                    if (activity != null) {
-                        // TODO: Implement actual OTP request logic here
-                        val intent = Intent(context, ForgotPassOTPActivity::class.java)
-                        context.startActivity(intent)
-                        activity.finish()
-                    }
+                    val intent = Intent(context, ForgotPassOTPActivity::class.java)
+                    context.startActivity(intent)
+                    activity?.finish()
                 },
                 enabled = isEnabled,
                 colors = ButtonDefaults.buttonColors(
