@@ -57,7 +57,7 @@ val promo = Color(0xFF85568D)
 val splash = Color(0xFF2C2C2C)
 val Blue = Color(0xFF144F7E)
 
-class FillProfileActivity : ComponentActivity() {
+class AccountSetupActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
