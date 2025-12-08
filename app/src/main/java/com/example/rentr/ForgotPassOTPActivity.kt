@@ -3,6 +3,7 @@ package com.example.rentr
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -83,7 +84,11 @@ fun ForgotPassOTPBody() {
                     containerColor = Color.Black
                 ),
                 navigationIcon = {
-                    IconButton(onClick = {}) {
+                    IconButton(onClick = {
+                        val intent = Intent(context,ForgotPassGmailActivity::class.java)
+                        context.startActivity(intent)
+                        activity?.finish()
+                    }) {
                         Icon(
                             painter = painterResource(R.drawable.baseline_arrow_back_24),
                             contentDescription = null
@@ -139,7 +144,6 @@ fun ForgotPassOTPBody() {
                         Icon(
                             painter = painterResource(id = R.drawable.baseline_lock_24),
                             contentDescription = "OTP Icon",
-                            tint = if (otp.isNotBlank()) Color.Black else Color.White
                         )
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
@@ -167,11 +171,12 @@ fun ForgotPassOTPBody() {
             // Submit Button
             Button(
                 onClick = {
-                    if (activity != null) {
-                        // OTP VERIFICQATION LOGIC
+                    if(otp.length!==6){
+                        Toast.makeText(context, "Please enter a valid OTP", Toast.LENGTH_SHORT).show()
+                    }else{
                         val intent = Intent(context, ForgotPassNewPassActivity::class.java)
                         context.startActivity(intent)
-                        activity.finish()
+                        activity?.finish()
                     }
                 },
                 enabled = isEnabled,

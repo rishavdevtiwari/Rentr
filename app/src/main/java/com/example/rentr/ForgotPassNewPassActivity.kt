@@ -89,14 +89,6 @@ fun ForgotPassNewPassBody() {
                     navigationIconContentColor = Color.White,
                     containerColor = Color.Black
                 ),
-                navigationIcon = {
-                    IconButton(onClick = {}) {
-                        Icon(
-                            painter = painterResource(R.drawable.baseline_arrow_back_24),
-                            contentDescription = null
-                        )
-                    }
-                },
                 title = {
                     Text(
                         text = "Forgot Password",

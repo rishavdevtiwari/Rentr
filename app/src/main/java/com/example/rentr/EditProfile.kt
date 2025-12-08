@@ -1,7 +1,10 @@
 package com.example.rentr
 
+import android.app.Activity
 import android.app.DatePickerDialog
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -42,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import java.util.Calendar
+import kotlin.jvm.java
 
 // region Palette
 private val primaryColor = Color(0xFF1E1E1E)
@@ -64,6 +68,7 @@ class EditProfile : ComponentActivity() {
 @Composable
 fun EditProfileScreen() {
     val context = LocalContext.current
+    val activity = context as? Activity
 
     var fullName by remember { mutableStateOf("Mr Nonchalant") }
     var nickname by remember { mutableStateOf("nis") }
@@ -89,7 +94,9 @@ fun EditProfileScreen() {
             TopAppBar(
                 title = { Text("Edit Profile", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = { /* TODO: Handle back press */ }) {
+                    IconButton(onClick = {
+                        activity?.finish()
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -134,7 +141,10 @@ fun EditProfileScreen() {
             Spacer(modifier = Modifier.weight(1f))
 
             Button(
-                onClick = { /*TODO*/ },
+                onClick = {
+                    activity?.finish()
+                    Toast.makeText(context,"Profile Updated!", Toast.LENGTH_SHORT).show()
+                },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = accentColor)
