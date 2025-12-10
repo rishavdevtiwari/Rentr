@@ -3,8 +3,11 @@ package com.example.rentr.repository
 import com.example.rentr.model.UserModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 
 class UserRepoImp1 : UserRepo {
     val auth : FirebaseAuth = FirebaseAuth.getInstance()
@@ -71,7 +74,7 @@ class UserRepoImp1 : UserRepo {
     }
 
     override fun getCurrentUser(): FirebaseUser? {
-        TODO("Not yet implemented")
+        return auth.currentUser
     }
 
     override fun logout(callback: (Boolean, String) -> Unit) {
@@ -82,18 +85,51 @@ class UserRepoImp1 : UserRepo {
         userId: String,
         callback: (Boolean, String, UserModel?) -> Unit
     ) {
-        TODO("Not yet implemented")
+        ref.child(userId)
+            . addValueEventListener(object : ValueEventListener{
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    if(snapshot.exists()){
+                        val users = snapshot.getValue(UserModel :: class.java)
+                        if(users != null){
+                            callback(true, "profile fetched", users)
+                        }
+                    }
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    callback(false,error.message,null)
+                }
+            })
     }
 
     override fun getAllUsers(callback: (Boolean, String, List<UserModel>) -> Unit) {
-        TODO("Not yet implemented")
+        ref.addValueEventListener(object: ValueEventListener{
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if(snapshot.exists()){
+                    val allUsers = mutableListOf<UserModel>()
+                    for (data in snapshot.children) {
+                        val user = data.getValue(UserModel::class.java)
+                        if (user != null) {
+                            allUsers.add(user)
+                        }
+                    }
+                    callback(true, "User fetched", allUsers)
+                } else {
+                    callback(true, "No users found", emptyList())
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                callback(false, error.message, emptyList())
+            }
+        })
     }
 
     override fun deleteAccount(
         userId: String,
         callback: (Boolean, String) -> Unit
     ) {
-        ref.child(userId).removeValue().addOnCompleteListener{
+        ref.child(userId).removeValue().addOnCompleteListener{ 
             if(it.isSuccessful){
                 callback(true, "Account deleted")
             }
