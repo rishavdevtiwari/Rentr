@@ -144,7 +144,7 @@ class UserRepoImp1 : UserRepo {
         model: UserModel,
         callback: (Boolean, String) -> Unit
     ) {
-        ref.child(userId.toString()).setValue(model).addOnCompleteListener{
+        ref.child(userId).setValue(model).addOnCompleteListener{
             if(it.isSuccessful){
                 callback(true, "User added to database")
             }else{
