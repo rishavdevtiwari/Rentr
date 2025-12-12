@@ -248,7 +248,8 @@ fun FillProfileScreen() {
                                 fullName = fullName,
                                 gender = gender,
                                 phoneNumber = phoneNumber,
-                                dob = dateOfBirth
+                                dob = dateOfBirth,
+                                email = email
                             )
                             userViewModel1.addUserToDatabase(userId, model) { success, msg->
                                 if (success) {
