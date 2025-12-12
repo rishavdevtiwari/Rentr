@@ -23,8 +23,7 @@ class UserRepoImp1 : UserRepo {
             if(it.isSuccessful) {
                 callback(true, "Login Successful")
             }else{
-                    callback(false, "Login Failed")
-
+                    callback(false, it.exception?.message.toString())
                 }
             }
     }
@@ -39,7 +38,7 @@ class UserRepoImp1 : UserRepo {
                 callback(true, "Registration complete. You can now sign it through login page", "${auth.currentUser?.uid}")
 
             }else{
-                callback(false, "Registration failed", "")
+                callback(false, it.exception?.message.toString(), "")
             }
         }
 

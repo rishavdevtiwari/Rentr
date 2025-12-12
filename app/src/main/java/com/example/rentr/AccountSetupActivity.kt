@@ -1,8 +1,11 @@
 package com.example.rentr
 
+import android.R.attr.password
 import android.app.Activity
+import android.app.DatePickerDialog
 import android.content.Intent
 import android.os.Bundle
+import android.widget.DatePicker
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -10,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -34,28 +38,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.rentr.model.UserModel
+import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
-
-// --- YOUR COLOR PALETTE ---
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
-
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
-
-val Field = Color(0xFF333232)
-val BG40 = Color(0xFF1E1E1E) // Changed to 0xFF for full opacity (Solid color)
-val Orange = Color(0xFFFF5D18)
-
-val outline = Color(0xFF818181)
-val ButtonColor = Color(0xFFCCCCCC) // Renamed to ButtonColor to avoid conflict with Button composable
-
-val promo = Color(0xFF85568D)
-val splash = Color(0xFF2C2C2C)
-val Blue = Color(0xFF144F7E)
+import com.example.rentr.viewmodel.UserViewModel
+import java.util.Calendar
+import java.util.Date
 
 class FillProfileActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -77,15 +66,41 @@ class FillProfileActivity : ComponentActivity() {
 fun FillProfileScreen() {
     // Form State
     var fullName by remember { mutableStateOf("") }
-    var nickname by remember { mutableStateOf("") }
     var dateOfBirth by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
 
+    //UserViewModel
+    val userViewModel1 = remember { UserViewModel(UserRepoImp1()) }
+
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
-    val activity = context as? Activity
+    val activity = context as Activity
+
+    //Capturing email and userId from intent
+    val email = activity.intent?.getStringExtra("email") ?: ""
+    val password = activity.intent?.getStringExtra("password") ?: ""
+
+    // --- Date Picker Setup ---
+    val calendar = Calendar.getInstance()
+    val year = calendar.get(Calendar.YEAR)
+    val month = calendar.get(Calendar.MONTH)
+    val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+    val datePickerDialog = DatePickerDialog(
+        context,
+        { _: DatePicker, selectedYear: Int, selectedMonth: Int, selectedDay: Int ->
+            dateOfBirth = "$selectedDay/${selectedMonth + 1}/$selectedYear"
+        },
+        year,
+        month,
+        day
+    )
+
+    // --- Gender Picker Setup ---
+    val genderOptions = listOf("Male", "Female", "Other")
+    var expanded by remember { mutableStateOf(false) }
+
 
     Scaffold(
         topBar = {
@@ -124,7 +139,6 @@ fun FillProfileScreen() {
                     .padding(vertical = 24.dp)
                     .size(120.dp)
             ) {
-                // Profile Placeholder
                 Icon(
                     imageVector = Icons.Default.AccountCircle,
                     contentDescription = "Profile Image",
@@ -134,14 +148,12 @@ fun FillProfileScreen() {
                         .clip(CircleShape)
                         .background(Field)
                 )
-
-                // Edit Icon (Pencil)
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(Orange) // Your Orange Accent
+                        .background(Orange)
                         .clickable { /* Handle Image Pick */ },
                     contentAlignment = Alignment.Center
                 ) {
@@ -154,6 +166,7 @@ fun FillProfileScreen() {
                 }
             }
 
+
             // --- Input Fields ---
             RentrTextField(
                 value = fullName,
@@ -162,96 +175,109 @@ fun FillProfileScreen() {
             )
             Spacer(modifier = Modifier.height(20.dp))
 
-//            RentrTextField(
-//                value = nickname,
-//                onValueChange = { nickname = it },
-//                placeholder = "Nickname"
-//            )
-//            Spacer(modifier = Modifier.height(20.dp))
-
-            RentrTextField(
-                value = dateOfBirth,
-                onValueChange = { dateOfBirth = it },
-                placeholder = "Date of Birth",
-                trailingIcon = Icons.Default.DateRange
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-
             RentrTextField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = {},
                 placeholder = "Email",
-                trailingIcon = Icons.Default.Email,
-                keyboardType = KeyboardType.Email
+                readOnly = true,
+                trailingIcon = Icons.Default.Email
             )
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Phone Number Row
-            Row(modifier = Modifier.fillMaxWidth()) {
-//                // Country Code (Static simulation)
-//                Row(
-//                    modifier = Modifier
-//                        .height(56.dp)
-//                        .background(Field, RoundedCornerShape(12.dp))
-//                        .padding(horizontal = 12.dp)
-//                        .clickable { },
-//                    verticalAlignment = Alignment.CenterVertically
-//                ) {
-//                    Icon(
-//                        imageVector = Icons.Default.Flag,
-//                        contentDescription = "Flag",
-//                        tint = Color.White,
-//                        modifier = Modifier.size(24.dp)
-//                    )
-//                    Icon(
-//                        imageVector = Icons.Default.ArrowDropDown,
-//                        contentDescription = null,
-//                        tint = outline
-//                    )
-                //}
-
-
-                // Phone Input
+            // --- Date of Birth Picker ---
+            Box(modifier = Modifier.clickable { datePickerDialog.show() }) {
                 RentrTextField(
-                    value = phoneNumber,
-                    onValueChange = { phoneNumber = it },
-                    placeholder = "Phone Number",
-                    modifier = Modifier.weight(1f),
-                    keyboardType = KeyboardType.Phone
+                    value = dateOfBirth,
+                    onValueChange = {},
+                    placeholder = "Date of Birth",
+                    trailingIcon = Icons.Default.DateRange,
+                    readOnly = true,
+                    enabled = false
                 )
             }
+
             Spacer(modifier = Modifier.height(20.dp))
 
             RentrTextField(
-                value = gender,
-                onValueChange = { },
-                placeholder = "Gender",
-                trailingIcon = Icons.Default.ArrowDropDown,
-                readOnly = true
+                value = phoneNumber,
+                onValueChange = { phoneNumber = it },
+                placeholder = "Phone Number",
+                keyboardType = KeyboardType.Phone
             )
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // --- Gender Picker ---
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded },
+            ) {
+                RentrTextField(
+                    modifier = Modifier.menuAnchor(),
+                    value = gender,
+                    onValueChange = {},
+                    placeholder = "Gender",
+                    trailingIcon = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                    readOnly = true
+                )
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.background(Field)
+                ) {
+                    genderOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option, color = Color.White) },
+                            onClick = {
+                                gender = option
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.weight(1f))
 
             // --- Continue Button ---
             Button(
                 onClick = {
-                    Toast.makeText(context, "Logged In.", Toast.LENGTH_SHORT).show()
-                    val intent = Intent(context, DashboardActivity::class.java)
-                    context.startActivity(intent)
-                    activity?.finish()
+                    userViewModel1.register(email, password){ success, msg, userId ->
+                        if(success){
+                            val model = UserModel(
+                                uId = userId,
+                                fullName = fullName,
+                                gender = gender,
+                                phoneNumber = phoneNumber,
+                                dob = dateOfBirth
+                            )
+                            userViewModel1.addUserToDatabase(userId, model) { success, msg->
+                                if (success) {
+                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                    val intent = Intent(context, DashboardActivity::class.java)
+                                    context.startActivity(intent)
+                                    activity.finish()
+                                } else {
+                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                }
+
+                            }
+                        }else{
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+
+
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 30.dp)
                     .height(55.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Orange, // Your primary Orange
+                    containerColor = Orange,
                     contentColor = Color.White
                 ),
                 shape = RoundedCornerShape(30.dp),
-                elevation = ButtonDefaults.buttonElevation(
-                    defaultElevation = 6.dp
-                )
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
             ) {
                 Text(
                     text = "Continue",
@@ -266,8 +292,6 @@ fun FillProfileScreen() {
 // --- Custom TextField Component using your colors ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-
-
 fun RentrTextField(
     value: String,
     onValueChange: (String) -> Unit,
@@ -275,33 +299,38 @@ fun RentrTextField(
     modifier: Modifier = Modifier,
     trailingIcon: ImageVector? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
-    readOnly: Boolean = false
+    readOnly: Boolean = false,
+    enabled:Boolean = true
 ) {
-
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier.fillMaxWidth(),
-        placeholder = {
-            Text(text = placeholder, color = outline) // Using your 'outline' color for hint
-        },
+        enabled = enabled,
+        placeholder = { Text(text = placeholder, color = outline) },
         shape = RoundedCornerShape(12.dp),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = Color.White,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = Field,
             unfocusedContainerColor = Field,
-            focusedIndicatorColor = Orange,
-            unfocusedIndicatorColor = Color.Transparent,
-            focusedTextColor = Color.Black,
+            disabledContainerColor = Field,
+            focusedBorderColor = Orange,
+            unfocusedBorderColor = Color.Transparent,
+            disabledBorderColor = Color.Transparent,
+            focusedTextColor = Color.White,
             unfocusedTextColor = Color.White,
-            focusedTrailingIconColor = Color.Black,
-            unfocusedTrailingIconColor = Color.White
+            disabledTextColor = Color.White,
+            cursorColor = Orange,
+            selectionColors = TextSelectionColors(
+                handleColor = Orange,
+                backgroundColor = Orange.copy(alpha = 0.3f)
+            ),
+            focusedTrailingIconColor = Orange,
+            unfocusedTrailingIconColor = outline,
+            disabledTrailingIconColor = outline
         ),
         trailingIcon = trailingIcon?.let {
             {
-                Icon(
-                    imageVector = it,
-                    contentDescription = null
-                )
+                Icon(imageVector = it, contentDescription = null)
             }
         },
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
@@ -315,3 +344,17 @@ fun RentrTextField(
 fun FillProfilePreview() {
     FillProfileScreen()
 }
+
+// Dummy Color Vars to prevent Preview errors
+val Purple80 = Color(0xFFD0BCFF)
+val PurpleGrey80 = Color(0xFFCCC2DC)
+val Pink80 = Color(0xFFEFB8C8)
+val Purple40 = Color(0xFF6650a4)
+val PurpleGrey40 = Color(0xFF625b71)
+val Pink40 = Color(0xFF7D5260)
+val BG40 = Color(0xFF1E1E1E)
+val outline = Color(0xFF818181)
+val ButtonColor = Color(0xFFCCCCCC)
+val promo = Color(0xFF85568D)
+val splash = Color(0xFF2C2C2C)
+val Blue = Color(0xFF144F7E)

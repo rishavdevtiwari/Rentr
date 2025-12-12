@@ -1,5 +1,6 @@
 package com.example.rentr.viewmodel
 
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.rentr.model.UserModel
@@ -33,8 +34,8 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
         repo.logout(callback)
     }
 
-    private val _user = MutableLiveData<UserModel>()
-    val user : MutableLiveData<UserModel>
+    private val _user = MutableLiveData<UserModel?>()
+    val user : LiveData<UserModel?>
         get() = _user
     private val _allUsers = MutableLiveData<List<UserModel>?>()
     val allUsers : MutableLiveData<List<UserModel>?>
@@ -45,11 +46,28 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
         get() = _loading
 
     fun getUserById(userId: String, callback:(Boolean,String, UserModel?) -> Unit){
-        repo.getUserById(userId,callback)
+        _loading.postValue(true)
+        repo.getUserById(userId){ success, msg, data ->
+            if(success){
+                _user.postValue(data)
+            }else{
+                _user.postValue(null)
+            }
+            _loading.postValue(false)
+        }
     }
 
     fun getAllUsers(callback:(Boolean, String, List<UserModel>) -> Unit){
-        repo.getAllUsers (callback)
+        _loading.postValue(true)
+        repo.getAllUsers { success, msg, data ->
+            if(success){
+                _loading.postValue(false)
+                _allUsers.postValue(data)
+            }else{
+                _loading.postValue(false)
+                _allUsers.postValue(emptyList())
+            }
+        }
     }
 
     fun deleteAccount(userId: String, callback:(Boolean, String) -> Unit){
