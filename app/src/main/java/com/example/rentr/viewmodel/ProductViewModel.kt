@@ -36,23 +36,67 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
     }
 
     fun getProductById(productId: String, callback: (Boolean, String, ProductModel?) -> Unit) {
-        repo.getProductById(productId, callback)
+        _loading.postValue(true)
+        repo.getProductById(productId){
+            success, msg, data ->
+            if(success){
+                _product.postValue(data)
+            }else{
+                _product.postValue(null)
+            }
+            _loading.postValue(false)
+        }
     }
 
     fun getAllProducts(callback: (Boolean, String, List<ProductModel>) -> Unit) {
-        repo.getAllProducts(callback)
+        _loading.postValue(true)
+        repo.getAllProducts{
+            success, msg, data ->
+            if(success){
+                _allProducts.postValue(data)
+            }else{
+                _allProducts.postValue(emptyList())
+            }
+            _loading.postValue(false)
+        }
     }
 
     fun getAllProductsByCategory(category: String, callback: (Boolean, String, List<ProductModel>) -> Unit) {
-        repo.getAllProductsByCategory(category, callback)
+        _loading.postValue(true)
+        repo.getAllProductsByCategory(category){
+            success, msg, data ->
+            if(success){
+                _allProducts.postValue(data)
+            }else{
+                _allProducts.postValue(emptyList())
+            }
+            _loading.postValue(false)
+        }
     }
 
     fun getAvailableProducts(callback: (Boolean, String, List<ProductModel>) -> Unit) {
-        repo.getAvailableProducts(callback)
+        repo.getAvailableProducts { success, msg, data ->
+            if (success) {
+                _allProducts.postValue(data)
+            } else {
+                _allProducts.postValue(emptyList())
+            }
+            _loading.postValue(false)
+        }
     }
 
     fun getAllProductsByUser(userId: String, callback: (Boolean, String, List<ProductModel>) -> Unit) {
-        repo.getAllProductsByUser(userId, callback)
+        _loading.postValue(true)
+        repo.getAllProductsByUser(userId){
+            success, msg, data ->
+            if(success){
+                _allProducts.postValue(data)
+            }else{
+                _allProducts.postValue(emptyList())
+            }
+            _loading.postValue(false)
+        }
+
     }
 
     fun updateAvailability(productId: String, available: Boolean, callback: (Boolean, String) -> Unit) {
