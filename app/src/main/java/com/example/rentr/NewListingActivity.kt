@@ -1,5 +1,6 @@
 package com.example.rentr
 
+import android.app.Activity
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -29,11 +30,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -62,9 +67,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.rentr.model.ProductModel
+import com.example.rentr.model.UserModel
+import com.example.rentr.repository.ProductRepoImpl
+import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.RentrTheme
+import com.example.rentr.viewmodel.ProductViewModel
+import com.example.rentr.viewmodel.UserViewModel
 
 class NewListingActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -94,17 +105,33 @@ class NewListingActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewListingScreen(modifier: Modifier = Modifier) {
+
+    //Product View Model
+    val productViewModel = remember {ProductViewModel(ProductRepoImpl())}
+
+    //User View Model
+    val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+
+
     var productName by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var quantity by remember { mutableIntStateOf(1) }
     var isAvailable by remember { mutableStateOf(true) }
     var images by remember { mutableStateOf<List<Int>>(emptyList()) }
+    var selectedCategory by remember { mutableStateOf("") }
     val context = LocalContext.current
+    val activity = context as Activity
 
     val minImages = 4
     val maxImages = 7
+
+    val categories = listOf("Vehicles", "Household", "Electronics", "Accessories ", "Furniture", "Sports & Adventure", "Baby Items")
+    var categoryExpanded by remember { mutableStateOf(false) }
+
+
 
     Column(
         modifier = modifier
@@ -235,6 +262,48 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
             )
         }
 
+        //Category
+        ExposedDropdownMenuBox(
+            expanded = categoryExpanded,
+            onExpandedChange = { categoryExpanded = !categoryExpanded },
+        ) {
+            OutlinedTextField(
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                value = selectedCategory,
+                onValueChange = {
+                    selectedCategory = it
+                },
+                readOnly = true,
+                placeholder = { Text("Select Category", color = Color.Gray) },
+                trailingIcon = { Icon(if (categoryExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown, null) },
+                shape = RoundedCornerShape(8.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Field,
+                    focusedBorderColor = Orange,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.White,
+                    cursorColor = Orange
+                )
+            )
+            ExposedDropdownMenu(
+                expanded = categoryExpanded,
+                onDismissRequest = { categoryExpanded = false },
+                modifier = Modifier.background(Field)
+            ) {
+                categories.forEach { category ->
+                    DropdownMenuItem(
+                        text = { Text(category, color = Color.White) },
+                        onClick = {
+                            selectedCategory = category
+                            categoryExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.weight(1f))
 
         // Submit button
@@ -243,7 +312,25 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                 if (images.size < minImages) {
                     Toast.makeText(context, "Please add at least $minImages photos.", Toast.LENGTH_SHORT).show()
                 } else {
-                    // TODO: Handle form submission
+                    val model = ProductModel (
+                        title = productName,
+                        description = description,
+                        //imageUrl = images.map { it.toString() },
+                        quantity = quantity,
+                        availability = isAvailable,
+                        category = selectedCategory,
+                        isVerified = true,
+                        listedBy =  userViewModel.getCurrentUser()?.uid ?: ""
+                    )
+                    productViewModel.addProduct(model) { success, msg ->
+                        if (success) {
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                activity.finish()
+                        } else {
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    activity.finish()
                 }
             },
             modifier = Modifier

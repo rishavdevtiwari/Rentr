@@ -63,14 +63,15 @@ class UserRepoImp1 : UserRepo {
         model: UserModel,
         callback: (Boolean, String) -> Unit
     ) {
-        ref.child(userId).updateChildren(model.toMap()).addOnCompleteListener {
-            if(it.isSuccessful){
+        ref.child(userId).setValue(model).addOnCompleteListener {
+            if (it.isSuccessful) {
                 callback(true, "Profile updated")
-            }else{
+            } else {
                 callback(false, "Failed to update profile")
             }
         }
     }
+
 
     override fun getCurrentUser(): FirebaseUser? {
         return auth.currentUser

@@ -6,7 +6,9 @@ data class UserModel(
     val phoneNumber : String = "",
     val uId : String = "",
     val dob: String = "",
-    val email: String = ""
+    val email: String = "",
+    val listings: List<String> = emptyList(),
+    val verified: Boolean = false
 )
 {
     fun toMap() : Map < String, Any?>{
@@ -16,7 +18,9 @@ data class UserModel(
             "Gender" to gender,
             "PhoneNumber" to phoneNumber,
             "DOB" to dob,
-            "email" to email
+            "email" to email,
+            "listings" to listings,
+            "verified" to verified
         )
     }
 }

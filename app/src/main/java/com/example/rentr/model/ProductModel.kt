@@ -6,13 +6,14 @@ data class ProductModel(
     val description: String = "",
     val imageUrl: List<String> = emptyList(),
     val price: Double = 0.0,
-    val productId: String = "",
+    val productId: String = "", // primary key
     val availability: Boolean = true,
     val quantity: Int = 0,
     val outOfStock: Boolean = false,
     val rating: Double = 0.0,
     val ratingCount: Int = 0,
-    val category: String = ""
+    val category: String = "", //foreign key,
+    val isVerified: Boolean = false
 ){
     fun toMap() : Map < String, Any?> {
         return mapOf(
