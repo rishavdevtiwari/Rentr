@@ -7,8 +7,8 @@ import com.example.rentr.model.ProductModel
 
 class ProductViewModel(val repo: ProductRepo) : ViewModel() {
 
-    private val _product = MutableLiveData<ProductModel>()
-    val product: MutableLiveData<ProductModel>
+    private val _product = MutableLiveData<ProductModel?>()
+    val product: MutableLiveData<ProductModel?>
         get() = _product
 
     private val _allProducts = MutableLiveData<List<ProductModel>?>()
@@ -19,12 +19,8 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
     val loading: MutableLiveData<Boolean>
         get() = _loading
 
-    fun addProduct(product: ProductModel, callback: (Boolean, String, String) -> Unit) {
+    fun addProduct(product: ProductModel, callback: (Boolean, String) -> Unit) {
         repo.addProduct(product, callback)
-    }
-
-    fun addProductToDatabase(productId: String, product: ProductModel, callback: (Boolean, String) -> Unit) {
-        repo.addProductToDatabase(productId, product, callback)
     }
 
     fun updateProduct(productId: String, product: ProductModel, callback: (Boolean, String) -> Unit) {

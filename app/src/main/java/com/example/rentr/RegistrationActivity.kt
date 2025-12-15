@@ -255,20 +255,20 @@ fun RegistrationBody() {
 
             Button(
                 onClick = {
-                        if(isFormFilled){
-                            if(password == confirmPassword){
-                                val intent = Intent(context, FillProfileActivity::class.java)
-                                intent.putExtra("email",email)
-                                intent.putExtra("password",password)
-                                context.startActivity(intent)
-                                activity?.finish()
-                            }else{
-                                Toast.makeText(context,"Please match the passwords", Toast.LENGTH_SHORT).show()
-                            }
-
+                    if(isFormFilled){
+                        if(password == confirmPassword){
+                            val intent = Intent(context, FillProfileActivity::class.java)
+                            intent.putExtra("email",email)
+                            intent.putExtra("password",password)
+                            context.startActivity(intent)
+                            activity?.finish()
                         }else{
-                            Toast.makeText(context, "Please fill all fields", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context,"Please match the passwords", Toast.LENGTH_SHORT).show()
                         }
+
+                    }else{
+                        Toast.makeText(context, "Please fill all fields", Toast.LENGTH_SHORT).show()
+                    }
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isFormFilled) Orange else Button

@@ -11,29 +11,15 @@ class ProductRepoImpl: ProductRepo {
 
     override fun addProduct(
         product: ProductModel,
-        callback: (Boolean, String, String) -> Unit
+        callback: (Boolean, String) -> Unit
     ) {
         ref.push().also { newRef ->
             newRef.setValue(product.copy(productId = newRef.key ?: "")).addOnCompleteListener {
                 if (it.isSuccessful) {
-                    callback(true, "Product added", newRef.key ?: "")
+                    callback(true, "Product added")
                 } else {
-                    callback(false, "Failed to add product", "")
+                    callback(false, "${it.exception?.message}")
                 }
-            }
-        }
-    }
-
-    override fun addProductToDatabase(
-        productId: String,
-        product: ProductModel,
-        callback: (Boolean, String) -> Unit
-    ) {
-        ref.child(productId).setValue(product).addOnCompleteListener {
-            if (it.isSuccessful) {
-                callback(true, "Product added to database")
-            } else {
-                callback(false, "Failed to add product to the database")
             }
         }
     }
@@ -43,7 +29,7 @@ class ProductRepoImpl: ProductRepo {
         product: ProductModel,
         callback: (Boolean, String) -> Unit
     ) {
-        ref.child(productId).setValue(product).addOnCompleteListener { //setValue() affects the whole node unlike updateChildren which only affects
+        ref.child(productId).updateChildren(product.toMap()).addOnCompleteListener { //setValue() affects the whole node unlike updateChildren which only affects
                                                                                   // specific attributes. Thus, we use a .toMap() fn in the updateUser because
                                                                                   // we usually only update some fields.
             if (it.isSuccessful) {
@@ -71,16 +57,15 @@ class ProductRepoImpl: ProductRepo {
         productId: String,
         callback: (Boolean, String, ProductModel?) -> Unit
     ) {
-        ref.child(productId).addListenerForSingleValueEvent(object : ValueEventListener {
+        ref.child(productId).addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (snapshot.exists()) {
                     val product = snapshot.getValue(ProductModel::class.java)
                     callback(true, "Product fetched", product)
                 } else {
-                    callback(false, "Product not found", null)
+                    callback(false, "Product not found" , null)
                 }
             }
-
             override fun onCancelled(error: DatabaseError) {
                 callback(false, error.message, null)
             }
@@ -88,7 +73,7 @@ class ProductRepoImpl: ProductRepo {
     }
 
     override fun getAllProducts(callback: (Boolean, String, List<ProductModel>) -> Unit) {
-        ref.addListenerForSingleValueEvent(object : ValueEventListener {
+        ref.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val products = mutableListOf<ProductModel>()
                 for (data in snapshot.children) {
@@ -108,7 +93,7 @@ class ProductRepoImpl: ProductRepo {
         callback: (Boolean, String, List<ProductModel>) -> Unit
     ) {
         ref.orderByChild("category").equalTo(category)
-            .addListenerForSingleValueEvent(object : ValueEventListener {
+            .addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val products = mutableListOf<ProductModel>()
                     for (data in snapshot.children) {
@@ -125,7 +110,7 @@ class ProductRepoImpl: ProductRepo {
 
     override fun getAvailableProducts(callback: (Boolean, String, List<ProductModel>) -> Unit) {
         ref.orderByChild("availability").equalTo(true)
-            .addListenerForSingleValueEvent(object : ValueEventListener {
+            .addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val products = mutableListOf<ProductModel>()
                     for (data in snapshot.children) {
@@ -145,7 +130,7 @@ class ProductRepoImpl: ProductRepo {
         callback: (Boolean, String, List<ProductModel>) -> Unit
     ) {
         ref.orderByChild("listedBy").equalTo(userId)
-            .addListenerForSingleValueEvent(object : ValueEventListener {
+            .addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val products = mutableListOf<ProductModel>()
                     for (data in snapshot.children) {

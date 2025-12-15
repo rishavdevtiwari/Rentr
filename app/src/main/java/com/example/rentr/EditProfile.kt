@@ -118,19 +118,12 @@ fun EditProfileScreen() {
             Spacer(modifier = Modifier.height(24.dp))
             ProfileTextField(value = fullName, onValueChange = { fullName = it })
             Spacer(modifier = Modifier.height(16.dp))
-            ProfileTextField(value = nickname, onValueChange = { nickname = it })
-            Spacer(modifier = Modifier.height(16.dp))
             ProfileTextField(
                 value = dob,
                 onValueChange = { dob = it },
                 trailingIcon = { IconButton(onClick = { datePickerDialog.show() }) { Icon(Icons.Default.CalendarToday, contentDescription = "Select Date") } }
             )
             Spacer(modifier = Modifier.height(16.dp))
-            ProfileTextField(
-                value = email,
-                onValueChange = { email = it },
-                trailingIcon = { Icon(Icons.Default.Email, contentDescription = "Email") }
-            )
             Spacer(modifier = Modifier.height(16.dp))
             ProfileDropdownField(selectedValue = country, onValueChange = { country = it }, options = listOf("Agartha", "Kathmandu", "Lalitpur", "Bhaktapur"))
             Spacer(modifier = Modifier.height(16.dp))
