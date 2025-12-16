@@ -2,7 +2,7 @@ import com.example.rentr.model.ProductModel
 
 interface ProductRepo {
 
-    fun addProduct(product: ProductModel, callback: (Boolean, String) -> Unit)
+    fun addProduct(product: ProductModel, callback: (Boolean, String,String?) -> Unit)
 
     fun updateProduct(productId: String, product: ProductModel, callback: (Boolean, String) -> Unit)
 

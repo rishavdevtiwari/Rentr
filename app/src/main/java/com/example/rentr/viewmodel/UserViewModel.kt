@@ -49,25 +49,18 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
         _loading.postValue(true)
         repo.getUserById(userId){ success, msg, data ->
             if(success){
+                _loading.postValue(false)
                 _user.postValue(data)
             }else{
+                _loading.postValue(false)
                 _user.postValue(null)
             }
-            _loading.postValue(false)
+            callback(success, msg, data)
         }
     }
 
     fun getAllUsers(callback:(Boolean, String, List<UserModel>) -> Unit){
-        _loading.postValue(true)
-        repo.getAllUsers { success, msg, data ->
-            if(success){
-                _loading.postValue(false)
-                _allUsers.postValue(data)
-            }else{
-                _loading.postValue(false)
-                _allUsers.postValue(emptyList())
-            }
-        }
+        repo.getAllUsers (callback)
     }
 
     fun deleteAccount(userId: String, callback:(Boolean, String) -> Unit){
