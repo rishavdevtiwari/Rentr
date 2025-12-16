@@ -1,20 +1,16 @@
-package com.example.rentr
+package com.example.rentr.view
 
 import android.app.Activity
 import android.content.Intent
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -22,22 +18,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,65 +30,82 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
+import com.example.rentr.R
+import com.example.rentr.model.ProductModel
+import com.example.rentr.repository.ProductRepoImpl
+import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
+import com.example.rentr.viewmodel.ProductViewModel
+import com.example.rentr.viewmodel.UserViewModel
 
-
-// Data class to represent a listed item
-data class ListedItem(
-    val id: Int,
-    val name: String,
-    val price: Double,
-    val imageRes: Int,
-    val status: String // "Available", "Unavailable", or "Rented Out"
-)
-
-// Sample data for the list, including an "Unavailable" item
-val sampleListedItems = listOf(
-    ListedItem(1, "Mountain Bike", 55.0, R.drawable.bicycle, "Available"),
-    ListedItem(2, "DSLR Camera", 80.0, R.drawable.camera, "Rented Out"),
-    ListedItem(6, "Old Camera", 30.0, R.drawable.camera, "Unavailable"),
-    ListedItem(3, "Gaming Laptop", 120.0, R.drawable.camera, "Available"),
-
-)
+class ListedActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            ListedScreen()
+        }
+    }
+}
 
 @Composable
 fun ListedScreen() {
     val context = LocalContext.current
-    val activity = context as? Activity
+    val productViewModel = remember { ProductViewModel(ProductRepoImpl()) }
+    val products by productViewModel.allProducts.observeAsState(emptyList())
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    // Tabs updated to reflect the desired sections
-    val tabs = listOf("Available/Unavailable", "Rented Out")
+    val tabs = listOf("Available / Unavailable", "Rented Out")
 
-    // Filter logic updated to show "Available" and "Unavailable" items under the first tab
+    val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+    val uId = userViewModel.getCurrentUser()?.uid
+
+    // Launcher for adding a new item
+    val newListingLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            uId?.let { productViewModel.getAllProductsByUser(userId = it) { _, _, _ -> } }
+        }
+    }
+
+    // Launcher for editing an item
+    val editListingLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            uId?.let { productViewModel.getAllProductsByUser(userId = it) { _, _, _ -> } }
+        }
+    }
+
+    LaunchedEffect(uId) {
+        uId?.let {
+            productViewModel.getAllProductsByUser(userId = it) { _, _, _ -> }
+        }
+    }
+
     val filteredList = if (selectedTabIndex == 0) {
-        sampleListedItems.filter { it.status.equals("Available", true) || it.status.equals("Unavailable", true) }
+        products.filter { it.availability || !it.availability } // show available + unavailable
     } else {
-        sampleListedItems.filter { it.status.equals(tabs[selectedTabIndex], ignoreCase = true) }
+        products.filter { it.outOfStock } // rented out
     }
 
     Scaffold(
         containerColor = Color.Black,
-        topBar = {
-            ListedTopAppBar()
-        },
+        topBar = { ListedTopAppBar() },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
                     val intent = Intent(context, NewListingActivity::class.java)
-                    activity?.startActivity(intent)
+                    newListingLauncher.launch(intent)
                 },
                 containerColor = Orange,
                 shape = CircleShape
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add new listing",
-                    tint = Color.Black
-                )
+                Icon(Icons.Default.Add, null, tint = Color.Black)
             }
         }
     ) { paddingValues ->
@@ -139,13 +140,18 @@ fun ListedScreen() {
                     )
                 }
             }
-
+            Spacer(modifier = Modifier.padding(top = 20.dp))
             LazyColumn(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                items(filteredList) { item ->
-                    ListedItemCard(item = item)
+                items(filteredList) { product ->
+                    ListedItemCardCompact(product = product, isAvailableTab = selectedTabIndex == 0, onEditClicked = {
+                        val intent = Intent(context, EditListedActivity::class.java)
+                        intent.putExtra("productId", product.productId)
+                        editListingLauncher.launch(intent)
+                    })
                 }
             }
         }
@@ -154,116 +160,123 @@ fun ListedScreen() {
 
 @Composable
 fun ListedTopAppBar() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 30.dp, start = 16.dp, end = 16.dp, bottom = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "My Listed Items",
-            color = Color.White,
-            fontSize = 30.sp,
-            fontWeight = FontWeight.Bold
-        )
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 20.dp, start = 16.dp, end = 16.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "My Listed Items",
+                color = Color.White,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
     }
-    Spacer(modifier = Modifier.height(20.dp))
 }
 
 @Composable
-fun ListedItemCard(item: ListedItem) {
-    // Add an overall transparency effect if the item is unavailable
-    val isUnavailable = item.status.equals("Unavailable", ignoreCase = true)
-    val isRented = item.status.equals("Rented Out", ignoreCase = true)
-
-    val context = LocalContext.current
-    val activity = context as? Activity
-
-    val cardAlpha = 1f
+fun ListedItemCardCompact(product: ProductModel, isAvailableTab: Boolean, onEditClicked: () -> Unit) {
+    val status = when {
+        product.outOfStock -> "Rented Out"
+        !product.availability -> "Unavailable"
+        else -> "Available"
+    }
+    val isRented = status == "Rented Out"
+    val isUnavailable = status == "Unavailable" && isAvailableTab
 
     Card(
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.height(150.dp),
-        colors = CardDefaults.cardColors(containerColor = Field.copy(alpha = cardAlpha))
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier
+            .height(100.dp)
+            .width(320.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = when {
+                isRented -> Field.copy(alpha = 0.6f)
+                isUnavailable -> Color.Gray.copy(alpha = 0.4f)
+                else -> Field
+            }
+        )
     ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center){
-            Row(
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = painterResource(R.drawable.p1),
+                contentDescription = product.title,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .size(70.dp)
+                    .clip(RoundedCornerShape(10.dp)),
+                contentScale = ContentScale.Crop
+            )
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                // Image on the left
-                Image(
-                    painter = painterResource(id = item.imageRes),
-                    contentDescription = item.name,
-                    modifier = Modifier
-                        .size(110.dp)
-                        .clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop,
-                    alpha = cardAlpha // Apply alpha to image as well
+                Text(
+                    text = product.title,
+                    color = if (isUnavailable) Color.LightGray else Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
                 )
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = "Qty: ${product.quantity}",
+                    color = if (isUnavailable) Color.LightGray else Color.White,
+                    fontSize = 11.sp
+                )
 
-                // Details in the middle
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                Box(
+                    modifier = Modifier
+                        .background(
+                            when {
+                                isRented -> Color.Red.copy(alpha = 0.6f)
+                                isUnavailable -> Color.Gray.copy(alpha = 0.4f)
+                                else -> Orange.copy(alpha = 0.2f)
+                            },
+                            RoundedCornerShape(6.dp)
+                        )
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = item.name,
-                        color = Color.White.copy(alpha = cardAlpha),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Quantity: 5",
-                        color = Color.White.copy(alpha = cardAlpha),
-                        fontSize = 14.sp,
+                        text = status,
+                        color = when {
+                            isRented -> Color.White
+                            isUnavailable -> Color.LightGray
+                            else -> Orange
+                        },
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Medium
                     )
-                    // Status Tag Logic
-                    val statusColor = if (item.status == "Available") Orange else Color.White
-                    val statusBackgroundColor = if (item.status == "Available") Orange.copy(alpha = 0.2f) else Color.Red.copy(alpha=0.6f )
-
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                color = statusBackgroundColor,
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = item.status,
-                            color = statusColor,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-
-                    Text(
-                        text = "NPR. ${item.price}/day",
-                        color = Color.White.copy(alpha = cardAlpha),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
                 }
 
-                // Edit Icon on the right
-                IconButton(onClick = {
-                    val intent = Intent(context, EditListedActivity::class.java)
-                    context.startActivity(intent)
-                   }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit Item",
-                        tint = if(!isRented) Orange else Color.Gray
-                    )
-                }
+                Text(
+                    text = "NPR. ${product.price}/day",
+                    color = if (isUnavailable) Color.LightGray else Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            IconButton(
+                onClick = onEditClicked,
+                enabled = !isRented
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = null,
+                    tint = if (isRented ) Color.Gray else Orange
+                )
             }
         }
     }
@@ -272,5 +285,4 @@ fun ListedItemCard(item: ListedItem) {
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 fun ListedScreenPreview() {
-    ListedScreen()
 }

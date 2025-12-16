@@ -11,9 +11,8 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
     val product: MutableLiveData<ProductModel?>
         get() = _product
 
-    private val _allProducts = MutableLiveData<List<ProductModel>?>()
-    val allProducts: MutableLiveData<List<ProductModel>?>
-        get() = _allProducts
+    private val _allProducts = MutableLiveData<List<ProductModel>>(emptyList())
+    val allProducts: MutableLiveData<List<ProductModel>> = _allProducts
 
     private val _loading = MutableLiveData<Boolean>()
     val loading: MutableLiveData<Boolean>
@@ -40,11 +39,13 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
             }else{
                 _product.postValue(null)
             }
+            //****//
             _loading.postValue(false)
+            callback(success,msg,data)
         }
     }
 
-    fun getAllProducts(callback: (Boolean, String, List<ProductModel>) -> Unit) {
+    fun getAllProducts(callback: (Boolean, String, List<ProductModel>?) -> Unit) {
         _loading.postValue(true)
         repo.getAllProducts{
             success, msg, data ->
@@ -57,12 +58,12 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
         }
     }
 
-    fun getAllProductsByCategory(category: String, callback: (Boolean, String, List<ProductModel>) -> Unit) {
+    fun getAllProductsByCategory(category: String, callback: (Boolean, String, List<ProductModel>?) -> Unit) {
         _loading.postValue(true)
         repo.getAllProductsByCategory(category){
             success, msg, data ->
             if(success){
-                _allProducts.postValue(data)
+                _allProducts.postValue(data?: emptyList())
             }else{
                 _allProducts.postValue(emptyList())
             }
@@ -101,6 +102,10 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
 
     fun updateQuantity(productId: String, quantity: Int, callback: (Boolean, String) -> Unit) {
         repo.updateQuantity(productId, quantity, callback)
+    }
+
+    fun clearProducts() {
+        _allProducts.postValue(emptyList())
     }
 
 }
