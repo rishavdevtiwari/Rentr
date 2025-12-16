@@ -248,7 +248,10 @@ fun FillProfileScreen() {
                                 fullName = fullName,
                                 gender = gender,
                                 phoneNumber = phoneNumber,
-                                dob = dateOfBirth
+                                dob = dateOfBirth,
+                                email = email,
+                                listings = mutableListOf("UNACCEPTED"),
+                                verified = false
                             )
                             userViewModel1.addUserToDatabase(userId, model) { success, msg->
                                 if (success) {

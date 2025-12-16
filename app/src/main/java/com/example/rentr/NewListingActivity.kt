@@ -309,28 +309,53 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
         // Submit button
         Button(
             onClick = {
+                val userId = userViewModel.getCurrentUser()?.uid
+                if (userId == null) {
+                    Toast.makeText(context, "You must be logged in to list an item.", Toast.LENGTH_SHORT).show()
+                    return@Button
+                }
                 if (images.size < minImages) {
-                    Toast.makeText(context, "Please add at least $minImages photos.", Toast.LENGTH_SHORT).show()
-                } else {
-                    val model = ProductModel (
-                        title = productName,
-                        description = description,
-                        //imageUrl = images.map { it.toString() },
-                        quantity = quantity,
-                        availability = isAvailable,
-                        category = selectedCategory,
-                        isVerified = true,
-                        listedBy =  userViewModel.getCurrentUser()?.uid ?: ""
-                    )
-                    productViewModel.addProduct(model) { success, msg ->
-                        if (success) {
-                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                activity.finish()
-                        } else {
-                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Please add at least $minImages photos.", Toast.LENGTH_SHORT).show()
+                return@Button
+                }
+
+                val model = ProductModel(
+                    title = productName,
+                    description = description,
+                    quantity = quantity,
+                    availability = isAvailable,
+                    category = selectedCategory,
+                    isVerified = true,
+                    listedBy = userId
+                )
+
+                // 1. Add the product, which will return the new product's ID.
+                productViewModel.addProduct(model) { success, msg, productId ->
+                    if (success && productId != null) {
+                        // 2. If successful, get the current user's profile.
+                        userViewModel.getUserById(userId) { getUserSuccess, _, user ->
+                            if (getUserSuccess && user != null) {
+                                // 3. Add the new product ID to the user's listings.
+                                val updatedListings = user.listings?.toMutableList() ?: mutableListOf()
+                                updatedListings.add(productId)
+                                val updatedUser = user.copy(listings = updatedListings)
+
+                                // 4. Save the updated user profile to the database.
+                                userViewModel.updateProfile(userId, updatedUser) { updateSuccess, updateMsg ->
+                                    if (updateSuccess) {
+                                        Toast.makeText(context, "Product listed successfully!", Toast.LENGTH_SHORT).show()
+                                        activity.finish() // 5. Finish the activity ONLY after everything is done.
+                                    } else {
+                                        Toast.makeText(context, "Error updating profile: $updateMsg", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            } else {
+                                Toast.makeText(context, "Could not fetch user to update listings.", Toast.LENGTH_SHORT).show()
+                            }
                         }
+                    } else {
+                        Toast.makeText(context, "Failed to list product: $msg", Toast.LENGTH_SHORT).show()
                     }
-                    activity.finish()
                 }
             },
             modifier = Modifier

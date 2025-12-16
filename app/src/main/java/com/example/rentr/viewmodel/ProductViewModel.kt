@@ -19,7 +19,7 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
     val loading: MutableLiveData<Boolean>
         get() = _loading
 
-    fun addProduct(product: ProductModel, callback: (Boolean, String) -> Unit) {
+    fun addProduct(product: ProductModel, callback: (Boolean, String,String?) -> Unit) {
         repo.addProduct(product, callback)
     }
 
