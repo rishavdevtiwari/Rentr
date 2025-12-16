@@ -33,6 +33,10 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
     fun logout(callback: (Boolean, String) -> Unit){
         repo.logout(callback)
     }
+    
+    fun changePassword(oldPass: String, newPass: String, callback: (Boolean, String) -> Unit) {
+        repo.changePassword(oldPass, newPass, callback)
+    }
 
     private val _user = MutableLiveData<UserModel?>()
     val user : LiveData<UserModel?>

@@ -1,6 +1,7 @@
 package com.example.rentr.repository
 
 import com.example.rentr.model.UserModel
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.DataSnapshot
@@ -128,6 +129,33 @@ class UserRepoImp1 : UserRepo {
                 callback(true, "User added to database")
             } else {
                 callback(false, task.exception?.message ?: "Unknown error")
+            }
+        }
+    }
+
+    override fun changePassword(
+        oldPass: String,
+        newPass: String,
+        callback: (Boolean, String) -> Unit
+    ) {
+        val user = auth.currentUser
+        if (user?.email == null) {
+            callback(false, "No user is currently signed in.")
+            return
+        }
+
+        val credential = EmailAuthProvider.getCredential(user.email!!, oldPass)
+        user.reauthenticate(credential).addOnCompleteListener { reauthTask ->
+            if (reauthTask.isSuccessful) {
+                user.updatePassword(newPass).addOnCompleteListener { updateTask ->
+                    if (updateTask.isSuccessful) {
+                        callback(true, "Password updated successfully.")
+                    } else {
+                        callback(false, updateTask.exception?.message ?: "Could not update password.")
+                    }
+                }
+            } else {
+                callback(false, reauthTask.exception?.message ?: "Re-authentication failed.")
             }
         }
     }

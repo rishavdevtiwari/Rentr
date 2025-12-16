@@ -1,4 +1,4 @@
-package com.example.rentr
+package com.example.rentr.view
 
 import android.app.Activity
 import android.os.Bundle
@@ -49,9 +49,12 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.rentr.ui.theme.Button
+import com.example.rentr.R
+import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.ui.theme.Button as DisabledButtonColor
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
+import com.example.rentr.viewmodel.UserViewModel
 
 class ChangePassActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,21 +69,20 @@ class ChangePassActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChangePassBody() {
+    val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+
     var oldPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var visibility by remember { mutableStateOf(false) } // Control visibility for all fields
 
-    // Button is enabled only when all three fields are not blank and new/confirm passwords match
+    // Button is enabled only when all three fields are not blank
     val isEnabled = oldPassword.isNotBlank() &&
             newPassword.isNotBlank() &&
-            confirmPassword.isNotBlank() &&
-            (newPassword == confirmPassword)
+            confirmPassword.isNotBlank()
 
     val focusManager = LocalFocusManager.current
-    val activity = LocalContext.current.let {
-        if (it is Activity) it else null
-    }
+    val context = LocalContext.current
 
     Scaffold (
         topBar = {
@@ -93,7 +95,7 @@ fun ChangePassBody() {
                 ),
                 navigationIcon = {
                     IconButton(onClick = {
-                        activity?.finish()
+                        (context as? Activity)?.finish()
                     }) {
                         Icon(
                             painter = painterResource(R.drawable.baseline_arrow_back_24),
@@ -289,17 +291,23 @@ fun ChangePassBody() {
             // Change Password Button
             Button(
                 onClick = {
-                    if (activity != null) {
-                        // password change API call
-                        // On success, notify the user and close the activity.
-                         Toast.makeText(activity, "Password updated successfully!", Toast.LENGTH_SHORT).show()
-                        activity.finish()
+                    if (newPassword == confirmPassword) {
+                        userViewModel.changePassword(oldPassword, newPassword) { success, msg ->
+                            if (success) {
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                (context as? Activity)?.finish()
+                            } else {
+                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    } else {
+                        Toast.makeText(context, "Passwords do not match.", Toast.LENGTH_SHORT).show()
                     }
                 },
                 enabled = isEnabled,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isEnabled) Orange else Button,
-                    disabledContainerColor = Button
+                    containerColor = if (isEnabled) Orange else DisabledButtonColor,
+                    disabledContainerColor = DisabledButtonColor
                 ),
                 elevation = ButtonDefaults.buttonElevation(
                     defaultElevation = 15.dp

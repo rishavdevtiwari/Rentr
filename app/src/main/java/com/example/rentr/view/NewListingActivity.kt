@@ -1,4 +1,4 @@
-package com.example.rentr
+package com.example.rentr.view
 
 import android.app.Activity
 import android.os.Bundle
@@ -67,8 +67,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.rentr.R
 import com.example.rentr.model.ProductModel
-import com.example.rentr.model.UserModel
 import com.example.rentr.repository.ProductRepoImpl
 import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.ui.theme.Field
@@ -76,6 +76,7 @@ import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.RentrTheme
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
+import kotlin.collections.plus
 
 class NewListingActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -128,7 +129,7 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
     val minImages = 4
     val maxImages = 7
 
-    val categories = listOf("Vehicles", "Household", "Electronics", "Accessories ", "Furniture", "Sports & Adventure", "Baby Items")
+    val categories = listOf("Vehicles", "Household", "Electronics", "Accessories", "Furniture", "Sports & Adventure", "Baby Items")
     var categoryExpanded by remember { mutableStateOf(false) }
 
 
@@ -307,6 +308,7 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.weight(1f))
 
         // Submit button
+        // Submit button
         Button(
             onClick = {
                 val userId = userViewModel.getCurrentUser()?.uid
@@ -315,8 +317,8 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                     return@Button
                 }
                 if (images.size < minImages) {
-                Toast.makeText(context, "Please add at least $minImages photos.", Toast.LENGTH_SHORT).show()
-                return@Button
+                    Toast.makeText(context, "Please add at least $minImages photos.", Toast.LENGTH_SHORT).show()
+                    return@Button
                 }
 
                 val model = ProductModel(
@@ -329,22 +331,22 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                     listedBy = userId
                 )
 
-                // 1. Add the product, which will return the new product's ID.
+                // 1. Add the product
                 productViewModel.addProduct(model) { success, msg, productId ->
                     if (success && productId != null) {
-                        // 2. If successful, get the current user's profile.
+                        // 2. Update user profile listings
                         userViewModel.getUserById(userId) { getUserSuccess, _, user ->
                             if (getUserSuccess && user != null) {
-                                // 3. Add the new product ID to the user's listings.
                                 val updatedListings = user.listings?.toMutableList() ?: mutableListOf()
                                 updatedListings.add(productId)
                                 val updatedUser = user.copy(listings = updatedListings)
 
-                                // 4. Save the updated user profile to the database.
                                 userViewModel.updateProfile(userId, updatedUser) { updateSuccess, updateMsg ->
                                     if (updateSuccess) {
                                         Toast.makeText(context, "Product listed successfully!", Toast.LENGTH_SHORT).show()
-                                        activity.finish() // 5. Finish the activity ONLY after everything is done.
+                                        // ✅ Return RESULT_OK so ListedActivity can refresh
+                                        (context as Activity).setResult(Activity.RESULT_OK)
+                                        (context as Activity).finish()
                                     } else {
                                         Toast.makeText(context, "Error updating profile: $updateMsg", Toast.LENGTH_SHORT).show()
                                     }
@@ -358,17 +360,16 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                     }
                 }
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
+            modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(8.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Orange,
                 contentColor = Color.Black
             )
         ) {
-            Text("List My Item", style = MaterialTheme.typography.titleMedium)
+            Text("List My Item")
         }
+
     }
 }
 

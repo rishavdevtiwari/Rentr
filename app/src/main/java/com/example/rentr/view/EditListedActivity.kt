@@ -1,7 +1,9 @@
-package com.example.rentr
+package com.example.rentr.view
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -27,6 +29,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,7 +41,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,20 +58,27 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.rentr.R
+import com.example.rentr.repository.ProductRepoImpl
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.RentrTheme
+import com.example.rentr.viewmodel.ProductViewModel
 
 class EditListedActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val productId = intent.getStringExtra("productId")
+        if (productId == null) {
+            finish()
+            return
+        }
         setContent {
             RentrTheme {
-                EditScreen(onBackClicked = { onBackPressedDispatcher.onBackPressed() })
+                EditScreen(productId = productId, onBackClicked = { onBackPressedDispatcher.onBackPressed() })
             }
         }
     }
@@ -74,15 +86,36 @@ class EditListedActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditScreen(onBackClicked: () -> Unit) {
+fun EditScreen(productId: String, onBackClicked: () -> Unit) {
 
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
+    val activity = context as? Activity
 
-    var name by remember { mutableStateOf("Modern Sedan") }
-    var description by remember { mutableStateOf("A comfortable and stylish car for daily commutes.") }
+    val productViewModel = remember { ProductViewModel(ProductRepoImpl()) }
+    val productToEdit by productViewModel.product.observeAsState(null)
+
+    var name by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
     var isAvailable by remember { mutableStateOf(true) }
-    var quantity by remember { mutableIntStateOf(5) } // Changed to Int
+    var quantity by remember { mutableIntStateOf(0) }
+
+    // Fetch the product when the screen loads
+    LaunchedEffect(productId) {
+        productViewModel.getProductById(productId) { _, _, _ ->
+            // The observer will handle the update
+        }
+    }
+
+    // Populate the fields once the product is fetched
+    LaunchedEffect(productToEdit) {
+        productToEdit?.let {
+            name = it.title
+            description = it.description
+            isAvailable = it.availability
+            quantity = it.quantity
+        }
+    }
 
     Scaffold(
         containerColor = Color.Black,
@@ -102,7 +135,25 @@ fun EditScreen(onBackClicked: () -> Unit) {
         },
         bottomBar = {
             Button(
-                onClick = { /* TODO: Handle save action */ },
+                onClick = {
+                    productToEdit?.let {
+                        val updatedProduct = it.copy(
+                            title = name,
+                            description = description,
+                            availability = isAvailable,
+                            quantity = quantity
+                        )
+                        productViewModel.updateProduct(productId, updatedProduct) { success, msg ->
+                            if (success) {
+                                Toast.makeText(context, "Item updated successfully!", Toast.LENGTH_SHORT).show()
+                                activity?.setResult(Activity.RESULT_OK)
+                                activity?.finish()
+                            } else {
+                                Toast.makeText(context, "Update failed: $msg", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
@@ -114,140 +165,140 @@ fun EditScreen(onBackClicked: () -> Unit) {
             }
         }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .pointerInput(Unit) {
-                    detectTapGestures(onTap = {
-                        focusManager.clearFocus()
-                    })
-                }
-        ) {
-            Box(
+        if (productToEdit == null) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Orange)
+            }
+        } else {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+                    .pointerInput(Unit) {
+                        detectTapGestures(onTap = {
+                            focusManager.clearFocus()
+                        })
+                    }
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.car), // Placeholder image
-                    contentDescription = name,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-                IconButton(
-                    onClick = {
-                        val intent = Intent(context, ListImageActivity::class.java)
-                        context.startActivity(intent)
-                    },
+                Box(
                     modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp)
-                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(16.dp))
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit Image",
-                        tint = Color.White
+                    Image(
+                        painter = painterResource(id = R.drawable.car), // Placeholder image
+                        contentDescription = name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
                     )
+                    IconButton(
+                        onClick = {
+                            val intent = Intent(context, ListImageActivity::class.java)
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp)
+                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Image",
+                            tint = Color.White
+                        )
+                    }
                 }
-            }
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            // Name
-            Text("Item Name", fontWeight = FontWeight.Medium, color = Color.White)
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Field,
-                    focusedIndicatorColor = Orange,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = Color.White,
-                    focusedTrailingIconColor = Color.Black,
-                    unfocusedTrailingIconColor = Color.White
-                )
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Description
-            Text("Description", fontWeight = FontWeight.Medium, color = Color.White)
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Field,
-                    focusedIndicatorColor = Orange,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = Color.White,
-                    focusedTrailingIconColor = Color.Black,
-                    unfocusedTrailingIconColor = Color.White
-                )
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Availability
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Availability", fontWeight = FontWeight.Medium, color = Color.White, fontSize = 16.sp)
-                Switch(
-                    checked = isAvailable,
-                    onCheckedChange = { isAvailable = it },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.Black,
-                        checkedTrackColor = Orange,
-                        uncheckedThumbColor = Color.Gray,
-                        uncheckedTrackColor = Field
+                // Name
+                Text("Item Name", fontWeight = FontWeight.Medium, color = Color.White)
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Field,
+                        focusedIndicatorColor = Orange,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.White,
+                        focusedTrailingIconColor = Color.Black,
+                        unfocusedTrailingIconColor = Color.White
                     )
                 )
-            }
-            Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-            // Quantity Stepper
-            Text("Quantity", fontWeight = FontWeight.Medium, color = Color.White, fontSize = 16.sp)
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier
-                    .background(Field, RoundedCornerShape(20.dp))
-                    .padding(horizontal = 12.dp, vertical = 4.dp)
-                    .align(Alignment.Start) // Align to the left
-            ) {
-                IconButton(onClick = { if (quantity > 0) quantity-- }) {
-                    Text("-", color = Color.White, fontSize = 24.sp)
-                }
-                Text(quantity.toString(), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                IconButton(onClick = { quantity++ }) {
-                    Text("+", color = Color.White, fontSize = 24.sp)
-                }
-            }
+                // Description
+                Text("Description", fontWeight = FontWeight.Medium, color = Color.White)
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Field,
+                        focusedIndicatorColor = Orange,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.White,
+                        focusedTrailingIconColor = Color.Black,
+                        unfocusedTrailingIconColor = Color.White
+                    )
+                )
+                Spacer(modifier = Modifier.height(20.dp))
 
-            Spacer(modifier = Modifier.height(20.dp)) // Extra space before bottom bar
+                // Availability
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Availability", fontWeight = FontWeight.Medium, color = Color.White, fontSize = 16.sp)
+                    Switch(
+                        checked = isAvailable,
+                        onCheckedChange = { isAvailable = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.Black,
+                            checkedTrackColor = Orange,
+                            uncheckedThumbColor = Color.Gray,
+                            uncheckedTrackColor = Field
+                        )
+                    )
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Quantity Stepper
+                Text("Quantity", fontWeight = FontWeight.Medium, color = Color.White, fontSize = 16.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .background(Field, RoundedCornerShape(20.dp))
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                        .align(Alignment.Start) // Align to the left
+                ) {
+                    IconButton(onClick = { if (quantity > 0) quantity-- }) {
+                        Text("-", color = Color.White, fontSize = 24.sp)
+                    }
+                    Text(quantity.toString(), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    IconButton(onClick = { quantity++ }) {
+                        Text("+", color = Color.White, fontSize = 24.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp)) // Extra space before bottom bar
+            }
         }
     }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF000000)
-@Composable
-fun EditScreenPreview() {
-    EditScreen(onBackClicked = {})
 }

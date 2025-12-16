@@ -1,8 +1,7 @@
-package com.example.rentr
+package com.example.rentr.view
 
 import android.app.Activity
 import android.app.DatePickerDialog
-import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -14,11 +13,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -34,7 +34,9 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -42,10 +44,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.ui.theme.RentrTheme
+import com.example.rentr.viewmodel.UserViewModel
 import java.util.Calendar
-import kotlin.jvm.java
 
 // region Palette
 private val primaryColor = Color(0xFF1E1E1E)
@@ -59,24 +62,48 @@ class EditProfile : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            EditProfileScreen()
+            RentrTheme {
+                val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+                EditProfileScreen(userViewModel = userViewModel)
+            }
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditProfileScreen() {
+fun EditProfileScreen(userViewModel: UserViewModel) {
     val context = LocalContext.current
     val activity = context as? Activity
 
-    var fullName by remember { mutableStateOf("Mr Nonchalant") }
-    var nickname by remember { mutableStateOf("nis") }
-    var dob by remember { mutableStateOf("6/7/2004") }
-    var email by remember { mutableStateOf("mrnonchalant67@gmail.com") }
-    var country by remember { mutableStateOf("Agartha") }
-    var phoneNumber by remember { mutableStateOf("+67676767") }
-    var gender by remember { mutableStateOf("Rather Not Say") }
+    val user by userViewModel.user.observeAsState()
+
+    // Local state for the input fields
+    var fullName by remember { mutableStateOf("") }
+    var dob by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var phoneNumber by remember { mutableStateOf("") }
+    var gender by remember { mutableStateOf("") }
+
+    // Fetch user data when the screen is first composed
+    LaunchedEffect(Unit) {
+        userViewModel.getCurrentUser()?.uid?.let { userId ->
+            userViewModel.getUserById(userId) { _, _, _ ->
+                // LiveData observer will handle the update
+            }
+        }
+    }
+
+    // Populate the fields when user data is loaded
+    LaunchedEffect(user) {
+        user?.let {
+            fullName = it.fullName
+            dob = it.dob
+            email = it.email
+            phoneNumber = it.phoneNumber
+            gender = it.gender
+        }
+    }
 
     val calendar = Calendar.getInstance()
     val datePickerDialog = DatePickerDialog(
@@ -95,7 +122,7 @@ fun EditProfileScreen() {
                 title = { Text("Edit Profile", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = {
-                        activity?.finish()
+                        activity?.finish() // Just finish, don't send an OK result
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
@@ -114,31 +141,56 @@ fun EditProfileScreen() {
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(horizontal = 24.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             Spacer(modifier = Modifier.height(24.dp))
-            ProfileTextField(value = fullName, onValueChange = { fullName = it })
+            ProfileTextField(label = "Full Name", value = fullName, onValueChange = { fullName = it })
             Spacer(modifier = Modifier.height(16.dp))
             ProfileTextField(
+                label = "Date of Birth",
                 value = dob,
                 onValueChange = { dob = it },
+                readOnly = true,
                 trailingIcon = { IconButton(onClick = { datePickerDialog.show() }) { Icon(Icons.Default.CalendarToday, contentDescription = "Select Date") } }
             )
             Spacer(modifier = Modifier.height(16.dp))
+            ProfileTextField(label = "Email", value = email, onValueChange = {}, readOnly = true)
             Spacer(modifier = Modifier.height(16.dp))
-            ProfileDropdownField(selectedValue = country, onValueChange = { country = it }, options = listOf("Agartha", "Kathmandu", "Lalitpur", "Bhaktapur"))
+            ProfileTextField(label = "Phone Number", value = phoneNumber, onValueChange = { phoneNumber = it })
             Spacer(modifier = Modifier.height(16.dp))
-            ProfileTextField(value = phoneNumber, onValueChange = { phoneNumber = it })
-            Spacer(modifier = Modifier.height(16.dp))
-            ProfileDropdownField(selectedValue = gender, onValueChange = { gender = it }, options = listOf("Rather Not Say", "Male", "Female", "Pragyan"))
+            ProfileDropdownField(label = "Gender", selectedValue = gender, onValueChange = { gender = it }, options = listOf("Rather Not Say", "Male", "Female"))
 
             Spacer(modifier = Modifier.weight(1f))
 
             Button(
                 onClick = {
-                    activity?.finish()
-                    Toast.makeText(context,"Profile Updated!", Toast.LENGTH_SHORT).show()
+                    val currentUserId = userViewModel.getCurrentUser()?.uid
+                    val currentUserData = user
+
+                    if (currentUserId != null && currentUserData != null) {
+                        val updatedUser = currentUserData.copy(
+                            fullName = fullName,
+                            dob = dob,
+                            phoneNumber = phoneNumber,
+                            gender = gender
+                        )
+                        userViewModel.updateProfile(currentUserId, updatedUser) { success, msg ->
+                            if (success) {
+                                Toast.makeText(context, "Profile Updated!", Toast.LENGTH_SHORT).show()
+                                // Set the result and finish the activity
+                                activity?.setResult(Activity.RESULT_OK)
+                                activity?.finish()
+                            } else {
+                                Toast.makeText(context, "Update failed: $msg", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    } else {
+                        Toast.makeText(context, "Could not update profile. User not found.", Toast.LENGTH_SHORT).show()
+                    }
                 },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = accentColor)
             ) {
@@ -150,38 +202,14 @@ fun EditProfileScreen() {
 }
 
 @Composable
-fun ProfileTextField(value: String, onValueChange: (String) -> Unit, trailingIcon: @Composable (() -> Unit)? = null) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = cardBackgroundColor,
-            unfocusedContainerColor = cardBackgroundColor,
-            focusedTextColor = textColor,
-            unfocusedTextColor = textColor,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-            cursorColor = accentColor,
-            focusedTrailingIconColor = textLightColor,
-            unfocusedTrailingIconColor = textLightColor
-        ),
-        trailingIcon = trailingIcon
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ProfileDropdownField(selectedValue: String, onValueChange: (String) -> Unit, options: List<String>) {
-    var isExpanded by remember { mutableStateOf(false) }
-
-    ExposedDropdownMenuBox(expanded = isExpanded, onExpandedChange = { isExpanded = it }) {
+fun ProfileTextField(label: String, value: String, onValueChange: (String) -> Unit, readOnly: Boolean = false, trailingIcon: @Composable (() -> Unit)? = null) {
+    Column {
+        Text(text = label, color = textLightColor, modifier = Modifier.padding(bottom = 8.dp))
         OutlinedTextField(
-            value = selectedValue,
-            onValueChange = {}, // Read-only
-            readOnly = true,
-            modifier = Modifier.fillMaxWidth().menuAnchor(),
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            readOnly = readOnly,
             shape = RoundedCornerShape(12.dp),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = cardBackgroundColor,
@@ -190,31 +218,58 @@ fun ProfileDropdownField(selectedValue: String, onValueChange: (String) -> Unit,
                 unfocusedTextColor = textColor,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
+                cursorColor = accentColor,
                 focusedTrailingIconColor = textLightColor,
                 unfocusedTrailingIconColor = textLightColor
             ),
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isExpanded) }
+            trailingIcon = trailingIcon
         )
-        ExposedDropdownMenu(
-            expanded = isExpanded,
-            onDismissRequest = { isExpanded = false },
-            modifier = Modifier.background(cardBackgroundColor)
-        ) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option, color = textColor) },
-                    onClick = {
-                        onValueChange(option)
-                        isExpanded = false
-                    }
-                )
-            }
-        }
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF1E1E1E)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditProfileScreenPreview() {
-    EditProfileScreen()
+fun ProfileDropdownField(label: String, selectedValue: String, onValueChange: (String) -> Unit, options: List<String>) {
+    var isExpanded by remember { mutableStateOf(false) }
+
+    Column {
+        Text(text = label, color = textLightColor, modifier = Modifier.padding(bottom = 8.dp))
+        ExposedDropdownMenuBox(expanded = isExpanded, onExpandedChange = { isExpanded = it }) {
+            OutlinedTextField(
+                value = selectedValue,
+                onValueChange = {}, // Read-only
+                readOnly = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(),
+                shape = RoundedCornerShape(12.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = cardBackgroundColor,
+                    unfocusedContainerColor = cardBackgroundColor,
+                    focusedTextColor = textColor,
+                    unfocusedTextColor = textColor,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedTrailingIconColor = textLightColor,
+                    unfocusedTrailingIconColor = textLightColor
+                ),
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isExpanded) }
+            )
+            ExposedDropdownMenu(
+                expanded = isExpanded,
+                onDismissRequest = { isExpanded = false },
+                modifier = Modifier.background(cardBackgroundColor)
+            ) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option, color = textColor) },
+                        onClick = {
+                            onValueChange(option)
+                            isExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+    }
 }
