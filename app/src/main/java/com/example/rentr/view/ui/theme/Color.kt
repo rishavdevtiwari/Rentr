@@ -1,4 +1,4 @@
-package com.example.rentr.viewmodel.ui.theme
+package com.example.rentr.view.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

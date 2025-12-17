@@ -72,6 +72,7 @@ enum class AdminBottomNavItem(val label: String, val icon: ImageVector) {
     Dashboard("Dashboard", Icons.Outlined.Home),
     Product("Product", Icons.Outlined.ShoppingBag),
     KYC("KYC", Icons.Outlined.VerifiedUser),
+    Review("Review", Icons.Outlined.RateReview),
     Settings("Settings", Icons.Outlined.Settings)
 }
 
@@ -108,6 +109,7 @@ fun RentrMobileDashboard() {
                 AdminBottomNavItem.Dashboard -> PlaceholderScreen("Dashboard")
                 AdminBottomNavItem.Product -> ProductScreen()
                 AdminBottomNavItem.KYC -> PlaceholderScreen("KYC Verification")
+                AdminBottomNavItem.Review -> PlaceholderScreen("Review")
                 AdminBottomNavItem.Settings -> PlaceholderScreen("Settings")
             }
         }

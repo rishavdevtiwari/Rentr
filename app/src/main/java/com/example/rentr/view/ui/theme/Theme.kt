@@ -1,4 +1,4 @@
-package com.example.rentr.viewmodel.ui.theme
+package com.example.rentr.view.ui.theme
 
 import android.app.Activity
 import android.os.Build
