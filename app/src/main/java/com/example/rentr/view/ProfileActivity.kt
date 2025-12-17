@@ -1,7 +1,9 @@
-package com.example.rentr
+package com.example.rentr.view
 
 import android.app.Activity
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -48,6 +50,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,6 +68,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.viewmodel.UserViewModel
 
 // region Palette
 private val primaryColor = Color.Black
@@ -74,10 +82,32 @@ private val cardBackgroundColor = Color(0xFF2C2C2E)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(userViewModel: UserViewModel) {
     val context = LocalContext.current
     val activity = context as? Activity
     val focusManager = LocalFocusManager.current
+
+    val user by userViewModel.user.observeAsState()
+
+    val editProfileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (it.resultCode == Activity.RESULT_OK) {
+            // The user made a change. Refresh the data.
+            userViewModel.getCurrentUser()?.uid?.let { userId ->
+                userViewModel.getUserById(userId) { _, _, _ -> }
+            }
+        }
+    }
+
+    // Fetch user data when the screen is first composed or when returning from another screen.
+    LaunchedEffect(Unit) {
+        userViewModel.getCurrentUser()?.uid?.let { userId ->
+            userViewModel.getUserById(userId) { _, _, _ ->
+                // LiveData observer will handle the update
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -115,20 +145,23 @@ fun ProfileScreen() {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(20.dp))
-            ProfileCard()
+            ProfileCard(userViewModel)
             Spacer(modifier = Modifier.height(30.dp))
-            SettingsList()
+            SettingsList(userViewModel, onEditProfile = {
+                val intent = Intent(context, EditProfile::class.java)
+                editProfileLauncher.launch(intent)
+            })
         }
     }
 }
 
 
-
-
 @Composable
-private fun ProfileCard() {
+private fun ProfileCard(userViewModel: UserViewModel) {
     val context = LocalContext.current
     val activity = context as? Activity
+    val user by userViewModel.user.observeAsState()
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -142,12 +175,12 @@ private fun ProfileCard() {
                 .padding(20.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Avatar()
+                Avatar(profile = user?.fullName)
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Mr Nonchalant", color = textColor, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                    Text(user?.fullName ?: "...", color = textColor, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("mrnonchalant@gmail.com", color = textLightColor, fontSize = 14.sp)
+                    Text(user?.email?:"", color = textLightColor, fontSize = 14.sp)
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -175,7 +208,7 @@ private fun ProfileCard() {
 }
 
 @Composable
-private fun Avatar() {
+private fun Avatar(profile: String?) {
     Box(
         modifier = Modifier
             .size(64.dp)
@@ -186,7 +219,8 @@ private fun Avatar() {
             .background(cardBackgroundColor),
         contentAlignment = Alignment.Center
     ) {
-        Text("MN", color = textColor, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        //Image Work left to be done
+        Text(profile?.firstOrNull()?.toString() ?: "...", color = textColor, fontSize = 24.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -204,28 +238,32 @@ private fun PillBadge(text: String, icon: ImageVector) {
     }
 }
 
-data class SettingInfo(val icon: ImageVector, val title: String, val destination: Class<out Activity>? = null)
+data class SettingInfo(val icon: ImageVector, val title: String, val destination: Class<out Activity>? = null, val action: (() -> Unit)? = null)
 
 @Composable
-private fun SettingsList() {
+private fun SettingsList(userViewModel: UserViewModel, onEditProfile: () -> Unit) {
     val context = LocalContext.current
     val settings = listOf(
-        SettingInfo(Icons.Default.Person, "Edit Profile", EditProfile::class.java),
+        SettingInfo(Icons.Default.Person, "Edit Profile", action = onEditProfile),
         SettingInfo(Icons.Default.LocationOn, "Address"),
         SettingInfo(Icons.Default.Notifications, "Notification"),
         SettingInfo(Icons.Default.CreditCard, "Payment"),
-        SettingInfo(Icons.Default.Lock, "Security", ChangePassActivity::class.java),
+        SettingInfo(Icons.Default.Lock, "Security", destination = ChangePassActivity::class.java),
         SettingInfo(Icons.Default.Language, "Language"),
-        SettingInfo(Icons.Default.Info, "Privacy Policy", PrivacyPolicyActivity::class.java),
-        SettingInfo(Icons.AutoMirrored.Filled.HelpOutline, "Help Center", FaqScreenActivity::class.java),
+        SettingInfo(Icons.Default.Info, "Privacy Policy", destination = PrivacyPolicyActivity::class.java),
+        SettingInfo(Icons.AutoMirrored.Filled.HelpOutline, "Help Center", destination = FaqScreenActivity::class.java),
         SettingInfo(Icons.Default.Group, "Invite Friends"),
     )
 
     Column(modifier = Modifier.fillMaxWidth()) {
         settings.forEachIndexed { index, setting ->
             SettingItem(icon = setting.icon, title = setting.title) {
-                setting.destination?.let {
-                    context.startActivity(Intent(context, it))
+                if (setting.action != null) {
+                    setting.action.invoke()
+                } else {
+                    setting.destination?.let {
+                        context.startActivity(Intent(context, it))
+                    }
                 }
             }
             if (index < settings.size - 1) {
@@ -267,10 +305,8 @@ fun SettingItem(icon: ImageVector, title: String, onClick: () -> Unit) {
     }
 }
 
-
-
 @Preview(showBackground = true, backgroundColor = 0xFF1E1E1E)
 @Composable
 fun ProfileScreenPreview() {
-    ProfileScreen()
+//    ProfileScreen() // Requires a UserViewModel instance
 }

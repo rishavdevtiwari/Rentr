@@ -1,8 +1,9 @@
-package com.example.rentr
+package com.example.rentr.view
 
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -49,10 +50,13 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.rentr.R
+import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.ui.theme.BG40
 import com.example.rentr.ui.theme.Button
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
+import com.example.rentr.viewmodel.UserViewModel
 import kotlin.jvm.java
 
 class LoginActivity : ComponentActivity() {
@@ -66,6 +70,11 @@ class LoginActivity : ComponentActivity() {
 }
 @Composable
 fun LoginBody(){
+
+    //UserViewModel
+    var userViewModelLogin = remember { UserViewModel(UserRepoImp1()) }
+
+
     var email by remember { mutableStateOf("")}
     var password by remember { mutableStateOf("")}
     var visibility by remember { mutableStateOf(false)}
@@ -194,9 +203,17 @@ fun LoginBody(){
             }
             Button(
                 onClick = {
-                    val intent = Intent(context, DashboardActivity::class.java)
-                    context.startActivity(intent)
-                    activity?.finish()
+                    userViewModelLogin.login(email, password) { success, msg ->
+                        if(success){
+                            Toast.makeText(context, "Logged In.", Toast.LENGTH_SHORT).show()
+                            val intent = Intent(context, DashboardActivity::class.java)
+                            context.startActivity(intent)
+                            activity?.finish()
+                        }else{
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+
                 },
                 enabled = isEnabled,
                 colors = ButtonDefaults.buttonColors(

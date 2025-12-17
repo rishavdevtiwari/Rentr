@@ -1,4 +1,4 @@
-package com.example.rentr
+package com.example.rentr.view
 
 import android.os.Bundle
 import android.widget.Toast
@@ -51,8 +51,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.rentr.R
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.RentrTheme
+import kotlin.collections.plus
 
 class ListImageActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

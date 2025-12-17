@@ -1,4 +1,4 @@
-package com.example.rentr
+package com.example.rentr.view
 
 import android.app.Activity
 import android.content.Intent
@@ -30,15 +30,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Chair
 import androidx.compose.material.icons.filled.DirectionsBike
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Kitchen
 import androidx.compose.material.icons.filled.Laptop
-import androidx.compose.material.icons.filled.Motorcycle
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Toys
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -51,7 +51,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -70,9 +72,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.rentr.R
+import com.example.rentr.model.ProductModel
+import com.example.rentr.repository.ProductRepoImpl
+import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.promo
+import com.example.rentr.viewmodel.ProductViewModel
+import com.example.rentr.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
 
 class DashboardActivity : ComponentActivity() {
@@ -85,22 +93,34 @@ class DashboardActivity : ComponentActivity() {
     }
 }
 
-data class Product(val id: Int, val name: String, val category: String, val imageRes: Int)
 data class Category(val name: String, val icon: ImageVector)
 
 val categories = listOf(
-    Category("Bicycle", Icons.Default.DirectionsBike),
-    Category("Bike", Icons.Default.Motorcycle),
-    Category("Camera", Icons.Default.CameraAlt),
-    Category("Car", Icons.Default.DirectionsCar),
-    Category("Toy", Icons.Default.Toys),
+    Category("Vehicles", Icons.Default.DirectionsCar),
+    Category("Household", Icons.Default.Kitchen),
+    Category("Electronics", Icons.Default.Laptop),
+    Category("Accessories", Icons.Default.ShoppingCart),
     Category("Furniture", Icons.Default.Chair),
-    Category("Laptop", Icons.Default.Laptop),
-    Category("Kitchen", Icons.Default.Kitchen),
+    Category("Sports & Adventure", Icons.Default.DirectionsBike),
+    Category("Baby Items", Icons.Default.Toys)
 )
 
 @Composable
 fun DashboardScreen() {
+
+    val userViewModelDash = remember { UserViewModel(UserRepoImp1()) }
+    val productViewModel = remember { ProductViewModel(ProductRepoImpl()) }
+    val user by userViewModelDash.user.observeAsState(null)
+    val products by productViewModel.allProducts.observeAsState()
+
+    LaunchedEffect(Unit) {
+        userViewModelDash.getCurrentUser()?.uid?.let { userId ->
+            userViewModelDash.getUserById(userId) { _, _, _ ->
+                // LiveData observer will handle user data update
+            }
+        }
+    }
+
     var selectedCategory by remember { mutableStateOf<Category?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
@@ -109,47 +129,26 @@ fun DashboardScreen() {
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    val allProducts = remember {
-        categories.flatMap { category ->
-            (1..6).map { i ->
-                val productName = when (category.name) {
-                    "Bicycle" -> if (i % 2 == 1) "Mountain Bike" else "City Bicycle"
-                    "Bike" -> if (i % 2 == 1) "Sports Bike" else "Cruiser Bike"
-                    "Camera" -> if (i % 2 == 1) "DSLR Camera" else "Mirrorless Camera"
-                    "Car" -> if (i % 2 == 1) "Modern Sedan" else "Luxury SUV"
-                    "Toy" -> if (i % 2 == 1) "Action Figure" else "Building Blocks"
-                    "Furniture" -> if (i % 2 == 1) "Modern Chair" else "Wooden Table"
-                    "Laptop" -> if (i % 2 == 1) "Gaming Laptop" else "Ultrabook"
-                    "Kitchen" -> if (i % 2 == 1) "Blender" else "Toaster"
-                    else -> "Product"
-                }
-                val imageRes = when (category.name) {
-                    "Bicycle" -> R.drawable.bicycle
-                    "Bike" -> R.drawable.bike
-                    "Camera" -> R.drawable.camera
-                    "Car" -> R.drawable.car
-                    "Toy" -> R.drawable.toy
-                    "Furniture" -> R.drawable.bicycle
-                    "Laptop" -> R.drawable.camera
-                    "Kitchen" -> R.drawable.bike
-                    else -> R.drawable.bicycle // Default image
-                }
-                Product(id = 0, name = productName, category = category.name, imageRes = imageRes)
+    LaunchedEffect(selectedCategory) {
+        selectedCategory?.let { category ->
+            productViewModel.getAllProductsByCategory(category.name) { _, _, _ ->
+                // LiveData will update the product list
             }
-        }.mapIndexed { index, product -> product.copy(id = index + 1) }
+        }
     }
 
-    val filteredProducts = allProducts.filter {
-        selectedCategory != null && it.category == selectedCategory?.name && it.name.contains(searchQuery, ignoreCase = true)
-    }
+        val filteredProducts = products?.filter {
+           it.title.contains(searchQuery, ignoreCase = true)
+        } ?: emptyList()
+
+        // Limit to 6 items for the dashboard preview
+        val displayedProducts = filteredProducts.take(6)
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = Color.Black,
         modifier = Modifier.pointerInput(Unit) {
-            detectTapGestures(onTap = {
-                focusManager.clearFocus()
-            })
+            detectTapGestures { focusManager.clearFocus() }
         }
     ) { paddingValues ->
         Column(
@@ -159,9 +158,9 @@ fun DashboardScreen() {
                 .verticalScroll(rememberScrollState())
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                TopBar()
+                TopBar(userName = user?.fullName)
                 Spacer(modifier = Modifier.height(20.dp))
-                SearchBar(query = searchQuery, onQueryChange = { searchQuery = it })
+                SearchBar(searchQuery) { searchQuery = it }
                 Spacer(modifier = Modifier.height(20.dp))
                 Box(
                     modifier = Modifier
@@ -172,12 +171,9 @@ fun DashboardScreen() {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth(0.9f)
-                            .height(150.dp)
-                            .align(Alignment.Center),
+                            .height(150.dp),
                         shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = promo
-                        )
+                        colors = CardDefaults.cardColors(containerColor = promo)
                     ) {
                         Row(
                             modifier = Modifier
@@ -185,26 +181,14 @@ fun DashboardScreen() {
                                 .fillMaxSize(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(0.6f) // Occupy 60% of card width
-                            ) {
-                                Text(
-                                    text = "Get Special Discounts",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp
-                                )
-                                Text(
-                                    text = "up to 35%",
-                                    color = Orange,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 20.sp
-                                )
+                            Column(modifier = Modifier.fillMaxWidth(0.6f)) {
+                                Text("Get Special Discounts", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                Text("up to 35%", color = Orange, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                             }
                         }
                     }
                     Image(
-                        painter = painterResource(id = R.drawable.rentrimage),
+                        painter = painterResource(R.drawable.rentrimage),
                         contentDescription = null,
                         modifier = Modifier
                             .size(180.dp)
@@ -219,69 +203,64 @@ fun DashboardScreen() {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("Categories", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    Text("Show All",
+                    Text(
+                        "Show All",
                         color = if (selectedCategory == null) Color.Gray else Orange.copy(0.7f),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.clickable {
-                            coroutineScope.launch {
-                                if (selectedCategory == null) {
-                                    snackbarHostState.showSnackbar("Please choose a category")
-                                } else {
-                                    val intent = Intent(context, CategoryActivity::class.java)
-                                    intent.putExtra("categoryName", selectedCategory?.name)
-                                    context.startActivity(intent)
-                                }
-                            }
-                        })
+                            val intent = Intent (context,CategoryActivity::class.java)
+                            intent.putExtra("Category",selectedCategory?.name)
+                            context.startActivity(intent)
+                        }
+                    )
                 }
                 Spacer(modifier = Modifier.height(10.dp))
             }
-            CategorySelection(selectedCategory?.name) { categoryName ->
-                selectedCategory = if (selectedCategory?.name == categoryName) {
-                    null // Deselect if the same category is clicked again
-                } else {
-                    categories.find { it.name == categoryName }
-                }
+            CategorySelection(selectedCategory?.name) { name ->
+                selectedCategory =
+                    if (selectedCategory?.name == name) null else categories.find { it.name == name }
             }
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                 Spacer(modifier = Modifier.height(20.dp))
                 if (selectedCategory != null) {
-                    ProductGrid(products = filteredProducts)
+                    ProductGrid(products = displayedProducts)
                 }
-                Spacer(modifier = Modifier.height(100.dp)) // Extra space so content can scroll above the nav bar
+                Spacer(modifier = Modifier.height(100.dp))
             }
         }
     }
 }
 
 @Composable
-fun TopBar() {
+fun TopBar(userName: String?) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Image(
-                painter = painterResource(id = R.drawable.p1),
-                contentDescription = "Profile Picture",
+            Icon(
+                imageVector = Icons.Default.AccountCircle,
+                contentDescription = "Profile Image",
+                tint = Color.White,
                 modifier = Modifier
                     .size(45.dp)
-                    .clip(CircleShape), contentScale = ContentScale.Crop
+                    .clip(CircleShape)
             )
             Spacer(modifier = Modifier.width(10.dp))
             Column {
-                Text("Good Morning ", color = Color.Gray, fontSize = 12.sp)
-                Text("Pragyan Khati", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("Good Morning", color = Color.Gray, fontSize = 12.sp)
+                Text(
+                    text = userName ?: "...",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
-        Row {
-            IconButton(onClick = { /* TODO */ }) {
-                Icon(Icons.Default.Notifications, contentDescription = "Notifications", tint = Color.White)
-            }
-            
+        IconButton(onClick = {}) {
+            Icon(Icons.Default.Notifications, contentDescription = null, tint = Color.White)
         }
     }
 }
@@ -293,7 +272,7 @@ fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
         onValueChange = onQueryChange,
         modifier = Modifier.fillMaxWidth(),
         placeholder = { Text("Search", color = Color.Gray) },
-        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray) },
+        leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
         shape = RoundedCornerShape(18.dp),
         colors = TextFieldDefaults.colors(
             focusedContainerColor = Color.White,
@@ -312,22 +291,19 @@ fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
 fun CategorySelection(selectedCategory: String?, onCategorySelected: (String) -> Unit) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp)
     ) {
         items(categories) { category ->
             val isSelected = selectedCategory == category.name
             Box(
                 modifier = Modifier
                     .clickable { onCategorySelected(category.name) }
-                    .background(
-                        color = if (isSelected) Orange else Field,
-                        shape = RoundedCornerShape(16.dp)
-                    )
+                    .background(if (isSelected) Orange else Field, RoundedCornerShape(16.dp))
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = category.name,
+                    category.name,
                     color = Color.White,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                 )
@@ -337,69 +313,53 @@ fun CategorySelection(selectedCategory: String?, onCategorySelected: (String) ->
 }
 
 @Composable
-fun ProductGrid(products: List<Product>) {
-    // Using Column with Rows to build a grid that can be placed in a vertically scrolling parent
+fun ProductGrid(products: List<ProductModel>) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         products.chunked(2).forEach { rowProducts ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
                 rowProducts.forEach { product ->
-                    Column(
-                        horizontalAlignment = Alignment.Start,
-                        modifier = Modifier.weight(1f)
-                    ) {
+                    Column(modifier = Modifier.weight(1f)) {
                         ProductCard(product)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            product.name,
-                            color = Orange,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp
-                        )
+                        Text(product.title, color = Orange, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "NPR. ${(product.id * 157 % 1000) + 500}",
+                            "NPR. ${product.price}",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
                     }
                 }
-                // Add a spacer to fill the row if there's only one item
-                if (rowProducts.size < 2) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
+                if (rowProducts.size < 2) Spacer(modifier = Modifier.weight(1f))
             }
         }
     }
 }
 
 @Composable
-fun ProductCard(product: Product) {
+fun ProductCard(product: ProductModel) {
     val context = LocalContext.current
-    val activity = context as Activity
+    val randomImages = listOf(R.drawable.bicycle, R.drawable.bike, R.drawable.camera, R.drawable.car, R.drawable.toy)
+    val randomImage = remember { randomImages.random() }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
                 val intent = Intent(context, ProductActivity::class.java)
-                intent.putExtra("productName", product.name)
-                intent.putExtra("productImg", product.imageRes)
-                intent.putExtra("productPrice", product.id * 157 % 1000 + 500)
+                intent.putExtra("productId", product.productId)
+                intent.putExtra("productImg", randomImage)
+                intent.putExtra("listedBy",product.listedBy)
                 context.startActivity(intent)
-                //activity.finish()
             },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Field)
     ) {
         Image(
-            painter = painterResource(id = product.imageRes),
-            contentDescription = product.name,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(120.dp),
+            painter = painterResource(randomImage),
+            contentDescription = product.title,
+            modifier = Modifier.fillMaxWidth().height(120.dp),
             contentScale = ContentScale.Crop
         )
     }

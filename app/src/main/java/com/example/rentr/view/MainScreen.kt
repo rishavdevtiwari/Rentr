@@ -1,4 +1,4 @@
-package com.example.rentr
+package com.example.rentr.view
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -24,10 +24,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.ui.theme.Orange
-import com.example.rentr.view.DashboardScreen
-import com.example.rentr.view.ListedScreen
-import com.example.rentr.view.ProfileScreen
-import com.example.rentr.view.RentalScreen
 import com.example.rentr.viewmodel.UserViewModel
 
 data class NavItem(
