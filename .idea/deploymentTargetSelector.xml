@@ -5,6 +5,15 @@
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
+<<<<<<< HEAD
+=======
+      <SelectionState runConfigName="SplashActivity (1)">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
+      <SelectionState runConfigName="SplashActivity (2)">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
+>>>>>>> 9d5f74d0ebe16609f28d901ae2929d3baf2b41fa
     </selectionStates>
   </component>
 </project>

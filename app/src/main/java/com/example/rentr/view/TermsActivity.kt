@@ -1,4 +1,4 @@
-package com.example.rentr
+package com.example.rentr.view
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

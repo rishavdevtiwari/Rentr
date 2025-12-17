@@ -16,6 +16,7 @@ interface UserRepo {
                        callback: (Boolean, String) -> Unit)
     fun updateProfile(userId: String, model: UserModel,
                       callback: (Boolean, String) -> Unit)
+    fun changePassword(oldPass: String, newPass: String, callback: (Boolean, String) -> Unit)
     fun getCurrentUser() : FirebaseUser?
     fun logout(callback: (Boolean, String) -> Unit)
     fun getUserById(userId: String, callback:(Boolean,String, UserModel?) -> Unit)

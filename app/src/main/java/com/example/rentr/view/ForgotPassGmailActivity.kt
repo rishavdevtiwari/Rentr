@@ -1,8 +1,9 @@
-package com.example.rentr
+package com.example.rentr.view
 
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -46,10 +47,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.rentr.R
+import com.example.rentr.repository.UserRepoImp1
 // Assuming these color resources exist in your project
 import com.example.rentr.ui.theme.Button
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
+import com.example.rentr.viewmodel.UserViewModel
 
 class ForgotPassGmailActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,6 +65,7 @@ class ForgotPassGmailActivity : ComponentActivity() {
     }
 }
 
+// production
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ForgotPassGmailBody() {
@@ -74,6 +79,9 @@ fun ForgotPassGmailBody() {
     val activity = LocalContext.current.let {
         if (it is Activity) it else null
     }
+
+    //ViewModel
+    val userViewModelPW = remember { UserViewModel(UserRepoImp1()) }
 
     Scaffold (
         topBar = {
@@ -174,9 +182,16 @@ fun ForgotPassGmailBody() {
             // Proceed Button
             Button(
                 onClick = {
-                    val intent = Intent(context, ForgotPassOTPActivity::class.java)
-                    context.startActivity(intent)
-                    activity?.finish()
+                        userViewModelPW.forgetPassword(email) { success, msg ->
+                            if (success) {
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                val intent = Intent(context, LoginActivity::class.java)
+                                context.startActivity(intent)
+                                activity?.finish()
+                            } else {
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            }
+                        }
                 },
                 enabled = isEnabled,
                 colors = ButtonDefaults.buttonColors(
@@ -192,7 +207,7 @@ fun ForgotPassGmailBody() {
                     .height(90.dp)
                     .padding(horizontal = 15.dp, vertical = 20.dp),
             ) {
-                Text("Proceed to OTP", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("Send a password reset link!", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

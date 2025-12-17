@@ -1,24 +1,26 @@
 package com.example.rentr.model
 
 data class UserModel(
-    val email: String,
-    val firstName: String="",
-    val lastName: String = "",
-    val password: String = "",
+    val fullName: String="",
     val gender : String = "",
     val phoneNumber : String = "",
-    val uId : String = ""
+    val uId : String = "",
+    val dob: String = "",
+    val email: String = "",
+    val listings: List<String> = emptyList(),
+    val verified: Boolean = false
 )
 {
     fun toMap() : Map < String, Any?>{
         return mapOf(
             "userId" to uId,
-            "FirstName" to firstName,
-            "LastName" to lastName,
-            "Email" to email,
+            "FullName" to fullName,
             "Gender" to gender,
-            "PhoneNumber" to phoneNumber
-
+            "PhoneNumber" to phoneNumber,
+            "DOB" to dob,
+            "email" to email,
+            "listings" to listings,
+            "verified" to verified
         )
     }
 }

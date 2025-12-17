@@ -24,11 +24,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
-import com.example.rentr.Orange
-import com.example.rentr.splash
 import com.example.rentr.ui.theme.Button
+import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.outline
 import com.example.rentr.ui.theme.red
+import com.example.rentr.ui.theme.splash
 
 // --- 1. CONFIGURATION & THEME ---
 class AdminDashboardActivity : ComponentActivity() {
