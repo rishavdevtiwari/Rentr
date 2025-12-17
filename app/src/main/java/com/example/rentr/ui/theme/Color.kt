@@ -20,3 +20,6 @@ val Button = Color(0xFFCCCCCC)
 val  promo = Color(0xFF85568D)
 val  splash = Color(0xFF2C2C2C)
 
+val  red = Color(0xFFE01313)
+
+val  bar = Color(0xFF676464)
