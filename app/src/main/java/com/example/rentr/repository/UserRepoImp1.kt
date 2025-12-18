@@ -159,4 +159,19 @@ class UserRepoImp1 : UserRepo {
             }
         }
     }
+
+    override fun updateProfileImage(
+        userId: String,
+        imageUrl: String,
+        callback: (Boolean, String?) -> Unit
+    ) {
+        ref.child(userId).child("profileImage").setValue(imageUrl){
+            error, _ ->
+            if(error == null){
+                callback(true, null)
+            }else{
+                callback(false, error.message)
+            }
+        }
+    }
 }

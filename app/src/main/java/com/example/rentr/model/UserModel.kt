@@ -4,7 +4,6 @@ data class UserModel(
     val fullName: String="",
     val gender : String = "",
     val phoneNumber : String = "",
-    val uId : String = "",
     val dob: String = "",
     val email: String = "",
     val listings: List<String> = emptyList(),
@@ -20,7 +19,7 @@ data class UserModel(
             "dob" to dob,
             "listings" to listings,
             "verified" to verified,
-            "profileImage" to profileImage
+            "profileImage" to profileImage,
         )
     }
 }

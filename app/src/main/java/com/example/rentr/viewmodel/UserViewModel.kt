@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import com.example.rentr.model.UserModel
 import com.example.rentr.repository.UserRepo
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.database.FirebaseDatabase
 
 class UserViewModel(val repo : UserRepo): ViewModel(){
 
@@ -61,6 +62,23 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
             }
             callback(success, msg, data)
         }
+    }
+    fun updateProfileImage(
+        userId: String,
+        imageUrl: String,
+        callback: (Boolean, String?) -> Unit
+    ) {
+        FirebaseDatabase.getInstance()
+            .getReference("users")
+            .child(userId)
+            .child("profileImage")
+            .setValue(imageUrl)
+            .addOnSuccessListener {
+                callback(true, null)
+            }
+            .addOnFailureListener {
+                callback(false, it.message)
+            }
     }
 
     fun getAllUsers(callback:(Boolean, String, List<UserModel>) -> Unit){

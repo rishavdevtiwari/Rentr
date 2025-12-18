@@ -2,6 +2,7 @@ package com.example.rentr.view
 
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -53,7 +55,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,11 +70,17 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.rentr.repository.UserRepoImp1
+import coil.compose.AsyncImage
+import com.cloudinary.android.MediaManager
+import com.cloudinary.android.callback.ErrorInfo
+import com.cloudinary.android.callback.UploadCallback
+import com.example.rentr.model.UserModel
 import com.example.rentr.viewmodel.UserViewModel
+import kotlinx.coroutines.launch
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 // region Palette
 private val primaryColor = Color.Black
@@ -84,28 +95,51 @@ private val cardBackgroundColor = Color(0xFF2C2C2E)
 @Composable
 fun ProfileScreen(userViewModel: UserViewModel) {
     val context = LocalContext.current
-    val activity = context as? Activity
     val focusManager = LocalFocusManager.current
+    val coroutineScope = rememberCoroutineScope()
 
     val user by userViewModel.user.observeAsState()
+    var isLoading by remember { mutableStateOf(false) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            coroutineScope.launch {
+                isLoading = true
+                val newImageUrl = uploadProfileImage(uri)
+                if (newImageUrl != null) {
+                    val uid = userViewModel.getCurrentUser()?.uid
+                    if (uid != null) {
+                        userViewModel.updateProfileImage(
+                            userId = uid,
+                            imageUrl = newImageUrl
+                        ) { _, _ ->
+                            isLoading = false
+                        }
+                    } else {
+                        isLoading = false
+                    }
+                } else {
+                    isLoading = false
+                }
+            }
+        }
+    }
 
     val editProfileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) {
         if (it.resultCode == Activity.RESULT_OK) {
-            // The user made a change. Refresh the data.
             userViewModel.getCurrentUser()?.uid?.let { userId ->
                 userViewModel.getUserById(userId) { _, _, _ -> }
             }
         }
     }
 
-    // Fetch user data when the screen is first composed or when returning from another screen.
     LaunchedEffect(Unit) {
         userViewModel.getCurrentUser()?.uid?.let { userId ->
-            userViewModel.getUserById(userId) { _, _, _ ->
-                // LiveData observer will handle the update
-            }
+            userViewModel.getUserById(userId) { _, _, _ -> }
         }
     }
 
@@ -140,14 +174,13 @@ fun ProfileScreen(userViewModel: UserViewModel) {
                     detectTapGestures(onTap = {
                         focusManager.clearFocus()
                     })
-                }
-            ,
+                },
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(20.dp))
-            ProfileCard(userViewModel)
+            ProfileCard(user, isLoading) { imagePickerLauncher.launch("image/*") }
             Spacer(modifier = Modifier.height(30.dp))
-            SettingsList(userViewModel, onEditProfile = {
+            SettingsList(onEditProfile = {
                 val intent = Intent(context, EditProfile::class.java)
                 editProfileLauncher.launch(intent)
             })
@@ -157,10 +190,9 @@ fun ProfileScreen(userViewModel: UserViewModel) {
 
 
 @Composable
-private fun ProfileCard(userViewModel: UserViewModel) {
+private fun ProfileCard(user: UserModel?, isLoading: Boolean, onAvatarClick: () -> Unit) {
     val context = LocalContext.current
     val activity = context as? Activity
-    val user by userViewModel.user.observeAsState()
 
     Card(
         modifier = Modifier
@@ -175,12 +207,12 @@ private fun ProfileCard(userViewModel: UserViewModel) {
                 .padding(20.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Avatar(profile = user?.fullName)
+                Avatar(user = user, isLoading = isLoading, onClick = onAvatarClick)
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(user?.fullName ?: "...", color = textColor, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(user?.email?:"", color = textLightColor, fontSize = 14.sp)
+                    Text(user?.email ?: "", color = textLightColor, fontSize = 14.sp)
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -191,7 +223,7 @@ private fun ProfileCard(userViewModel: UserViewModel) {
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = {
-                    val intent = Intent(context,KYC::class.java)
+                    val intent = Intent(context, KYC::class.java)
                     activity?.startActivity(intent)
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -208,7 +240,16 @@ private fun ProfileCard(userViewModel: UserViewModel) {
 }
 
 @Composable
-private fun Avatar(profile: String?) {
+private fun Avatar(user: UserModel?, isLoading: Boolean, onClick: () -> Unit) {
+    fun getInitials(name: String): String {
+        val names = name.trim().split(" ")
+        return if (names.size > 1) {
+            "${names.first().firstOrNull() ?: ""}${names.last().firstOrNull() ?: ""}".uppercase()
+        } else {
+            (name.firstOrNull()?.toString() ?: "").uppercase()
+        }
+    }
+
     Box(
         modifier = Modifier
             .size(64.dp)
@@ -216,11 +257,32 @@ private fun Avatar(profile: String?) {
             .background(Brush.verticalGradient(listOf(accentColor, Color(0xFFFFC66C))))
             .padding(2.dp) // Simulates border
             .clip(CircleShape)
-            .background(cardBackgroundColor),
+            .background(cardBackgroundColor)
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        //Image Work left to be done
-        Text(profile?.firstOrNull()?.toString() ?: "...", color = textColor, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        if (!user?.profileImage.isNullOrEmpty()) {
+            AsyncImage(
+                model = user?.profileImage,
+                contentDescription = "Profile Picture",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            )
+        } else {
+            Text(
+                text = user?.fullName?.let { getInitials(it) } ?: "...",
+                color = textColor,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(32.dp),
+                color = accentColor,
+                strokeWidth = 3.dp
+            )
+        }
     }
 }
 
@@ -241,7 +303,7 @@ private fun PillBadge(text: String, icon: ImageVector) {
 data class SettingInfo(val icon: ImageVector, val title: String, val destination: Class<out Activity>? = null, val action: (() -> Unit)? = null)
 
 @Composable
-private fun SettingsList(userViewModel: UserViewModel, onEditProfile: () -> Unit) {
+private fun SettingsList(onEditProfile: () -> Unit) {
     val context = LocalContext.current
     val settings = listOf(
         SettingInfo(Icons.Default.Person, "Edit Profile", action = onEditProfile),
@@ -305,8 +367,23 @@ fun SettingItem(icon: ImageVector, title: String, onClick: () -> Unit) {
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF1E1E1E)
-@Composable
-fun ProfileScreenPreview() {
-//    ProfileScreen() // Requires a UserViewModel instance
+private suspend fun uploadProfileImage(uri: Uri): String? {
+    return suspendCoroutine { continuation -> MediaManager.
+        get().upload(uri)
+            .callback(object : UploadCallback {
+                override fun onStart(requestId: String?) {}
+                override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {}
+                override fun onSuccess(requestId: String?, resultData: Map<*, *>?) {
+                    continuation.resume(resultData?.get("secure_url")?.toString())
+                }
+                override fun onError(requestId: String?, error: ErrorInfo?) {
+                    continuation.resume(null)
+                }
+                override fun onReschedule(requestId: String?, error: ErrorInfo?) {
+                    continuation.resume(null)
+                }
+            })
+            .dispatch()
+    }
 }
+
