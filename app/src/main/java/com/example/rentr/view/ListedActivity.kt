@@ -89,7 +89,7 @@ fun ListedScreen() {
     }
 
     val filteredList = if (selectedTabIndex == 0) {
-        products.filter { it.availability || !it.availability } // show available + unavailable
+        products.filter { !it.outOfStock } // show available + unavailable
     } else {
         products.filter { it.outOfStock } // rented out
     }

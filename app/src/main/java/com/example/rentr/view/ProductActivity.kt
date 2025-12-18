@@ -115,7 +115,7 @@ fun ProductDisplay(productId: String) {
     Scaffold(
         containerColor = Color.Black,
         bottomBar = {
-            if (product?.availability == true) {
+            if (product?.availability == true && product?.outOfStock == false) {
                 BottomBar(price = totalPrice)
             }
         }
@@ -188,19 +188,24 @@ fun ProductDisplay(productId: String) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(product!!.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        Card(
-                            shape = RoundedCornerShape(8.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (product!!.availability) Orange.copy(alpha = 0.15f) else Field
-                            )
-                        ) {
-                            Text(
-                                text = if (product!!.availability) "Available" else "Unavailable",
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                color = if (product!!.availability) Orange else Color.Gray,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
-                            )
+                        if (product!!.availability && !product!!.outOfStock) {
+                            Card(
+                                shape = RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (product!!.availability) Orange.copy(alpha = 0.15f) else Field
+                                )
+                            ) {
+                                Text(
+                                    text = "Available",
+                                    modifier = Modifier.padding(
+                                        horizontal = 12.dp,
+                                        vertical = 6.dp
+                                    ),
+                                    color = if (product!!.availability) Orange else Color.Gray,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -210,7 +215,7 @@ fun ProductDisplay(productId: String) {
                         Text("$productRating (4,749 reviews)", color = Color.Gray, fontSize = 14.sp)
                     }
 
-                    if (product!!.availability) {
+                    if (product!!.availability && !product!!.outOfStock) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Divider(color = Field)
                         Spacer(modifier = Modifier.height(16.dp))
@@ -270,7 +275,7 @@ fun ProductDisplay(productId: String) {
                                 )
                             ) {
                                 Text(
-                                    text = "Not in stock",
+                                    text = if (!product!!.availability) "Unavailable" else "Out of Stock",
                                     modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp),
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold,
