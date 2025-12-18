@@ -27,7 +27,8 @@ data class ProductModel(
             "outOfStock" to outOfStock,
             "rating" to rating,
             "ratingCount" to ratingCount,
-            "category" to category
+            "category" to category,
+            "imageUrl" to imageUrl
         )
     }
 }

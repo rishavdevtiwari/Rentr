@@ -6,7 +6,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -47,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.rentr.R
 import com.example.rentr.model.ProductModel
 import com.example.rentr.repository.ProductRepoImpl
@@ -85,14 +86,6 @@ fun CategoryScreen(categoryName: String) {
         productViewModel.getAllProductsByCategory(categoryName) { _, _, _ -> }
     }
 
-    val randomImages = listOf(
-        R.drawable.bicycle,
-        R.drawable.bike,
-        R.drawable.camera,
-        R.drawable.car,
-        R.drawable.toy
-    )
-
     Scaffold(containerColor = Color.Black) { paddingValues ->
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
@@ -107,13 +100,11 @@ fun CategoryScreen(categoryName: String) {
             item(span = { GridItemSpan(2) }) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
                 ) {
                     IconButton(
                         onClick = { activity?.finish() },
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .background(background, CircleShape)
+                        modifier = Modifier.background(background, CircleShape)
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
@@ -121,6 +112,7 @@ fun CategoryScreen(categoryName: String) {
                             tint = Color.White
                         )
                     }
+                    Spacer(modifier = Modifier.width(16.dp))
                     Text(
                         text = categoryName,
                         color = Color.White,
@@ -131,16 +123,16 @@ fun CategoryScreen(categoryName: String) {
             }
 
             items(products) { product ->
-                ProductGridItem(product, randomImages.random())
+                ProductGridItem(product)
             }
         }
     }
 }
 
 @Composable
-fun ProductGridItem(product: ProductModel, imageRes: Int) {
+fun ProductGridItem(product: ProductModel) {
     Column {
-        ProductCard(product, imageRes)
+        ProductCard1(product)
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = product.title,
@@ -159,8 +151,9 @@ fun ProductGridItem(product: ProductModel, imageRes: Int) {
 }
 
 @Composable
-fun ProductCard(product: ProductModel, imageRes: Int) {
+fun ProductCard1(product: ProductModel) {
     val context = LocalContext.current
+    val imageUrl = product.imageUrl.firstOrNull()
 
     Card(
         modifier = Modifier
@@ -168,14 +161,17 @@ fun ProductCard(product: ProductModel, imageRes: Int) {
             .clickable {
                 val intent = Intent(context, ProductActivity::class.java)
                 intent.putExtra("productId", product.productId)
-                intent.putExtra("productImg", imageRes)
+                // Pass the image URL to ProductActivity to avoid fetching it again
+                //intent.putExtra("productImg", imageUrl) // Optional: If you want to pass the URL
                 context.startActivity(intent)
             },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Field)
     ) {
-        Image(
-            painter = painterResource(imageRes),
+        AsyncImage(
+            model = imageUrl,
+            placeholder = painterResource(id = R.drawable.rentrimage),
+            error = painterResource(id = R.drawable.rentrimage),
             contentDescription = product.title,
             modifier = Modifier
                 .fillMaxWidth()

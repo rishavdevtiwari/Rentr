@@ -8,19 +8,19 @@ data class UserModel(
     val dob: String = "",
     val email: String = "",
     val listings: List<String> = emptyList(),
-    val verified: Boolean = false
+    val verified: Boolean = false,
+    val profileImage: String = ""
 )
 {
     fun toMap() : Map < String, Any?>{
         return mapOf(
-            "userId" to uId,
-            "FullName" to fullName,
-            "Gender" to gender,
-            "PhoneNumber" to phoneNumber,
-            "DOB" to dob,
-            "email" to email,
+            "fullName" to fullName,
+            "gender" to gender,
+            "phoneNumber" to phoneNumber,
+            "dob" to dob,
             "listings" to listings,
-            "verified" to verified
+            "verified" to verified,
+            "profileImage" to profileImage
         )
     }
 }

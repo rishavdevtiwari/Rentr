@@ -57,7 +57,7 @@ class UserRepoImp1 : UserRepo {
         model: UserModel,
         callback: (Boolean, String) -> Unit
     ) {
-        ref.child(userId).setValue(model)
+        ref.child(userId).updateChildren(model.toMap())
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     callback(true, "Profile updated")
