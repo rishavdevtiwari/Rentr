@@ -5,4 +5,6 @@
     <string name="title_activity_faq_screen">FaqScreenActivity</string>
     <string name="title_activity_main">MainActivity</string>
     <string name="title_activity_account_setup">AccountSetupActivity</string>
+    <string name="title_activity_admin_ddashboard">AdminDDashboardActivity</string>
+    <string name="title_activity_admin_settings">AdminSettings</string>
 </resources>
