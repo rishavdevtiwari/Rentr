@@ -27,8 +27,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.HighlightOff
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocationOn
@@ -216,24 +218,29 @@ private fun ProfileCard(user: UserModel?, isLoading: Boolean, onAvatarClick: () 
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                PillBadge(text = "Verified", icon = Icons.Default.Person)
-                PillBadge(text = "Active", icon = Icons.Default.Person) // Using Person as placeholder
+            Row(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                user?.let {
+                    PillBadge(isVerified = it.verified)
+                }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = {
-                    val intent = Intent(context, KYC::class.java)
-                    activity?.startActivity(intent)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = accentColor),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
-            ) {
-                Icon(Icons.Default.Update, contentDescription = null, tint = Color.White)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Update KYC", color = Color.White, fontWeight = FontWeight.Medium)
+            if (user?.verified != true) {
+                Button(
+                    onClick = {
+                        val intent = Intent(context, KYC::class.java)
+                        activity?.startActivity(intent)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                ) {
+                    Icon(Icons.Default.Update, contentDescription = null, tint = Color.White)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Update KYC", color = Color.White, fontWeight = FontWeight.Medium)
+                }
             }
         }
     }
@@ -287,15 +294,24 @@ private fun Avatar(user: UserModel?, isLoading: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun PillBadge(text: String, icon: ImageVector) {
+private fun PillBadge(isVerified: Boolean) {
+    val text = if (isVerified) "Verified" else "Unverified"
+    val icon = if (isVerified) Icons.Default.CheckCircle else Icons.Default.HighlightOff
+    val backgroundColor = if (isVerified) cardBackgroundColor.copy(alpha = 0.5f) else Color.Red.copy(alpha = 0.2f)
+    val iconColor = if (isVerified) accentColor else Color.Red
+    val textColor = if (isVerified) textLightColor else Color.Red
+
     Surface(
         shape = RoundedCornerShape(50),
-        color = cardBackgroundColor.copy(alpha = 0.5f),
+        color = backgroundColor,
     ) {
-        Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(16.dp))
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, contentDescription = text, tint = iconColor, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(6.dp))
-            Text(text, color = textLightColor, fontSize = 12.sp)
+            Text(text, color = textColor, fontSize = 12.sp)
         }
     }
 }
@@ -368,8 +384,8 @@ fun SettingItem(icon: ImageVector, title: String, onClick: () -> Unit) {
 }
 
 private suspend fun uploadProfileImage(uri: Uri): String? {
-    return suspendCoroutine { continuation -> MediaManager.
-        get().upload(uri)
+    return suspendCoroutine { continuation ->
+        MediaManager.get().upload(uri)
             .callback(object : UploadCallback {
                 override fun onStart(requestId: String?) {}
                 override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {}
@@ -386,4 +402,3 @@ private suspend fun uploadProfileImage(uri: Uri): String? {
             .dispatch()
     }
 }
-
