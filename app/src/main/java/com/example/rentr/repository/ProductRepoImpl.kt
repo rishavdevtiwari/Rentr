@@ -35,7 +35,7 @@ class ProductRepoImpl : ProductRepo {
         product: ProductModel,
         callback: (Boolean, String) -> Unit
     ) {
-        ref.child(productId).setValue(product).addOnCompleteListener { //setValue() affects the whole node unlike updateChildren which only affects
+        ref.child(productId).updateChildren(product.toMap()).addOnCompleteListener { //setValue() affects the whole node unlike updateChildren which only affects
             // specific attributes. Thus, we use a .toMap() fn in the updateUser because
             // we usually only update some fields.
             if (it.isSuccessful) {

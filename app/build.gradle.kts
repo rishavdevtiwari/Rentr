@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,11 +7,17 @@ plugins {
     alias(libs.plugins.google.gms.google.services)
 }
 
+// FIX 1: Move this block to the top
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.reader())
+}
+
 android {
     namespace = "com.example.rentr"
-    compileSdk {
-        version = release(36)
-    }
+    // FIX 2: Correct the compileSdk syntax
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.rentr"
@@ -19,6 +27,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        resValue("string", "cloudinary_url", "\"${localProperties.getProperty("cloudinary_url")}\"")
     }
 
     buildTypes {
@@ -39,10 +49,13 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
 dependencies {
+    implementation("com.cloudinary:cloudinary-android:2.4.0")
+    implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("com.airbnb.android:lottie-compose:6.0.1")
     implementation("androidx.compose.material:material-icons-extended:1.6.0")

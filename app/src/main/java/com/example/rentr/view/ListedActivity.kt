@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
+import coil.compose.AsyncImage
 import com.example.rentr.R
 import com.example.rentr.model.ProductModel
 import com.example.rentr.repository.ProductRepoImpl
@@ -88,7 +89,7 @@ fun ListedScreen() {
     }
 
     val filteredList = if (selectedTabIndex == 0) {
-        products.filter { it.availability || !it.availability } // show available + unavailable
+        products.filter { !it.outOfStock } // show available + unavailable
     } else {
         products.filter { it.outOfStock } // rented out
     }
@@ -188,6 +189,7 @@ fun ListedItemCardCompact(product: ProductModel, isAvailableTab: Boolean, onEdit
     }
     val isRented = status == "Rented Out"
     val isUnavailable = status == "Unavailable" && isAvailableTab
+    val imageUrl = product.imageUrl.firstOrNull()
 
     Card(
         shape = RoundedCornerShape(14.dp),
@@ -208,8 +210,10 @@ fun ListedItemCardCompact(product: ProductModel, isAvailableTab: Boolean, onEdit
                 .padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Image(
-                painter = painterResource(R.drawable.p1),
+            AsyncImage(
+                model = imageUrl,
+                placeholder = painterResource(R.drawable.rentrimage),
+                error = painterResource(R.drawable.p1),
                 contentDescription = product.title,
                 modifier = Modifier
                     .size(70.dp)

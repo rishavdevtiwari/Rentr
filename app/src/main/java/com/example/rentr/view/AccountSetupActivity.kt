@@ -240,7 +240,6 @@ fun FillProfileScreen() {
                     userViewModel1.register(email, password){ success, msg, userId ->
                         if(success){
                             val model = UserModel(
-                                uId = userId,
                                 fullName = fullName,
                                 gender = gender,
                                 phoneNumber = phoneNumber,

@@ -57,7 +57,7 @@ class UserRepoImp1 : UserRepo {
         model: UserModel,
         callback: (Boolean, String) -> Unit
     ) {
-        ref.child(userId).setValue(model)
+        ref.child(userId).updateChildren(model.toMap())
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     callback(true, "Profile updated")
@@ -156,6 +156,21 @@ class UserRepoImp1 : UserRepo {
                 }
             } else {
                 callback(false, reauthTask.exception?.message ?: "Re-authentication failed.")
+            }
+        }
+    }
+
+    override fun updateProfileImage(
+        userId: String,
+        imageUrl: String,
+        callback: (Boolean, String?) -> Unit
+    ) {
+        ref.child(userId).child("profileImage").setValue(imageUrl){
+            error, _ ->
+            if(error == null){
+                callback(true, null)
+            }else{
+                callback(false, error.message)
             }
         }
     }

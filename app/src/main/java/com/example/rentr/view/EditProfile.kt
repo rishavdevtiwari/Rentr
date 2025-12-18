@@ -172,7 +172,7 @@ fun EditProfileScreen(userViewModel: UserViewModel) {
                             fullName = fullName,
                             dob = dob,
                             phoneNumber = phoneNumber,
-                            gender = gender
+                            gender = gender,
                         )
                         userViewModel.updateProfile(currentUserId, updatedUser) { success, msg ->
                             if (success) {

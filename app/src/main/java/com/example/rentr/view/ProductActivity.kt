@@ -3,11 +3,9 @@ package com.example.rentr.view
 import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,6 +19,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -55,6 +56,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.rentr.R
 import com.example.rentr.repository.ProductRepoImpl
 import com.example.rentr.repository.UserRepoImp1
@@ -69,18 +71,18 @@ class ProductActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val productId = intent.getStringExtra("productId") ?: ""
-        val productImg = intent.getIntExtra("productImg", R.drawable.bicycle)
 
         setContent {
             RentrTheme {
-                ProductDisplay(productId, productImg)
+                ProductDisplay(productId)
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ProductDisplay(productId: String, productImg: Int) {
+fun ProductDisplay(productId: String) {
     val context = LocalContext.current
     val activity = context as? Activity
 
@@ -90,14 +92,11 @@ fun ProductDisplay(productId: String, productImg: Int) {
     val product by productViewModel.product.observeAsState()
     var sellerName by remember { mutableStateOf("") }
 
-
-
     LaunchedEffect(productId) {
         if (productId.isNotEmpty()) {
-            productViewModel.getProductById(productId){ _, _, _ -> }
+            productViewModel.getProductById(productId) { _, _, _ -> }
         }
     }
-
 
     LaunchedEffect(product?.listedBy) {
         val sellerId = product?.listedBy ?: return@LaunchedEffect
@@ -116,7 +115,7 @@ fun ProductDisplay(productId: String, productImg: Int) {
     Scaffold(
         containerColor = Color.Black,
         bottomBar = {
-            if (product?.availability == true) {
+            if (product?.availability == true && product?.outOfStock == false) {
                 BottomBar(price = totalPrice)
             }
         }
@@ -132,26 +131,56 @@ fun ProductDisplay(productId: String, productImg: Int) {
                     .padding(padding)
                     .verticalScroll(rememberScrollState())
             ) {
+                // Image Slider
+                val pagerState = rememberPagerState(pageCount = { product!!.imageUrl.size })
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(400.dp)
                 ) {
-                    Image(
-                        painter = painterResource(id = productImg),
-                        contentDescription = product!!.title,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize()
+                    ) { page ->
+                        AsyncImage(
+                            model = product!!.imageUrl[page],
+                            contentDescription = "Product image",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                            placeholder = painterResource(id = R.drawable.rentrimage),
+                            error = painterResource(id = R.drawable.rentrimage)
+                        )
+                    }
                     IconButton(
                         onClick = { activity?.finish() },
                         modifier = Modifier
+                            .align(Alignment.TopStart)
                             .padding(16.dp)
                             .background(Field.copy(alpha = 0.5f), CircleShape)
                     ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
                     }
                 }
+
+                // Slider Indicator
+                Row(
+                    Modifier
+                        .height(20.dp)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    repeat(pagerState.pageCount) { iteration ->
+                        val color = if (pagerState.currentPage == iteration) Orange else Color.Gray
+                        Box(
+                            modifier = Modifier
+                                .padding(4.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                                .size(8.dp)
+                        )
+                    }
+                }
+
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -159,19 +188,24 @@ fun ProductDisplay(productId: String, productImg: Int) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(product!!.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        Card(
-                            shape = RoundedCornerShape(8.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (product!!.availability) Orange.copy(alpha = 0.15f) else Field
-                            )
-                        ) {
-                            Text(
-                                text = if (product!!.availability) "Available" else "Unavailable",
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                color = if (product!!.availability) Orange else Color.Gray,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
-                            )
+                        if (product!!.availability && !product!!.outOfStock) {
+                            Card(
+                                shape = RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (product!!.availability) Orange.copy(alpha = 0.15f) else Field
+                                )
+                            ) {
+                                Text(
+                                    text = "Available",
+                                    modifier = Modifier.padding(
+                                        horizontal = 12.dp,
+                                        vertical = 6.dp
+                                    ),
+                                    color = if (product!!.availability) Orange else Color.Gray,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -181,7 +215,7 @@ fun ProductDisplay(productId: String, productImg: Int) {
                         Text("$productRating (4,749 reviews)", color = Color.Gray, fontSize = 14.sp)
                     }
 
-                    if (product!!.availability) {
+                    if (product!!.availability && !product!!.outOfStock) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Divider(color = Field)
                         Spacer(modifier = Modifier.height(16.dp))
@@ -241,7 +275,7 @@ fun ProductDisplay(productId: String, productImg: Int) {
                                 )
                             ) {
                                 Text(
-                                    text = "Not in stock",
+                                    text = if (!product!!.availability) "Unavailable" else "Out of Stock",
                                     modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp),
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold,
