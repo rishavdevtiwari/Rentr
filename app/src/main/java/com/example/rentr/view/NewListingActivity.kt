@@ -301,7 +301,6 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                             quantity = quantity,
                             availability = isAvailable,
                             category = selectedCategory,
-                            isVerified = true,
                             listedBy = userId,
                             imageUrl = uploadedUrls
                         )

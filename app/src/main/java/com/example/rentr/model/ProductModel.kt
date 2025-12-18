@@ -13,7 +13,7 @@ data class ProductModel(
     val rating: Double = 0.0,
     val ratingCount: Int = 0,
     val category: String = "", //foreign key,
-    val isVerified: Boolean = false
+    val verified: Boolean = false
 ){
     fun toMap() : Map < String, Any?> {
         return mapOf(
@@ -28,7 +28,8 @@ data class ProductModel(
             "rating" to rating,
             "ratingCount" to ratingCount,
             "category" to category,
-            "imageUrl" to imageUrl
+            "imageUrl" to imageUrl,
+            "verified" to verified
         )
     }
 }
