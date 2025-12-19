@@ -1,8 +1,8 @@
-package com.example.rentr
+package com.example.rentr.view
 
 import android.app.Activity
-import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -49,36 +49,40 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.rentr.ui.theme.Button
+import com.example.rentr.R
+import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.ui.theme.Button as DisabledButtonColor
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
+import com.example.rentr.viewmodel.UserViewModel
 
-class ForgotPassNewPassActivity : ComponentActivity() {
+class ChangePassActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            ForgotPassNewPassBody()
+            ChangePassBody()
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ForgotPassNewPassBody() {
+fun ChangePassBody() {
+    val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+
+    var oldPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    var visibility by remember { mutableStateOf(false) }
+    var visibility by remember { mutableStateOf(false) } // Control visibility for all fields
 
-    // Button is enabled only when both fields are not blank and they match
-    val isEnabled = newPassword.isNotBlank() && confirmPassword.isNotBlank() && (newPassword == confirmPassword)
+    // Button is enabled only when all three fields are not blank
+    val isEnabled = oldPassword.isNotBlank() &&
+            newPassword.isNotBlank() &&
+            confirmPassword.isNotBlank()
 
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
-
-    val activity = LocalContext.current.let {
-        if (it is Activity) it else null
-    }
 
     Scaffold (
         topBar = {
@@ -89,9 +93,19 @@ fun ForgotPassNewPassBody() {
                     navigationIconContentColor = Color.White,
                     containerColor = Color.Black
                 ),
+                navigationIcon = {
+                    IconButton(onClick = {
+                        (context as? Activity)?.finish()
+                    }) {
+                        Icon(
+                            painter = painterResource(R.drawable.baseline_arrow_back_24),
+                            contentDescription = null
+                        )
+                    }
+                },
                 title = {
                     Text(
-                        text = "Forgot Password",
+                        text = "Change Password", // Title changed
                         style = MaterialTheme.typography.titleLarge,
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
@@ -103,7 +117,7 @@ fun ForgotPassNewPassBody() {
         }
     ) { padding ->
         Column(
-            verticalArrangement=Arrangement.SpaceEvenly,
+            verticalArrangement = Arrangement.SpaceEvenly,
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
@@ -115,35 +129,38 @@ fun ForgotPassNewPassBody() {
                 }
         ) {
             Spacer(modifier = Modifier.height(25.dp))
-            Row(horizontalArrangement=Arrangement.Center,
-                modifier=Modifier.fillMaxWidth().size(300.dp)) {
+            Row(horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .size(300.dp)) {
                 Image(
                     painter = painterResource(id = R.drawable.securepassword),
                     contentDescription = null,
-                    contentScale= ContentScale.Fit,
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier.size(300.dp)
                 )
             }
             Spacer(modifier = Modifier.height(25.dp))
-            Column() {
+            Column {
                 Text(
-                    text = "Set a new secure password.",
+                    text = "Update your password with a new secure one.",
                     color = Color.Gray,
                     fontSize = 16.sp,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
                 )
                 Spacer(modifier = Modifier.height(25.dp))
 
-                // New Password Field
+                // Old Password Field
                 OutlinedTextField(
-                    value = newPassword,
-                    onValueChange = { newPassword = it },
+                    value = oldPassword,
+                    onValueChange = { oldPassword = it },
                     visualTransformation = if (visibility) VisualTransformation.None else PasswordVisualTransformation(),
                     leadingIcon = {
                         Icon(
                             painter = painterResource(id = R.drawable.baseline_lock_24),
-                            contentDescription = "Password Icon",
-                            tint = if (newPassword.isNotBlank()) Color.Black else Color.White
+                            contentDescription = "Old Password Icon",
                         )
                     },
                     trailingIcon = {
@@ -154,14 +171,60 @@ fun ForgotPassNewPassBody() {
                                 } else {
                                     painterResource(R.drawable.baseline_visibility_off_24)
                                 }, contentDescription = null,
-                                tint = if (newPassword.isNotBlank()) Color.Black else Color.White
+                            )
+                        }
+                    },
+                    placeholder = {
+                        Text(text = "Old Password", color = Color.Gray) // Placeholder changed
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    shape = RoundedCornerShape(15.dp),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Field,
+                        focusedIndicatorColor = Orange,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.White,
+                        focusedLeadingIconColor = Color.Black,
+                        unfocusedLeadingIconColor = Color.White,
+                        focusedTrailingIconColor = Color.Black,
+                        unfocusedTrailingIconColor = Color.White
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // New Password Field
+                OutlinedTextField(
+                    value = newPassword,
+                    onValueChange = { newPassword = it },
+                    visualTransformation = if (visibility) VisualTransformation.None else PasswordVisualTransformation(),
+                    leadingIcon = {
+                        Icon(
+                            painter = painterResource(id = R.drawable.baseline_lock_24),
+                            contentDescription = "New Password Icon",
+                        )
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = { visibility = !visibility }) {
+                            Icon(
+                                painter = if (visibility) {
+                                    painterResource(R.drawable.baseline_visibility_24)
+                                } else {
+                                    painterResource(R.drawable.baseline_visibility_off_24)
+                                }, contentDescription = null,
                             )
                         }
                     },
                     placeholder = {
                         Text(text = "New Password", color = Color.Gray)
                     },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
                     shape = RoundedCornerShape(15.dp),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.White,
@@ -185,11 +248,9 @@ fun ForgotPassNewPassBody() {
                     onValueChange = { confirmPassword = it },
                     visualTransformation = if (visibility) VisualTransformation.None else PasswordVisualTransformation(),
                     leadingIcon = {
-                        // Using a placeholder icon; replace with your R.drawable.lock_icon or similar
                         Icon(
                             painter = painterResource(id = R.drawable.baseline_lock_24),
-                            contentDescription = "Confirm Password Icon",
-                            tint = if (confirmPassword.isNotBlank()) Color.Black else Color.White
+                            contentDescription = "Confirm New Password Icon"
                         )
                     },
                     trailingIcon = {
@@ -199,15 +260,16 @@ fun ForgotPassNewPassBody() {
                                     painterResource(R.drawable.baseline_visibility_24)
                                 } else {
                                     painterResource(R.drawable.baseline_visibility_off_24)
-                                }, contentDescription = null,
-                                tint = if (confirmPassword.isNotBlank()) Color.Black else Color.White
+                                }, contentDescription = null
                             )
                         }
                     },
                     placeholder = {
                         Text(text = "Confirm New Password", color = Color.Gray)
                     },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
                     shape = RoundedCornerShape(15.dp),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.White,
@@ -226,20 +288,26 @@ fun ForgotPassNewPassBody() {
 
             Spacer(modifier = Modifier.height(30.dp))
 
-            // Reset Password Button
+            // Change Password Button
             Button(
                 onClick = {
-                    if (activity != null) {
-                        // TODO: Implement password reset API call here
-                        val intent = Intent(context, LoginActivity::class.java) // Redirect back to Login
-                        context.startActivity(intent)
-                        activity.finish()
+                    if (newPassword == confirmPassword) {
+                        userViewModel.changePassword(oldPassword, newPassword) { success, msg ->
+                            if (success) {
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                (context as? Activity)?.finish()
+                            } else {
+                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    } else {
+                        Toast.makeText(context, "Passwords do not match.", Toast.LENGTH_SHORT).show()
                     }
                 },
                 enabled = isEnabled,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isEnabled) Orange else Button,
-                    disabledContainerColor = Button
+                    containerColor = if (isEnabled) Orange else DisabledButtonColor,
+                    disabledContainerColor = DisabledButtonColor
                 ),
                 elevation = ButtonDefaults.buttonElevation(
                     defaultElevation = 15.dp
@@ -250,7 +318,7 @@ fun ForgotPassNewPassBody() {
                     .height(90.dp)
                     .padding(horizontal = 15.dp, vertical = 20.dp),
             ) {
-                Text("Reset Password", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("Change Password", fontSize = 18.sp, fontWeight = FontWeight.Bold) // Button text changed
             }
         }
     }
@@ -258,6 +326,6 @@ fun ForgotPassNewPassBody() {
 
 @Preview(showBackground = true)
 @Composable
-fun ForgotPassNewPassPreview() {
-    ForgotPassNewPassBody()
+fun ChangePassPreview() {
+    ChangePassBody()
 }

@@ -1,6 +1,5 @@
-package com.example.rentr
+package com.example.rentr.view
 
-import android.R.attr.password
 import android.app.Activity
 import android.app.DatePickerDialog
 import android.content.Intent
@@ -10,10 +9,8 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -44,7 +41,6 @@ import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.viewmodel.UserViewModel
 import java.util.Calendar
-import java.util.Date
 
 class FillProfileActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -244,11 +240,13 @@ fun FillProfileScreen() {
                     userViewModel1.register(email, password){ success, msg, userId ->
                         if(success){
                             val model = UserModel(
-                                uId = userId,
                                 fullName = fullName,
                                 gender = gender,
                                 phoneNumber = phoneNumber,
-                                dob = dateOfBirth
+                                dob = dateOfBirth,
+                                email = email,
+                                listings = mutableListOf("UNACCEPTED"),
+                                verified = false
                             )
                             userViewModel1.addUserToDatabase(userId, model) { success, msg->
                                 if (success) {

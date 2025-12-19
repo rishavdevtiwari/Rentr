@@ -2,7 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
+        android:name=".MyApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -14,7 +17,7 @@
 
         <!-- Launcher Activity -->
         <activity
-            android:name=".SplashActivity"
+            android:name=".view.SplashActivity"
             android:exported="true"
             android:theme="@style/Theme.Rentr">
             <intent-filter>
@@ -25,75 +28,75 @@
 
         <!-- Other Activities -->
         <activity
-            android:name=".ChangePassActivity"
+            android:name=".view.ChangePassActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".KYC"
+            android:name=".view.KYC"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".CategoryActivity"
+            android:name=".view.CategoryActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".DashboardActivity"
+            android:name=".view.DashboardActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".EditListedActivity"
+            android:name=".view.EditListedActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".EditProfile"
+            android:name=".view.EditProfile"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".FaqScreenActivity"
+            android:name=".view.FaqScreenActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".FillProfileActivity"
+            android:name=".view.FillProfileActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".ForgotPassGmailActivity"
+            android:name=".view.ForgotPassGmailActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".ForgotPassNewPassActivity"
+            android:name=".view.ForgotPassNewPassActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".ForgotPassOTPActivity"
+            android:name=".view.ForgotPassOTPActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".ListImageActivity"
+            android:name=".view.ListImageActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".LoginActivity"
+            android:name=".view.LoginActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".NewListingActivity"
+            android:name=".view.NewListingActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".PrivacyPolicyActivity"
+            android:name=".view.PrivacyPolicyActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".ProductActivity"
+            android:name=".view.ProductActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".RegistrationActivity"
+            android:name=".view.RegistrationActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".TermsActivity"
+            android:name=".view.TermsActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
 

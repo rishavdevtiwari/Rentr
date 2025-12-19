@@ -1,7 +1,10 @@
-package com.example.rentr
+package com.example.rentr.view
 
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -24,8 +27,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.HighlightOff
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocationOn
@@ -37,6 +42,7 @@ import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -48,6 +54,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,9 +72,17 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.cloudinary.android.MediaManager
+import com.cloudinary.android.callback.ErrorInfo
+import com.cloudinary.android.callback.UploadCallback
+import com.example.rentr.model.UserModel
+import com.example.rentr.viewmodel.UserViewModel
+import kotlinx.coroutines.launch
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 // region Palette
 private val primaryColor = Color.Black
@@ -74,10 +95,55 @@ private val cardBackgroundColor = Color(0xFF2C2C2E)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(userViewModel: UserViewModel) {
     val context = LocalContext.current
-    val activity = context as? Activity
     val focusManager = LocalFocusManager.current
+    val coroutineScope = rememberCoroutineScope()
+
+    val user by userViewModel.user.observeAsState()
+    var isLoading by remember { mutableStateOf(false) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            coroutineScope.launch {
+                isLoading = true
+                val newImageUrl = uploadProfileImage(uri)
+                if (newImageUrl != null) {
+                    val uid = userViewModel.getCurrentUser()?.uid
+                    if (uid != null) {
+                        userViewModel.updateProfileImage(
+                            userId = uid,
+                            imageUrl = newImageUrl
+                        ) { _, _ ->
+                            isLoading = false
+                        }
+                    } else {
+                        isLoading = false
+                    }
+                } else {
+                    isLoading = false
+                }
+            }
+        }
+    }
+
+    val editProfileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (it.resultCode == Activity.RESULT_OK) {
+            userViewModel.getCurrentUser()?.uid?.let { userId ->
+                userViewModel.getUserById(userId) { _, _, _ -> }
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        userViewModel.getCurrentUser()?.uid?.let { userId ->
+            userViewModel.getUserById(userId) { _, _, _ -> }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -110,25 +176,26 @@ fun ProfileScreen() {
                     detectTapGestures(onTap = {
                         focusManager.clearFocus()
                     })
-                }
-            ,
+                },
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(20.dp))
-            ProfileCard()
+            ProfileCard(user, isLoading) { imagePickerLauncher.launch("image/*") }
             Spacer(modifier = Modifier.height(30.dp))
-            SettingsList()
+            SettingsList(onEditProfile = {
+                val intent = Intent(context, EditProfile::class.java)
+                editProfileLauncher.launch(intent)
+            })
         }
     }
 }
 
 
-
-
 @Composable
-private fun ProfileCard() {
+private fun ProfileCard(user: UserModel?, isLoading: Boolean, onAvatarClick: () -> Unit) {
     val context = LocalContext.current
     val activity = context as? Activity
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -142,40 +209,54 @@ private fun ProfileCard() {
                 .padding(20.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Avatar()
+                Avatar(user = user, isLoading = isLoading, onClick = onAvatarClick)
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Mr Nonchalant", color = textColor, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                    Text(user?.fullName ?: "...", color = textColor, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("mrnonchalant@gmail.com", color = textLightColor, fontSize = 14.sp)
+                    Text(user?.email ?: "", color = textLightColor, fontSize = 14.sp)
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                PillBadge(text = "Verified", icon = Icons.Default.Person)
-                PillBadge(text = "Active", icon = Icons.Default.Person) // Using Person as placeholder
+            Row(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                user?.let {
+                    PillBadge(isVerified = it.verified)
+                }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = {
-                    val intent = Intent(context,KYC::class.java)
-                    activity?.startActivity(intent)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = accentColor),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
-            ) {
-                Icon(Icons.Default.Update, contentDescription = null, tint = Color.White)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Update KYC", color = Color.White, fontWeight = FontWeight.Medium)
+            if (user?.verified != true) {
+                Button(
+                    onClick = {
+                        val intent = Intent(context, KYC::class.java)
+                        activity?.startActivity(intent)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                ) {
+                    Icon(Icons.Default.Update, contentDescription = null, tint = Color.White)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Update KYC", color = Color.White, fontWeight = FontWeight.Medium)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun Avatar() {
+private fun Avatar(user: UserModel?, isLoading: Boolean, onClick: () -> Unit) {
+    fun getInitials(name: String): String {
+        val names = name.trim().split(" ")
+        return if (names.size > 1) {
+            "${names.first().firstOrNull() ?: ""}${names.last().firstOrNull() ?: ""}".uppercase()
+        } else {
+            (name.firstOrNull()?.toString() ?: "").uppercase()
+        }
+    }
+
     Box(
         modifier = Modifier
             .size(64.dp)
@@ -183,49 +264,84 @@ private fun Avatar() {
             .background(Brush.verticalGradient(listOf(accentColor, Color(0xFFFFC66C))))
             .padding(2.dp) // Simulates border
             .clip(CircleShape)
-            .background(cardBackgroundColor),
+            .background(cardBackgroundColor)
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text("MN", color = textColor, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun PillBadge(text: String, icon: ImageVector) {
-    Surface(
-        shape = RoundedCornerShape(50),
-        color = cardBackgroundColor.copy(alpha = 0.5f),
-    ) {
-        Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(text, color = textLightColor, fontSize = 12.sp)
+        if (!user?.profileImage.isNullOrEmpty()) {
+            AsyncImage(
+                model = user?.profileImage,
+                contentDescription = "Profile Picture",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            )
+        } else {
+            Text(
+                text = user?.fullName?.let { getInitials(it) } ?: "...",
+                color = textColor,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(32.dp),
+                color = accentColor,
+                strokeWidth = 3.dp
+            )
         }
     }
 }
 
-data class SettingInfo(val icon: ImageVector, val title: String, val destination: Class<out Activity>? = null)
+@Composable
+private fun PillBadge(isVerified: Boolean) {
+    val text = if (isVerified) "Verified" else "Unverified"
+    val icon = if (isVerified) Icons.Default.CheckCircle else Icons.Default.HighlightOff
+    val backgroundColor = if (isVerified) cardBackgroundColor.copy(alpha = 0.5f) else Color.Red.copy(alpha = 0.2f)
+    val iconColor = if (isVerified) accentColor else Color.Red
+    val textColor = if (isVerified) textLightColor else Color.Red
+
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = backgroundColor,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, contentDescription = text, tint = iconColor, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(text, color = textColor, fontSize = 12.sp)
+        }
+    }
+}
+
+data class SettingInfo(val icon: ImageVector, val title: String, val destination: Class<out Activity>? = null, val action: (() -> Unit)? = null)
 
 @Composable
-private fun SettingsList() {
+private fun SettingsList(onEditProfile: () -> Unit) {
     val context = LocalContext.current
     val settings = listOf(
-        SettingInfo(Icons.Default.Person, "Edit Profile", EditProfile::class.java),
+        SettingInfo(Icons.Default.Person, "Edit Profile", action = onEditProfile),
         SettingInfo(Icons.Default.LocationOn, "Address"),
         SettingInfo(Icons.Default.Notifications, "Notification"),
         SettingInfo(Icons.Default.CreditCard, "Payment"),
-        SettingInfo(Icons.Default.Lock, "Security", ChangePassActivity::class.java),
+        SettingInfo(Icons.Default.Lock, "Security", destination = ChangePassActivity::class.java),
         SettingInfo(Icons.Default.Language, "Language"),
-        SettingInfo(Icons.Default.Info, "Privacy Policy", PrivacyPolicyActivity::class.java),
-        SettingInfo(Icons.AutoMirrored.Filled.HelpOutline, "Help Center", FaqScreenActivity::class.java),
+        SettingInfo(Icons.Default.Info, "Privacy Policy", destination = PrivacyPolicyActivity::class.java),
+        SettingInfo(Icons.AutoMirrored.Filled.HelpOutline, "Help Center", destination = FaqScreenActivity::class.java),
         SettingInfo(Icons.Default.Group, "Invite Friends"),
     )
 
     Column(modifier = Modifier.fillMaxWidth()) {
         settings.forEachIndexed { index, setting ->
             SettingItem(icon = setting.icon, title = setting.title) {
-                setting.destination?.let {
-                    context.startActivity(Intent(context, it))
+                if (setting.action != null) {
+                    setting.action.invoke()
+                } else {
+                    setting.destination?.let {
+                        context.startActivity(Intent(context, it))
+                    }
                 }
             }
             if (index < settings.size - 1) {
@@ -267,10 +383,22 @@ fun SettingItem(icon: ImageVector, title: String, onClick: () -> Unit) {
     }
 }
 
-
-
-@Preview(showBackground = true, backgroundColor = 0xFF1E1E1E)
-@Composable
-fun ProfileScreenPreview() {
-    ProfileScreen()
+private suspend fun uploadProfileImage(uri: Uri): String? {
+    return suspendCoroutine { continuation ->
+        MediaManager.get().upload(uri)
+            .callback(object : UploadCallback {
+                override fun onStart(requestId: String?) {}
+                override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {}
+                override fun onSuccess(requestId: String?, resultData: Map<*, *>?) {
+                    continuation.resume(resultData?.get("secure_url")?.toString())
+                }
+                override fun onError(requestId: String?, error: ErrorInfo?) {
+                    continuation.resume(null)
+                }
+                override fun onReschedule(requestId: String?, error: ErrorInfo?) {
+                    continuation.resume(null)
+                }
+            })
+            .dispatch()
+    }
 }

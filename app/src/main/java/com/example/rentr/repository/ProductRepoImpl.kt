@@ -4,36 +4,28 @@ import ProductRepo
 import com.example.rentr.model.ProductModel
 import com.google.firebase.database.*
 
-class ProductRepoImpl: ProductRepo {
+class ProductRepoImpl : ProductRepo {
 
     val database: FirebaseDatabase = FirebaseDatabase.getInstance()
     val ref: DatabaseReference = database.getReference("products")
 
     override fun addProduct(
         product: ProductModel,
-        callback: (Boolean, String, String) -> Unit
+        callback: (Boolean, String, String?) -> Unit
     ) {
-        ref.push().also { newRef ->
-            newRef.setValue(product.copy(productId = newRef.key ?: "")).addOnCompleteListener {
-                if (it.isSuccessful) {
-                    callback(true, "Product added", newRef.key ?: "")
-                } else {
-                    callback(false, "Failed to add product", "")
-                }
-            }
-        }
-    }
+        val newRef = ref.push()
+        val productId = newRef.key
 
-    override fun addProductToDatabase(
-        productId: String,
-        product: ProductModel,
-        callback: (Boolean, String) -> Unit
-    ) {
-        ref.child(productId).setValue(product).addOnCompleteListener {
-            if (it.isSuccessful) {
-                callback(true, "Product added to database")
+        if (productId == null) {
+            callback(false, "Failed to create a new product ID.", null)
+            return
+        }
+
+        newRef.setValue(product.copy(productId = productId)).addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                callback(true, "Product added successfully", productId)
             } else {
-                callback(false, "Failed to add product to the database")
+                callback(false, task.exception?.message ?: "Unknown error while adding product", null)
             }
         }
     }
@@ -43,9 +35,9 @@ class ProductRepoImpl: ProductRepo {
         product: ProductModel,
         callback: (Boolean, String) -> Unit
     ) {
-        ref.child(productId).setValue(product).addOnCompleteListener { //setValue() affects the whole node unlike updateChildren which only affects
-                                                                                  // specific attributes. Thus, we use a .toMap() fn in the updateUser because
-                                                                                  // we usually only update some fields.
+        ref.child(productId).updateChildren(product.toMap()).addOnCompleteListener { //setValue() affects the whole node unlike updateChildren which only affects
+            // specific attributes. Thus, we use a .toMap() fn in the updateUser because
+            // we usually only update some fields.
             if (it.isSuccessful) {
                 callback(true, "Product updated")
             } else {
@@ -73,8 +65,8 @@ class ProductRepoImpl: ProductRepo {
     ) {
         ref.child(productId).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.exists()) {
-                    val product = snapshot.getValue(ProductModel::class.java)
+                val product = snapshot.getValue(ProductModel::class.java)
+                if (product != null) {
                     callback(true, "Product fetched", product)
                 } else {
                     callback(false, "Product not found", null)
@@ -105,7 +97,7 @@ class ProductRepoImpl: ProductRepo {
 
     override fun getAllProductsByCategory(
         category: String,
-        callback: (Boolean, String, List<ProductModel>) -> Unit
+        callback: (Boolean, String, List<ProductModel>?) -> Unit
     ) {
         ref.orderByChild("category").equalTo(category)
             .addListenerForSingleValueEvent(object : ValueEventListener {
@@ -165,7 +157,7 @@ class ProductRepoImpl: ProductRepo {
         available: Boolean,
         callback: (Boolean, String) -> Unit
     ) {
-        ref.child(productId).child("availability").setValue(available).addOnCompleteListener {
+        ref.child(productId).child("availability").setValue(available).addOnCompleteListener { 
             if (it.isSuccessful) {
                 callback(true, "Availability updated")
             } else {
@@ -179,7 +171,7 @@ class ProductRepoImpl: ProductRepo {
         quantity: Int,
         callback: (Boolean, String) -> Unit
     ) {
-        ref.child(productId).child("quantity").setValue(quantity).addOnCompleteListener {
+        ref.child(productId).child("quantity").setValue(quantity).addOnCompleteListener { 
             if (it.isSuccessful) {
                 callback(true, "Quantity updated")
             } else {
