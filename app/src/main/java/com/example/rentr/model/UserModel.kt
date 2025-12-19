@@ -8,7 +8,8 @@ data class UserModel(
     val email: String = "",
     val listings: List<String> = emptyList(),
     val verified: Boolean = false,
-    val profileImage: String = ""
+    val profileImage: String = "",
+    val kycUrl: List<String> = emptyList()
 )
 {
     fun toMap() : Map < String, Any?>{
@@ -20,6 +21,7 @@ data class UserModel(
             "listings" to listings,
             "verified" to verified,
             "profileImage" to profileImage,
+            "kycUrl" to kycUrl
         )
     }
 }
