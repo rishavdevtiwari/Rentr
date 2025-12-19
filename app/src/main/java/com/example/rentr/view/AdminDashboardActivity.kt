@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
@@ -39,6 +40,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,33 +55,46 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModelProvider
 import com.example.rentr.R
+import com.example.rentr.model.ProductModel
+import com.example.rentr.model.UserModel
+import com.example.rentr.repository.ProductRepoImpl
+import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
+import com.example.rentr.viewmodel.ProductViewModel
+import com.example.rentr.viewmodel.UserViewModel
 
 class AdminDashboardActivity : ComponentActivity() {
+    private lateinit var productViewModel: ProductViewModel
+    private lateinit var userViewModel: UserViewModel
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        productViewModel = ViewModelProvider(this, ViewModelProvider.NewInstanceFactory())[ProductViewModel::class.java]
+        userViewModel = ViewModelProvider(this, ViewModelProvider.NewInstanceFactory())[UserViewModel::class.java]
+
         setContent {
-            AdminDashboardScreen()
+            AdminDashboardScreen(productViewModel, userViewModel)
         }
     }
 }
 
 // Data classes for admin dashboard
 data class AdminProduct(
-    val id: Int,
+    val id: String,
     val name: String,
     val listedBy: String,
     val price: Int,
-    val imageRes: Int,
+    val imageRes: String,
     val verificationStatus: VerificationStatus
 )
 
 data class UserKYC(
-    val id: Int,
+    val id: String,
     val name: String,
-    val imageRes: Int,
+    val imageRes: String,
     val verificationStatus: VerificationStatus
 )
 
@@ -104,52 +121,34 @@ enum class FlagType(val color: Color, val text: String) {
 }
 
 @Composable
-fun AdminDashboardScreen() {
-    // Mock data for demonstration
-    val adminProducts = remember {
-        (1..10).map { index ->
-            AdminProduct(
-                id = index,
-                name = when (index % 4) {
-                    0 -> "Mountain Bike Pro"
-                    1 -> "DSLR Camera"
-                    2 -> "Gaming Laptop"
-                    else -> "Modern Sofa"
-                },
-                listedBy = "User ${index * 5}",
-                price = (index * 1500) % 5000 + 500,
-                imageRes = when (index % 3) {
-                    0 -> R.drawable.bicycle
-                    1 -> R.drawable.camera
-                    else -> R.drawable.bike
-                },
-                verificationStatus = when (index % 3) {
-                    0 -> VerificationStatus.VERIFIED
-                    1 -> VerificationStatus.PENDING
-                    else -> VerificationStatus.REJECTED
-                }
-            )
-        }
+fun AdminDashboardScreen(productViewModel: ProductViewModel, userViewModel: UserViewModel) {
+    val products by productViewModel.allProducts.observeAsState(initial = emptyList())
+    val users by userViewModel.allUsers.observeAsState(initial = emptyList())
+
+    LaunchedEffect(Unit) {
+        productViewModel.getAllProducts { _, _, _ -> }
+        userViewModel.getAllUsers { _, _, _ -> }
     }
 
-    val kycUsers = remember {
-        (1..8).map { index ->
-            UserKYC(
-                id = index,
-                name = "John Doe $index",
-                imageRes = when (index % 3) {
-                    0 -> R.drawable.p1
-                    1 -> R.drawable.bicycle
-                    else -> R.drawable.camera
-                },
-                verificationStatus = when (index % 3) {
-                    0 -> VerificationStatus.VERIFIED
-                    1 -> VerificationStatus.PENDING
-                    else -> VerificationStatus.REJECTED
-                }
-            )
-        }
+    val adminProducts = products.map {
+        AdminProduct(
+            id = it.productId,
+            name = it.title,
+            listedBy = it.listedBy,
+            price = it.price.toInt(),
+            imageRes = it.imageUrl.firstOrNull() ?: "",
+            verificationStatus = if (it.verified) VerificationStatus.VERIFIED else VerificationStatus.PENDING
+        )
     }
+
+    val kycUsers = users?.map {
+        UserKYC(
+            id = it.email, // Assuming email is a unique identifier
+            name = it.fullName,
+            imageRes = it.profileImage,
+            verificationStatus = if (it.verified) VerificationStatus.VERIFIED else VerificationStatus.PENDING
+        )
+    } ?: emptyList()
 
     val flaggedProducts = remember {
         (1..10).map { index ->
@@ -313,7 +312,7 @@ fun AdminProductCard(product: AdminProduct) {
             // Product Image
             Box(modifier = Modifier.fillMaxWidth()) {
                 Image(
-                    painter = painterResource(id = product.imageRes),
+                    painter = painterResource(id = R.drawable.rent),
                     contentDescription = product.name,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -413,7 +412,7 @@ fun KYCUserCard(user: UserKYC) {
             // User Profile Image
             Box {
                 Image(
-                    painter = painterResource(id = user.imageRes),
+                    painter = painterResource(id = R.drawable.rent),
                     contentDescription = user.name,
                     modifier = Modifier
                         .size(80.dp)
@@ -566,7 +565,7 @@ fun FlaggedProductCard(product: FlaggedProduct) {
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    painter=painterResource(id=R.drawable.baseline_priority_high_24),
+                    Icons.Default.PriorityHigh,
                     contentDescription = "Flagged by",
                     tint = Color.Red.copy(alpha = 0.7f),
                     modifier = Modifier.size(14.dp)
@@ -670,5 +669,5 @@ fun IconButton(onClick: () -> Unit, modifier: Modifier = Modifier, content: @Com
 @Preview
 @Composable
 fun AdminDashboardPreview() {
-    AdminDashboardScreen()
+    // AdminDashboardScreen(productViewModel, userViewModel) // This will not work in preview
 }
