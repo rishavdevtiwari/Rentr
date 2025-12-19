@@ -79,6 +79,7 @@ import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
 import com.example.rentr.model.UserModel
+import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
 import kotlin.coroutines.resume
@@ -185,7 +186,7 @@ fun ProfileScreen(userViewModel: UserViewModel) {
             SettingsList(onEditProfile = {
                 val intent = Intent(context, EditProfile::class.java)
                 editProfileLauncher.launch(intent)
-            })
+            },userViewModel)
         }
     }
 }
@@ -319,8 +320,11 @@ private fun PillBadge(isVerified: Boolean) {
 data class SettingInfo(val icon: ImageVector, val title: String, val destination: Class<out Activity>? = null, val action: (() -> Unit)? = null)
 
 @Composable
-private fun SettingsList(onEditProfile: () -> Unit) {
+private fun SettingsList(onEditProfile: () -> Unit, userViewModel : UserViewModel) {
     val context = LocalContext.current
+    val activity = context as? Activity
+    ////al user = userViewModel.getCurrentUser()
+
     val settings = listOf(
         SettingInfo(Icons.Default.Person, "Edit Profile", action = onEditProfile),
         SettingInfo(Icons.Default.LocationOn, "Address"),
@@ -354,6 +358,20 @@ private fun SettingsList(onEditProfile: () -> Unit) {
             Spacer(modifier = Modifier.size(8.dp))
             Text("Logout", color = Color.Red, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         }
+        TextButton(onClick = {
+            val currentUserId = userViewModel.getCurrentUser()?.uid
+            if (currentUserId != null) {
+                userViewModel.deleteAccount(currentUserId) { _, _ ->
+                    context.startActivity(Intent(context, LoginActivity::class.java))
+                    activity?.finish()
+                }
+            }
+        }) {
+            Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Delete Account", tint = Color.Red)
+            Spacer(modifier = Modifier.size(8.dp))
+            Text("Delete Account", color = Color.Red, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+        }
+
     }
 }
 
