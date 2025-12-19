@@ -246,7 +246,8 @@ fun FillProfileScreen() {
                                 dob = dateOfBirth,
                                 email = email,
                                 listings = mutableListOf("UNACCEPTED"),
-                                verified = false
+                                verified = false,
+                                kycUrl = mutableListOf()
                             )
                             userViewModel1.addUserToDatabase(userId, model) { success, msg->
                                 if (success) {

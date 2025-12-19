@@ -1,0 +1,13 @@
+[33m91a165a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mproduction[m[33m, [m[1;31morigin/production[m[33m, [m[1;32mnischal[m[33m)[m Merge pull request #35 from rishavdevtiwari/pragyan
+[33mf502923[m[33m ([m[1;31morigin/pragyan[m[33m)[m unavailable/rented out backend logic display
+[33m794f797[m minor profile badge changes
+[33m2be5abd[m minor model changes
+[33me52694e[m better profileImage viewModel implementation with no nested unique profileImage
+[33m4dc4997[m Synced with cloudinary for image database, linked with firebase, live updates and edits to images
+[33m804b3f6[m Merge pull request #34 from rishavdevtiwari/revert-33-girish
+[33mf42978c[m Revert "Girish"
+[33m506c76a[m Merge pull request #33 from rishavdevtiwari/girish
+[33m73eef01[m resolved conflicts of admindashboard for profuct verification
+[33me410460[m completed admin dashboard for product verification
+[33m9d5f74d[m Merge pull request #32 from rishavdevtiwari/pragyan
+[33m22060ba[m product getter/editor/setter backend with live update
