@@ -5,8 +5,10 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -60,6 +62,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.rentr.R
 import com.example.rentr.repository.ProductRepoImpl
 import com.example.rentr.ui.theme.Field
@@ -99,6 +102,16 @@ fun EditScreen(productId: String, onBackClicked: () -> Unit) {
     var description by remember { mutableStateOf("") }
     var isAvailable by remember { mutableStateOf(true) }
     var quantity by remember { mutableIntStateOf(0) }
+
+    val imageEditorLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            // The images were changed. Set our own result and finish.
+            activity?.setResult(Activity.RESULT_OK)
+            activity?.finish()
+        }
+    }
 
     // Fetch the product when the screen loads
     LaunchedEffect(productId) {
@@ -188,8 +201,10 @@ fun EditScreen(productId: String, onBackClicked: () -> Unit) {
                         .height(200.dp)
                         .clip(RoundedCornerShape(16.dp))
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.car), // Placeholder image
+                    AsyncImage(
+                        model = productToEdit?.imageUrl?.firstOrNull(),
+                        placeholder = painterResource(id = R.drawable.rentrimage),
+                        error = painterResource(id = R.drawable.rentrimage),
                         contentDescription = name,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
@@ -197,7 +212,8 @@ fun EditScreen(productId: String, onBackClicked: () -> Unit) {
                     IconButton(
                         onClick = {
                             val intent = Intent(context, ListImageActivity::class.java)
-                            context.startActivity(intent)
+                            intent.putExtra("productId", productId)
+                            imageEditorLauncher.launch(intent)
                         },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
