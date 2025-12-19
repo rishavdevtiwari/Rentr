@@ -12,6 +12,28 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Rentr">
         <activity
+            android:name=".view.VerifyKYC"
+            android:exported="true"
+            android:label="@string/title_activity_verify_kyc"
+            android:theme="@style/Theme.Rentr">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".view.UpdateAdmjinProfile"
+            android:exported="true"
+            android:label="@string/title_activity_update_admjin_profile"
+            android:theme="@style/Theme.Rentr">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
             android:name=".view.AdminSettings"
             android:exported="true"
             android:label="@string/title_activity_admin_settings"
