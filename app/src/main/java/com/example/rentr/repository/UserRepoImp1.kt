@@ -225,4 +225,34 @@ class UserRepoImp1 : UserRepo {
             }
         }
     }
+
+    override fun updateKyc(
+        userId: String,
+        kycUrl: String,
+        callback: (Boolean, String?) -> Unit
+    ) {
+        ref.child(userId).child("kycUrl").setValue(kycUrl){
+                error, _ ->
+            if(error == null){
+                callback(true, null)
+            }else{
+                callback(false, error.message)
+            }
+        }
+    }
+
+    override fun removeKyc(
+        userId: String,
+        callback: (Boolean, String?) -> Unit
+    ) {
+        ref.child(userId).child("kycUrl").removeValue { error, _ ->
+            if (error == null) {
+                callback(true, null)
+            } else {
+                callback(false, error.message)
+            }
+        }
+    }
+
+
 }
