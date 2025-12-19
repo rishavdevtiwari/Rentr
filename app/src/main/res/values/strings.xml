@@ -7,4 +7,7 @@
     <string name="title_activity_account_setup">AccountSetupActivity</string>
     <string name="title_activity_admin_ddashboard">AdminDDashboardActivity</string>
     <string name="title_activity_admin_settings">AdminSettings</string>
+    <string name="title_activity_admin_dashboard">AdminDashboardActivity</string>
+    <string name="title_activity_kycverification">KYCVerificationActivity</string>
+    <string name="title_activity_product_verification">ProductVerificationActivity</string>
 </resources>

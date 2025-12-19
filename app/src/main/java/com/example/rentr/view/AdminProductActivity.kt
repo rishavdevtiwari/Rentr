@@ -1,4 +1,4 @@
-package com.example.rentr.viewmodel
+package com.example.rentr.view
 
 
 
@@ -27,11 +27,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.example.rentr.ui.theme.Button
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.outline
-import com.example.rentr.ui.theme.red
 import com.example.rentr.ui.theme.splash
 
 // --- 1. CONFIGURATION & THEME ---
-class AdminDashboardActivity : ComponentActivity() {
+class AdminProductActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -65,7 +64,7 @@ data class Product(
 enum class ProductStatus(val label: String, val color: Color) {
     Active("Active", Color(0xFF4CAF50)),     // Green
     Scheduled("Scheduled", Color(0xFF2196F3)), // Blue
-    Available("Available", red)
+    Available("Available", Color.Red)
 }
 
 enum class AdminBottomNavItem(val label: String, val icon: ImageVector) {
