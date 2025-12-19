@@ -15,6 +15,17 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Rentr">
         <activity
+            android:name=".view.FlaggedReviewActivity"
+            android:exported="true"
+            android:label="@string/title_activity_flagged_review"
+            android:theme="@style/Theme.Rentr">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
             android:name=".view.ProductVerificationActivity"
             android:exported="true"
             android:label="@string/title_activity_product_verification"

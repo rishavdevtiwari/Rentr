@@ -1,11 +1,11 @@
 package com.example.rentr.view
 
+import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,20 +24,30 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,7 +83,10 @@ class KYCVerificationActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KYCVerificationScreen() {
-    // Sample document data - in real app, this would come from ViewModel
+    val context = LocalContext.current
+    val activity = context as? Activity
+
+    // Sample document data - backend logic to implement later
     val documents = listOf(
         DocumentItem("Citizenship Front", "user_123_citizenship_front.jpg", Icons.Default.Description),
         DocumentItem("Citizenship Back", "user_123_citizenship_back.jpg", Icons.Default.Description),
@@ -81,6 +94,12 @@ fun KYCVerificationScreen() {
         DocumentItem("Bank A/c Details", "user_123_bank_details.pdf", Icons.Default.Description),
         DocumentItem("Profile Pic", "user_123_profile.jpg", Icons.Default.AccountCircle)
     )
+
+    var isLoading by remember { mutableStateOf(false) }
+
+    // State for rejection dialog
+    var showRejectionDialog by remember { mutableStateOf(false) }
+    var rejectionReason by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
@@ -93,7 +112,7 @@ fun KYCVerificationScreen() {
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { /* Handle back navigation */ }) {
+                    IconButton(onClick = { activity?.finish() }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
@@ -110,32 +129,132 @@ fun KYCVerificationScreen() {
         },
         containerColor = primaryColor
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // User info section
-            UserInfoSection()
-
-            // Scrollable documents section
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(documents) { document ->
-                    DocumentCard(document)
-                }
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = accentColor)
             }
-
-            // Action buttons
-            ActionButtonsSection(
+        } else {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                // User info section
+                UserInfoSection()
+
+                // Scrollable documents section
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(documents) { document ->
+                        DocumentCard(document)
+                    }
+                }
+
+                // Action buttons
+                ActionButtonsSection(
+                    onRejectClick = { showRejectionDialog = true },
+                    onAcceptClick = {
+                        // Backend logic to implement later
+                        // Handle KYC acceptance
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                )
+            }
+        }
+
+        // Rejection Reason Dialog
+        if (showRejectionDialog) {
+            AlertDialog(
+                onDismissRequest = { showRejectionDialog = false },
+                title = {
+                    Text(
+                        text = "Reason for KYC Rejection",
+                        color = textColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Column {
+                        Text(
+                            text = "Please provide a reason for rejecting this KYC verification:",
+                            color = textLightColor,
+                            fontSize = 14.sp
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        TextField(
+                            value = rejectionReason,
+                            onValueChange = { rejectionReason = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp),
+                            placeholder = {
+                                Text(
+                                    text = "Enter rejection reason...",
+                                    color = textLightColor.copy(alpha = 0.7f)
+                                )
+                            },
+                            colors = androidx.compose.material3.TextFieldDefaults.colors(
+                                focusedContainerColor = cardBackgroundColor,
+                                unfocusedContainerColor = cardBackgroundColor,
+                                disabledContainerColor = cardBackgroundColor,
+                                focusedIndicatorColor = accentColor,
+                                unfocusedIndicatorColor = textLightColor,
+                                focusedTextColor = textColor,
+                                unfocusedTextColor = textColor
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            singleLine = false,
+                            maxLines = 5
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Common reasons: Blurry documents, missing information, expired documents, mismatched details, poor quality images, etc.",
+                            color = textLightColor,
+                            fontSize = 12.sp
+                        )
+                    }
+                },
+                confirmButton = {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                showRejectionDialog = false
+                                rejectionReason = ""
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = cardBackgroundColor
+                            )
+                        ) {
+                            Text("Cancel", color = textColor)
+                        }
+                        Button(
+                            onClick = {
+                                // Backend logic to implement later
+                                // Submit KYC rejection with reason: rejectionReason
+                                showRejectionDialog = false
+                                // Reset reason
+                                rejectionReason = ""
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = errorColor
+                            )
+                        ) {
+                            Text("Submit Rejection", color = textColor)
+                        }
+                    }
+                },
+                containerColor = primaryColor,
+                titleContentColor = textColor,
+                textContentColor = textLightColor
             )
         }
     }
@@ -303,7 +422,7 @@ private fun DocumentCard(document: DocumentItem) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
-                    onClick = { /* View full document */ },
+                    onClick = { /* View full document - backend logic to implement later */ },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -318,7 +437,7 @@ private fun DocumentCard(document: DocumentItem) {
                 }
 
                 Button(
-                    onClick = { /* Zoom document */ },
+                    onClick = { /* Zoom document - backend logic to implement later */ },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -337,43 +456,69 @@ private fun DocumentCard(document: DocumentItem) {
 }
 
 @Composable
-private fun ActionButtonsSection(modifier: Modifier = Modifier) {
+private fun ActionButtonsSection(
+    onRejectClick: () -> Unit,
+    onAcceptClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Reject button
         Button(
-            onClick = { /* Handle reject */ },
+            onClick = onRejectClick,
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = errorColor
             )
         ) {
-            Text(
-                text = "Reject KYC",
-                color = textColor,
-                fontWeight = FontWeight.Medium,
-                fontSize = 16.sp
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Reject",
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Reject KYC",
+                    color = textColor,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 16.sp
+                )
+            }
         }
 
         // Accept button
         Button(
-            onClick = { /* Handle accept */ },
+            onClick = onAcceptClick,
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = successColor
             )
         ) {
-            Text(
-                text = "Accept KYC",
-                color = textColor,
-                fontWeight = FontWeight.Medium,
-                fontSize = 16.sp
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "Accept",
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Accept KYC",
+                    color = textColor,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 16.sp
+                )
+            }
         }
     }
 }
