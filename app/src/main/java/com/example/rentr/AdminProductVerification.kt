@@ -44,7 +44,7 @@ class AdminDashboardActivity : ComponentActivity() {
             ) {
                 // We use Surface to fill the screen with the background color
                 Surface(modifier = Modifier.fillMaxSize(), color = splash) {
-                    RentrMobileDashboard()
+                    RentrProductVerify()
                 }
             }
         }
@@ -78,7 +78,7 @@ enum class AdminBottomNavItem(val label: String, val icon: ImageVector) {
 
 // --- 3. MAIN SCREEN (MOBILE ONLY) ---
 @Composable
-fun RentrMobileDashboard() {
+fun RentrProductVerify() {
     var currentScreen by remember { mutableStateOf(AdminBottomNavItem.Product) }
 
     Scaffold(
@@ -392,7 +392,7 @@ fun MobilePreview() {
         )
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = splash) {
-            RentrMobileDashboard()
+            RentrProductVerify()
         }
     }
 }
