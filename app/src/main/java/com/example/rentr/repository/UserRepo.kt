@@ -18,11 +18,11 @@ interface UserRepo {
                       callback: (Boolean, String) -> Unit)
     fun changePassword(oldPass: String, newPass: String, callback: (Boolean, String) -> Unit)
 
-    fun updateProfileImage(
-        userId: String,
-        imageUrl: String,
-        callback: (Boolean, String?) -> Unit
-    )
+    fun updateProfileImage(userId: String, imageUrl: String,callback: (Boolean, String?) -> Unit)
+
+    fun updateKyc(userId: String, kycUrl: String, callback: (Boolean, String?) -> Unit)
+    fun removeKyc(userId: String, callback: (Boolean, String?) -> Unit)
+
     fun getCurrentUser() : FirebaseUser?
     fun logout(callback: (Boolean, String) -> Unit)
     fun getUserById(userId: String, callback:(Boolean,String, UserModel?) -> Unit)
@@ -36,10 +36,3 @@ interface UserRepo {
     )
 }
 
-//    interface ProductRepo {
-//        fun addProduct()
-//        fun updateProduct()
-//        fun deleteProduct()
-//        fun getProductById()
-//        fun getAllProducts()
-//    }

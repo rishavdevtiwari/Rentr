@@ -101,7 +101,6 @@ fun EditScreen(productId: String, onBackClicked: () -> Unit) {
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var isAvailable by remember { mutableStateOf(true) }
-    var quantity by remember { mutableIntStateOf(0) }
 
     val imageEditorLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -126,7 +125,6 @@ fun EditScreen(productId: String, onBackClicked: () -> Unit) {
             name = it.title
             description = it.description
             isAvailable = it.availability
-            quantity = it.quantity
         }
     }
 
@@ -153,8 +151,7 @@ fun EditScreen(productId: String, onBackClicked: () -> Unit) {
                         val updatedProduct = it.copy(
                             title = name,
                             description = description,
-                            availability = isAvailable,
-                            quantity = quantity
+                            availability = isAvailable
                         )
                         productViewModel.updateProduct(productId, updatedProduct) { success, msg ->
                             if (success) {
@@ -293,25 +290,7 @@ fun EditScreen(productId: String, onBackClicked: () -> Unit) {
                 }
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Quantity Stepper
-                Text("Quantity", fontWeight = FontWeight.Medium, color = Color.White, fontSize = 16.sp)
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier
-                        .background(Field, RoundedCornerShape(20.dp))
-                        .padding(horizontal = 12.dp, vertical = 4.dp)
-                        .align(Alignment.Start) // Align to the left
-                ) {
-                    IconButton(onClick = { if (quantity > 0) quantity-- }) {
-                        Text("-", color = Color.White, fontSize = 24.sp)
-                    }
-                    Text(quantity.toString(), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    IconButton(onClick = { quantity++ }) {
-                        Text("+", color = Color.White, fontSize = 24.sp)
-                    }
-                }
 
                 Spacer(modifier = Modifier.height(20.dp)) // Extra space before bottom bar
             }

@@ -72,6 +72,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -79,6 +80,7 @@ import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
 import com.example.rentr.model.UserModel
+import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
 import kotlin.coroutines.resume
@@ -185,11 +187,10 @@ fun ProfileScreen(userViewModel: UserViewModel) {
             SettingsList(onEditProfile = {
                 val intent = Intent(context, EditProfile::class.java)
                 editProfileLauncher.launch(intent)
-            })
+            },userViewModel)
         }
     }
 }
-
 
 @Composable
 private fun ProfileCard(user: UserModel?, isLoading: Boolean, onAvatarClick: () -> Unit) {
@@ -202,6 +203,7 @@ private fun ProfileCard(user: UserModel?, isLoading: Boolean, onAvatarClick: () 
             .shadow(elevation = 8.dp, spotColor = Color(0x22000000), shape = RoundedCornerShape(20.dp)),
         shape = RoundedCornerShape(20.dp),
     ) {
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -226,20 +228,43 @@ private fun ProfileCard(user: UserModel?, isLoading: Boolean, onAvatarClick: () 
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            if (user?.verified != true) {
-                Button(
-                    onClick = {
-                        val intent = Intent(context, KYC::class.java)
-                        activity?.startActivity(intent)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = accentColor),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
-                ) {
-                    Icon(Icons.Default.Update, contentDescription = null, tint = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Update KYC", color = Color.White, fontWeight = FontWeight.Medium)
+
+            // KYC Status Logic
+            user?.let {
+                when {
+                    // Condition 1: Pending Verification
+                    it.kycUrl.size == 5 && !it.verified -> {
+                        Button(
+                            onClick = { /* Non-clickable status indicator */ },
+                            enabled = false, // This makes it non-clickable
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                disabledContainerColor = Color.Yellow, // Yellow background
+                                disabledContentColor = Color.Black // Black text for readability
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                        ) {
+                            Text("KYC: Pending Verification", fontWeight = FontWeight.Medium)
+                        }
+                    }
+                    // Condition 2: Update KYC button
+                    it.kycUrl.isEmpty() && !it.verified -> {
+                        Button(
+                            onClick = {
+                                val intent = Intent(context, KYC::class.java)
+                                activity?.startActivity(intent)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                        ) {
+                            Icon(Icons.Default.Update, contentDescription = null, tint = Color.White)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Update KYC", color = Color.White, fontWeight = FontWeight.Medium)
+                        }
+                    }
                 }
             }
         }
@@ -297,9 +322,9 @@ private fun Avatar(user: UserModel?, isLoading: Boolean, onClick: () -> Unit) {
 private fun PillBadge(isVerified: Boolean) {
     val text = if (isVerified) "Verified" else "Unverified"
     val icon = if (isVerified) Icons.Default.CheckCircle else Icons.Default.HighlightOff
-    val backgroundColor = if (isVerified) cardBackgroundColor.copy(alpha = 0.5f) else Color.Red.copy(alpha = 0.2f)
-    val iconColor = if (isVerified) accentColor else Color.Red
-    val textColor = if (isVerified) textLightColor else Color.Red
+    val backgroundColor = if (isVerified) cardBackgroundColor.copy(alpha = 0.5f) else Color.Red
+    val iconColor = if (isVerified) accentColor else Color.White
+    val textColor = if (isVerified) textLightColor else Color.White
 
     Surface(
         shape = RoundedCornerShape(50),
@@ -319,8 +344,11 @@ private fun PillBadge(isVerified: Boolean) {
 data class SettingInfo(val icon: ImageVector, val title: String, val destination: Class<out Activity>? = null, val action: (() -> Unit)? = null)
 
 @Composable
-private fun SettingsList(onEditProfile: () -> Unit) {
+private fun SettingsList(onEditProfile: () -> Unit, userViewModel : UserViewModel) {
     val context = LocalContext.current
+    val activity = context as? Activity
+    ////al user = userViewModel.getCurrentUser()
+
     val settings = listOf(
         SettingInfo(Icons.Default.Person, "Edit Profile", action = onEditProfile),
         SettingInfo(Icons.Default.LocationOn, "Address"),
@@ -354,6 +382,20 @@ private fun SettingsList(onEditProfile: () -> Unit) {
             Spacer(modifier = Modifier.size(8.dp))
             Text("Logout", color = Color.Red, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         }
+        TextButton(onClick = {
+            val currentUserId = userViewModel.getCurrentUser()?.uid
+            if (currentUserId != null) {
+                userViewModel.deleteAccount(currentUserId) { _, _ ->
+                    context.startActivity(Intent(context, LoginActivity::class.java))
+                    activity?.finish()
+                }
+            }
+        }) {
+            Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Delete Account", tint = Color.Red)
+            Spacer(modifier = Modifier.size(8.dp))
+            Text("Delete Account", color = Color.Red, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+        }
+
     }
 }
 

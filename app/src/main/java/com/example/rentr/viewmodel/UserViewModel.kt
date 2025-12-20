@@ -81,6 +81,30 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
             }
     }
 
+    fun updateKyc(
+        userId: String,
+        kycUrl: String,
+        callback: (Boolean, String?) -> Unit){
+        FirebaseDatabase.getInstance()
+            .getReference("users")
+            .child(userId)
+            .child("kycUrl")
+            .setValue(kycUrl)
+            .addOnSuccessListener {
+                callback(true, null)
+            }
+            .addOnFailureListener {
+                callback(false, it.message)
+            }
+    }
+
+    fun removeKyc(
+        userId: String,
+        callback: (Boolean, String?) -> Unit){
+        repo.removeKyc(userId,callback)
+    }
+
+
     fun getAllUsers(callback:(Boolean, String, List<UserModel>) -> Unit){
         repo.getAllUsers (callback)
     }

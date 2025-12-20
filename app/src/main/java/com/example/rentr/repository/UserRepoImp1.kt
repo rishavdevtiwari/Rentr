@@ -110,13 +110,64 @@ class UserRepoImp1 : UserRepo {
     }
 
     override fun deleteAccount(userId: String, callback: (Boolean, String) -> Unit) {
-        ref.child(userId).removeValue().addOnCompleteListener { task ->
-            if (task.isSuccessful) {
-                callback(true, "Account deleted")
-            } else {
-                callback(false, task.exception?.message ?: "Unknown error")
-            }
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            callback(false, "No authenticated user")
+            return
         }
+
+        val productsRef = database.getReference("products")
+        val usersRef = database.getReference("users")
+
+        //  Delete all listings by this user
+        productsRef
+            .orderByChild("listedBy")
+            .equalTo(userId)
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+
+                override fun onDataChange(snapshot: DataSnapshot) {
+
+                    val deleteTasks = mutableListOf<com.google.android.gms.tasks.Task<Void>>()
+
+                    for (product in snapshot.children) {
+                        deleteTasks.add(product.ref.removeValue())
+                    }
+
+                    // Wait for all listings to delete
+                    com.google.android.gms.tasks.Tasks
+                        .whenAllComplete(deleteTasks)
+                        .addOnCompleteListener {
+
+                            // Delete user data from DB
+                            usersRef.child(userId).removeValue()
+                                .addOnCompleteListener { userDbTask ->
+
+                                    if (!userDbTask.isSuccessful) {
+                                        callback(false, "Failed to delete user data")
+                                        return@addOnCompleteListener
+                                    }
+
+                                    // Delete Firebase Auth account
+                                    currentUser.delete()
+                                        .addOnCompleteListener { authTask ->
+                                            if (authTask.isSuccessful) {
+                                                callback(true, "User and all listings deleted successfully")
+                                            } else {
+                                                callback(
+                                                    false,
+                                                    authTask.exception?.message
+                                                        ?: "Failed to delete auth user (reauth required)"
+                                                )
+                                            }
+                                        }
+                                }
+                        }
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    callback(false, error.message)
+                }
+            })
     }
 
     override fun addUserToDatabase(
@@ -174,4 +225,34 @@ class UserRepoImp1 : UserRepo {
             }
         }
     }
+
+    override fun updateKyc(
+        userId: String,
+        kycUrl: String,
+        callback: (Boolean, String?) -> Unit
+    ) {
+        ref.child(userId).child("kycUrl").setValue(kycUrl){
+                error, _ ->
+            if(error == null){
+                callback(true, null)
+            }else{
+                callback(false, error.message)
+            }
+        }
+    }
+
+    override fun removeKyc(
+        userId: String,
+        callback: (Boolean, String?) -> Unit
+    ) {
+        ref.child(userId).child("kycUrl").removeValue { error, _ ->
+            if (error == null) {
+                callback(true, null)
+            } else {
+                callback(false, error.message)
+            }
+        }
+    }
+
+
 }

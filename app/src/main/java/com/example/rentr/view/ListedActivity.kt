@@ -234,11 +234,6 @@ fun ListedItemCardCompact(product: ProductModel, isAvailableTab: Boolean, onEdit
                     fontWeight = FontWeight.Bold
                 )
 
-                Text(
-                    text = "Qty: ${product.quantity}",
-                    color = if (isUnavailable) Color.LightGray else Color.White,
-                    fontSize = 11.sp
-                )
 
                 Box(
                     modifier = Modifier

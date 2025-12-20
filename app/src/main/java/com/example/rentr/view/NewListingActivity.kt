@@ -85,7 +85,6 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
 
     var productName by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var quantity by remember { mutableIntStateOf(1) }
     var isAvailable by remember { mutableStateOf(true) }
     var selectedImageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var selectedCategory by remember { mutableStateOf("") }
@@ -159,7 +158,7 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                 }
             }
 
-            // Product Name, Description, Quantity, etc. are the same
+            // Product Name, Description,  etc. are the same
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Product Name", style = MaterialTheme.typography.titleMedium, color = Color.White)
             OutlinedTextField(
@@ -204,14 +203,7 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
             )
         }
 
-        // Quantity Stepper
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Quantity", style = MaterialTheme.typography.titleMedium, color = Color.White)
-            QuantitySelector(
-                quantity = quantity,
-                onQuantityChange = { quantity = it }
-            )
-        }
+
 
         // Availability switch
         Row(
@@ -298,7 +290,6 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                         val model = ProductModel(
                             title = productName,
                             description = description,
-                            quantity = quantity,
                             availability = isAvailable,
                             category = selectedCategory,
                             listedBy = userId,
@@ -376,39 +367,3 @@ private suspend fun uploadImagesToCloudinary(uris: List<Uri>): List<String> {
     }
     return urls
 }
-
-@Composable
-fun QuantitySelector(quantity: Int, onQuantityChange: (Int) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
-            .padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        IconButton(
-            onClick = { if (quantity > 1) onQuantityChange(quantity - 1) },
-            enabled = quantity > 1
-        ) {
-            Icon(
-                imageVector = Icons.Default.Remove,
-                contentDescription = "Decrease quantity",
-                tint = if (quantity > 1) Orange else Color.Gray
-            )
-        }
-        Text(
-            text = quantity.toString(),
-            style = MaterialTheme.typography.bodyLarge,
-            color = Color.White
-        )
-        IconButton(onClick = { onQuantityChange(quantity + 1) }) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "Increase quantity",
-                tint = Orange
-            )
-        }
-    }
-}
-
