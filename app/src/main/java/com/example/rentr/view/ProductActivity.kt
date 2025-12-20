@@ -107,10 +107,9 @@ fun ProductDisplay(productId: String) {
         }
     }
 
-    var quantity by remember { mutableStateOf(1) }
     val randomPrice = remember { (100..2000).random().toDouble() }
     val productRating = remember { "%.1f".format((3..5).random().toFloat() + (0..9).random().toFloat() / 10) }
-    val totalPrice = randomPrice * quantity
+    val totalPrice = randomPrice
 
     Scaffold(
         containerColor = Color.Black,
@@ -228,39 +227,6 @@ fun ProductDisplay(productId: String) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(product!!.description, color = Color.Gray, fontSize = 14.sp)
                         Spacer(modifier = Modifier.height(20.dp))
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Quantity", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Card(
-                                shape = RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(containerColor = Field)
-                            ) {
-                                Text(
-                                    text = "Available for Rent: ${product!!.quantity}",
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    color = Color.Gray,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 12.sp
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            modifier = Modifier
-                                .background(Field, RoundedCornerShape(20.dp))
-                                .padding(horizontal = 12.dp, vertical = 4.dp)
-                        ) {
-                            IconButton(onClick = { if (quantity > 1) quantity-- }) {
-                                Text("-", color = Color.White, fontSize = 24.sp)
-                            }
-                            Text(quantity.toString(), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                            IconButton(onClick = { if (quantity < product!!.quantity) quantity++ }) {
-                                Text("+", color = Color.White, fontSize = 24.sp)
-                            }
-                        }
                     } else {
                         Box(
                             modifier = Modifier

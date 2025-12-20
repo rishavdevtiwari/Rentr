@@ -8,12 +8,13 @@ data class ProductModel(
     val price: Double = 0.0,
     val productId: String = "", // primary key
     val availability: Boolean = true,
-    val quantity: Int = 0,
     val outOfStock: Boolean = false,
     val rating: Double = 0.0,
     val ratingCount: Int = 0,
     val category: String = "", //foreign key,
-    val verified: Boolean = false
+    val verified: Boolean = false,
+
+    val flagged: Boolean = false
 ){
     fun toMap() : Map < String, Any?> {
         return mapOf(
@@ -23,13 +24,13 @@ data class ProductModel(
             "price" to price,
             "productId" to productId,
             "availability" to availability,
-            "quantity" to quantity,
             "outOfStock" to outOfStock,
             "rating" to rating,
             "ratingCount" to ratingCount,
             "category" to category,
             "imageUrl" to imageUrl,
-            "verified" to verified
+            "verified" to verified,
+            "flagged" to flagged
         )
     }
 }

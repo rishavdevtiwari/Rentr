@@ -36,10 +36,3 @@ interface UserRepo {
     )
 }
 
-//    interface ProductRepo {
-//        fun addProduct()
-//        fun updateProduct()
-//        fun deleteProduct()
-//        fun getProductById()
-//        fun getAllProducts()
-//    }
