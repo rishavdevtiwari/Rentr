@@ -3,6 +3,7 @@ package com.example.rentr.viewmodel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import com.example.rentr.model.UserModel
 import com.example.rentr.repository.UserRepo
 import com.google.firebase.auth.FirebaseUser
@@ -105,8 +106,21 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
     }
 
 
+//    fun getAllUsers(callback:(Boolean, String, List<UserModel>) -> Unit){
+//        repo.getAllUsers (callback)
+//    }
+
     fun getAllUsers(callback:(Boolean, String, List<UserModel>) -> Unit){
-        repo.getAllUsers (callback)
+        _loading.postValue(true)
+        repo.getAllUsers { success, msg, users ->
+            if(success) {
+                _allUsers.postValue(users)
+            } else {
+                _allUsers.postValue(emptyList())
+            }
+            _loading.postValue(false)
+            callback(success, msg, users)
+        }
     }
 
     fun deleteAccount(userId: String, callback:(Boolean, String) -> Unit){
@@ -119,5 +133,12 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
         callback:(Boolean, String) -> Unit
     ){
         repo.addUserToDatabase(userId,model,callback)
+    }
+
+    class Factory(private val repo: UserRepo) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            return UserViewModel(repo) as T
+        }
     }
 }

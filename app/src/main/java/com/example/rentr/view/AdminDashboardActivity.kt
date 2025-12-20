@@ -1,24 +1,12 @@
 package com.example.rentr.view
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -26,24 +14,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PriorityHigh
-import androidx.compose.material.icons.filled.Verified
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,10 +29,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.example.rentr.R
-import com.example.rentr.model.ProductModel
-import com.example.rentr.model.UserModel
 import com.example.rentr.repository.ProductRepoImpl
 import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.ui.theme.Field
@@ -67,16 +40,10 @@ import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
 
 class AdminDashboardActivity : ComponentActivity() {
-    private lateinit var productViewModel: ProductViewModel
-    private lateinit var userViewModel: UserViewModel
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        productViewModel = ViewModelProvider(this, ViewModelProvider.NewInstanceFactory())[ProductViewModel::class.java]
-        userViewModel = ViewModelProvider(this, ViewModelProvider.NewInstanceFactory())[UserViewModel::class.java]
-
         setContent {
-            AdminDashboardScreen(productViewModel, userViewModel)
+            AdminDashboardScreen()
         }
     }
 }
@@ -121,7 +88,24 @@ enum class FlagType(val color: Color, val text: String) {
 }
 
 @Composable
-fun AdminDashboardScreen(productViewModel: ProductViewModel, userViewModel: UserViewModel) {
+fun AdminDashboardScreen(
+    productViewModel: ProductViewModel = viewModel(
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return ProductViewModel(ProductRepoImpl()) as T
+            }
+        }
+    ),
+    userViewModel: UserViewModel = viewModel(
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return UserViewModel(UserRepoImp1()) as T
+            }
+        }
+    )
+) {
     val products by productViewModel.allProducts.observeAsState(initial = emptyList())
     val users by userViewModel.allUsers.observeAsState(initial = emptyList())
 
@@ -130,25 +114,31 @@ fun AdminDashboardScreen(productViewModel: ProductViewModel, userViewModel: User
         userViewModel.getAllUsers { _, _, _ -> }
     }
 
-    val adminProducts = products.map {
-        AdminProduct(
-            id = it.productId,
-            name = it.title,
-            listedBy = it.listedBy,
-            price = it.price.toInt(),
-            imageRes = it.imageUrl.firstOrNull() ?: "",
-            verificationStatus = if (it.verified) VerificationStatus.VERIFIED else VerificationStatus.PENDING
-        )
+    // Transform ProductModel to AdminProduct
+    val adminProducts = remember(products) {
+        products.map { product ->
+            AdminProduct(
+                id = product.productId,
+                name = product.title,
+                listedBy = product.listedBy,
+                price = product.price.toInt(),
+                imageRes = product.imageUrl.firstOrNull() ?: "",
+                verificationStatus = if (product.verified) VerificationStatus.VERIFIED else VerificationStatus.PENDING
+            )
+        }
     }
 
-    val kycUsers = users?.map {
-        UserKYC(
-            id = it.email, // Assuming email is a unique identifier
-            name = it.fullName,
-            imageRes = it.profileImage,
-            verificationStatus = if (it.verified) VerificationStatus.VERIFIED else VerificationStatus.PENDING
-        )
-    } ?: emptyList()
+    // Transform UserModel to UserKYC
+    val kycUsers = remember(users) {
+        users?.map { user ->
+            UserKYC(
+                id = user.userId,
+                name = user.fullName,
+                imageRes = user.profileImage,
+                verificationStatus = if (user.verified) VerificationStatus.VERIFIED else VerificationStatus.PENDING
+            )
+        } ?: emptyList()
+    }
 
     val flaggedProducts = remember {
         (1..10).map { index ->
@@ -288,12 +278,20 @@ fun SectionHeader(title: String, subtitle: String, icon: androidx.compose.ui.gra
 
 @Composable
 fun ProductListSection(products: List<AdminProduct>) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(horizontal = 4.dp)
-    ) {
-        items(products) { product ->
-            AdminProductCard(product = product)
+    if (products.isEmpty()) {
+        Text(
+            "No products found",
+            color = Color.Gray,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+    } else {
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(horizontal = 4.dp)
+        ) {
+            items(products) { product ->
+                AdminProductCard(product = product)
+            }
         }
     }
 }
@@ -311,9 +309,11 @@ fun AdminProductCard(product: AdminProduct) {
         Column(modifier = Modifier.padding(12.dp)) {
             // Product Image
             Box(modifier = Modifier.fillMaxWidth()) {
-                Image(
-                    painter = painterResource(id = R.drawable.rent),
+                AsyncImage(
+                    model = product.imageRes,
                     contentDescription = product.name,
+                    placeholder = painterResource(id = R.drawable.rentrimage),
+                    error = painterResource(id = R.drawable.rentrimage),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(100.dp)
@@ -354,7 +354,8 @@ fun AdminProductCard(product: AdminProduct) {
                 Text(
                     product.listedBy,
                     color = Color.Gray,
-                    fontSize = 12.sp
+                    fontSize = 12.sp,
+                    maxLines = 1
                 )
             }
 
@@ -385,18 +386,28 @@ fun AdminProductCard(product: AdminProduct) {
 
 @Composable
 fun KYCListSection(users: List<UserKYC>) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(horizontal = 4.dp)
-    ) {
-        items(users) { user ->
-            KYCUserCard(user = user)
+    if (users.isEmpty()) {
+        Text(
+            "No users found",
+            color = Color.Gray,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+    } else {
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(horizontal = 4.dp)
+        ) {
+            items(users) { user ->
+                KYCUserCard(user = user)
+            }
         }
     }
 }
 
 @Composable
 fun KYCUserCard(user: UserKYC) {
+    val context = LocalContext.current
+
     Card(
         modifier = Modifier
             .width(160.dp)
@@ -411,9 +422,11 @@ fun KYCUserCard(user: UserKYC) {
         ) {
             // User Profile Image
             Box {
-                Image(
-                    painter = painterResource(id = R.drawable.rent),
+                AsyncImage(
+                    model = user.imageRes,
                     contentDescription = user.name,
+                    placeholder = painterResource(id = R.drawable.rentrimage),
+                    error = painterResource(id = R.drawable.rentrimage),
                     modifier = Modifier
                         .size(80.dp)
                         .clip(CircleShape),
@@ -474,24 +487,28 @@ fun KYCUserCard(user: UserKYC) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                IconButton(
-                    onClick = { /* Approve KYC */ },
-                    modifier = Modifier.size(28.dp)
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clickable { /* Approve KYC */ }
                 ) {
                     Icon(
                         Icons.Default.CheckCircle,
                         contentDescription = "Approve",
-                        tint = Color.Green
+                        tint = Color.Green,
+                        modifier = Modifier.size(28.dp)
                     )
                 }
-                IconButton(
-                    onClick = { /* Reject KYC */ },
-                    modifier = Modifier.size(28.dp)
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clickable { /* Reject KYC */ }
                 ) {
                     Icon(
                         Icons.Default.Close,
                         contentDescription = "Reject",
-                        tint = Color.Red
+                        tint = Color.Red,
+                        modifier = Modifier.size(28.dp)
                     )
                 }
             }
@@ -654,20 +671,8 @@ fun VerificationBadge(status: VerificationStatus) {
     }
 }
 
-@Composable
-fun IconButton(onClick: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Box(
-        modifier = modifier
-            .clickable(onClick = onClick)
-            .padding(4.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        content()
-    }
-}
-
 @Preview
 @Composable
 fun AdminDashboardPreview() {
-    // AdminDashboardScreen(productViewModel, userViewModel) // This will not work in preview
+    AdminDashboardScreen()
 }

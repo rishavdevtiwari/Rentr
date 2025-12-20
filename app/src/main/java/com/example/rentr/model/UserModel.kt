@@ -1,6 +1,7 @@
 package com.example.rentr.model
 
 data class UserModel(
+    val userId: String = "",
     val fullName: String="",
     val gender : String = "",
     val phoneNumber : String = "",
@@ -14,6 +15,7 @@ data class UserModel(
 {
     fun toMap() : Map < String, Any?>{
         return mapOf(
+            "userId" to userId,
             "fullName" to fullName,
             "gender" to gender,
             "phoneNumber" to phoneNumber,

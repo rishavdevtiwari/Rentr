@@ -76,12 +76,30 @@ class UserRepoImp1 : UserRepo {
         callback(true, "Logged out")
     }
 
+//    override fun getUserById(userId: String, callback: (Boolean, String, UserModel?) -> Unit) {
+//        ref.child(userId).addListenerForSingleValueEvent(object : ValueEventListener {
+//            override fun onDataChange(snapshot: DataSnapshot) {
+//                val user = snapshot.getValue(UserModel::class.java)
+//                if (user != null) {
+//                    callback(true, "User found", user)
+//                } else {
+//                    callback(false, "User not found", null)
+//                }
+//            }
+//
+//            override fun onCancelled(error: DatabaseError) {
+//                callback(false, error.message, null)
+//            }
+//        })
+//    }
+
     override fun getUserById(userId: String, callback: (Boolean, String, UserModel?) -> Unit) {
         ref.child(userId).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val user = snapshot.getValue(UserModel::class.java)
                 if (user != null) {
-                    callback(true, "User found", user)
+                    // Add userId to the user object
+                    callback(true, "User found", user.copy(userId = userId))
                 } else {
                     callback(false, "User not found", null)
                 }
@@ -93,12 +111,33 @@ class UserRepoImp1 : UserRepo {
         })
     }
 
+//    override fun getAllUsers(callback: (Boolean, String, List<UserModel>) -> Unit) {
+//        ref.addListenerForSingleValueEvent(object : ValueEventListener {
+//            override fun onDataChange(snapshot: DataSnapshot) {
+//                val users = mutableListOf<UserModel>()
+//                for (data in snapshot.children) {
+//                    data.getValue(UserModel::class.java)?.let { users.add(it) }
+//                }
+//                callback(true, "Users fetched", users)
+//            }
+//
+//            override fun onCancelled(error: DatabaseError) {
+//                callback(false, error.message, emptyList())
+//            }
+//        })
+//    }
+
+    // In UserRepoImp1.kt, modify the getAllUsers method:
     override fun getAllUsers(callback: (Boolean, String, List<UserModel>) -> Unit) {
         ref.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val users = mutableListOf<UserModel>()
                 for (data in snapshot.children) {
-                    data.getValue(UserModel::class.java)?.let { users.add(it) }
+                    val user = data.getValue(UserModel::class.java)
+                    user?.let {
+                        // Set the userId from the key
+                        users.add(it.copy(userId = data.key ?: ""))
+                    }
                 }
                 callback(true, "Users fetched", users)
             }

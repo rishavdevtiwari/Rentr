@@ -3,6 +3,7 @@ package com.example.rentr.viewmodel
 import ProductRepo
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import com.example.rentr.model.ProductModel
 
 class ProductViewModel(val repo: ProductRepo) : ViewModel() {
@@ -106,6 +107,13 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
 
     fun clearProducts() {
         _allProducts.postValue(emptyList())
+    }
+
+    class Factory(private val repo: ProductRepo) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            return ProductViewModel(repo) as T
+        }
     }
 
 }
