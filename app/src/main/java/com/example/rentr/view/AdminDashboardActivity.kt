@@ -108,35 +108,56 @@ fun AdminDashboardScreen(
 ) {
     val products by productViewModel.allProducts.observeAsState(initial = emptyList())
     val users by userViewModel.allUsers.observeAsState(initial = emptyList())
+    val context = LocalContext.current
+
+    // Debug logging
+    LaunchedEffect(products.size) {
+        println("DEBUG: Products count: ${products.size}")
+    }
+
+    LaunchedEffect(users?.size) {
+        println("DEBUG: Users count: ${users?.size}")
+    }
 
     LaunchedEffect(Unit) {
-        productViewModel.getAllProducts { _, _, _ -> }
-        userViewModel.getAllUsers { _, _, _ -> }
+        // Call without callback since LiveData will update automatically
+        productViewModel.getAllProducts()
+        userViewModel.getAllUsers()
     }
 
     // Transform ProductModel to AdminProduct
     val adminProducts = remember(products) {
-        products.map { product ->
-            AdminProduct(
-                id = product.productId,
-                name = product.title,
-                listedBy = product.listedBy,
-                price = product.price.toInt(),
-                imageRes = product.imageUrl.firstOrNull() ?: "",
-                verificationStatus = if (product.verified) VerificationStatus.VERIFIED else VerificationStatus.PENDING
-            )
+        println("DEBUG: Transforming ${products.size} products")
+        products.mapNotNull { product ->
+            if (product.productId.isNotEmpty()) {
+                AdminProduct(
+                    id = product.productId,
+                    name = product.title,
+                    listedBy = product.listedBy,
+                    price = product.price.toInt(),
+                    imageRes = product.imageUrl.firstOrNull() ?: "",
+                    verificationStatus = if (product.verified) VerificationStatus.VERIFIED else VerificationStatus.PENDING
+                )
+            } else {
+                null
+            }
         }
     }
 
     // Transform UserModel to UserKYC
     val kycUsers = remember(users) {
-        users?.map { user ->
-            UserKYC(
-                id = user.userId,
-                name = user.fullName,
-                imageRes = user.profileImage,
-                verificationStatus = if (user.verified) VerificationStatus.VERIFIED else VerificationStatus.PENDING
-            )
+        println("DEBUG: Transforming ${users?.size ?: 0} users")
+        users?.mapNotNull { user ->
+            if (user.userId.isNotEmpty()) {
+                UserKYC(
+                    id = user.userId,
+                    name = user.fullName,
+                    imageRes = user.profileImage,
+                    verificationStatus = if (user.verified) VerificationStatus.VERIFIED else VerificationStatus.PENDING
+                )
+            } else {
+                null
+            }
         } ?: emptyList()
     }
 
@@ -173,6 +194,46 @@ fun AdminDashboardScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
+                // Debug info
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "Products: ${adminProducts.size}",
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        "Users: ${kycUsers.size}",
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Refresh button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Orange)
+                            .clickable {
+                                productViewModel.getAllProducts()
+                                userViewModel.getAllUsers()
+                            }
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text("Refresh Data", color = Color.White, fontSize = 14.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 // Section 1: Products
                 SectionHeader(
                     title = "Product Management",
