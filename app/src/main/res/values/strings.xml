@@ -9,4 +9,5 @@
     <string name="title_activity_admin_settings">AdminSettings</string>
     <string name="title_activity_update_admjin_profile">UpdateAdmjinProfile</string>
     <string name="title_activity_verify_kyc">VerifyKYC</string>
+    <string name="title_activity_review">ReviewActivity</string>
 </resources>

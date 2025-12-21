@@ -12,6 +12,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Rentr">
         <activity
+            android:name=".view.ReviewActivity"
+            android:exported="false"
+            android:label="@string/title_activity_review"
+            android:theme="@style/Theme.Rentr" />
+        <activity
             android:name=".view.VerifyKYC"
             android:exported="true"
             android:label="@string/title_activity_verify_kyc"
