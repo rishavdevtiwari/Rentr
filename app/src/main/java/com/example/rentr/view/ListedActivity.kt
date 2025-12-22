@@ -21,7 +21,9 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +44,7 @@ import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
+import androidx.compose.material.icons.filled.Delete
 
 class ListedActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,7 +55,6 @@ class ListedActivity : ComponentActivity() {
         }
     }
 }
-
 @Composable
 fun ListedScreen() {
     val context = LocalContext.current
@@ -63,6 +65,11 @@ fun ListedScreen() {
 
     val userViewModel = remember { UserViewModel(UserRepoImp1()) }
     val uId = userViewModel.getCurrentUser()?.uid
+
+    // State for the delete confirmation dialog
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var productToDelete by remember { mutableStateOf<ProductModel?>(null) }
+
 
     // Launcher for adding a new item
     val newListingLauncher = rememberLauncherForActivityResult(
@@ -93,6 +100,41 @@ fun ListedScreen() {
     } else {
         products.filter { it.outOfStock } // rented out
     }
+
+    // --- Delete Confirmation Dialog ---
+    if (showDeleteDialog && productToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Confirm Deletion") },
+            text = { Text("Are you sure you want to delete '${productToDelete?.title}'?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        productToDelete?.let { product ->
+                            productViewModel.deleteProduct(product.productId){success,_->
+                                if (success) {
+                                    uId?.let { productViewModel.getAllProductsByUser(userId = it) { _, _, _ -> } }
+                                }
+                            }
+                        }
+                        showDeleteDialog = false
+                        productToDelete = null
+                        // Optional: You might want to refresh the list here after deletion
+                        uId?.let { productViewModel.getAllProductsByUser(userId = it) { _, _, _ -> } }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text("Yes, Delete")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
 
     Scaffold(
         containerColor = Color.Black,
@@ -148,16 +190,25 @@ fun ListedScreen() {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 items(filteredList) { product ->
-                    ListedItemCardCompact(product = product, isAvailableTab = selectedTabIndex == 0, onEditClicked = {
-                        val intent = Intent(context, EditListedActivity::class.java)
-                        intent.putExtra("productId", product.productId)
-                        editListingLauncher.launch(intent)
-                    })
+                    ListedItemCardCompact(
+                        product = product,
+                        isAvailableTab = selectedTabIndex == 0,
+                        onEditClicked = {
+                            val intent = Intent(context, EditListedActivity::class.java)
+                            intent.putExtra("productId", product.productId)
+                            editListingLauncher.launch(intent)
+                        },
+                        onDeleteClicked = {
+                            productToDelete = product
+                            showDeleteDialog = true
+                        }
+                    )
                 }
             }
         }
     }
 }
+
 
 @Composable
 fun ListedTopAppBar() {
@@ -180,8 +231,15 @@ fun ListedTopAppBar() {
     }
 }
 
+//...
+
 @Composable
-fun ListedItemCardCompact(product: ProductModel, isAvailableTab: Boolean, onEditClicked: () -> Unit) {
+fun ListedItemCardCompact(
+    product: ProductModel,
+    isAvailableTab: Boolean,
+    onEditClicked: () -> Unit,
+    onDeleteClicked: () -> Unit // Add this parameter
+) {
     val status = when {
         product.outOfStock -> "Rented Out"
         !product.availability -> "Unavailable"
@@ -267,19 +325,34 @@ fun ListedItemCardCompact(product: ProductModel, isAvailableTab: Boolean, onEdit
                 )
             }
 
-            IconButton(
-                onClick = onEditClicked,
-                enabled = !isRented
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = null,
-                    tint = if (isRented ) Color.Gray else Orange
-                )
+            // --- Group the buttons together ---
+            Row {
+                IconButton(
+                    onClick = onEditClicked,
+                    enabled = !isRented
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit Item",
+                        tint = if (isRented) Color.Gray else Orange
+                    )
+                }
+                IconButton(
+                    onClick = onDeleteClicked,
+                    enabled = !isRented // Also disable if rented
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete Item",
+                        tint = if (isRented) Color.Gray else Color.Red.copy(alpha = 0.8f)
+                    )
+                }
             }
         }
     }
 }
+
+
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
