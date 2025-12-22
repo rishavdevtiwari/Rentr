@@ -46,30 +46,16 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
         }
     }
 
-//    fun getAllProducts(callback: (Boolean, String, List<ProductModel>?) -> Unit) {
-//        _loading.postValue(true)
-//        repo.getAllProducts{
-//            success, msg, data ->
-//            if(success){
-//                _allProducts.postValue(data)
-//            }else{
-//                _allProducts.postValue(emptyList())
-//            }
-//            _loading.postValue(false)
-//        }
-//    }
-
-    // In ProductViewModel.kt
-    fun getAllProducts(callback: ((Boolean, String, List<ProductModel>?) -> Unit)? = null) {
+    fun getAllProducts(callback: (Boolean, String, List<ProductModel>?) -> Unit) {
         _loading.postValue(true)
-        repo.getAllProducts { success, msg, data ->
-            if (success) {
+        repo.getAllProducts{
+            success, msg, data ->
+            if(success){
                 _allProducts.postValue(data)
-            } else {
+            }else{
                 _allProducts.postValue(emptyList())
             }
             _loading.postValue(false)
-            callback?.invoke(success, msg, data)
         }
     }
 

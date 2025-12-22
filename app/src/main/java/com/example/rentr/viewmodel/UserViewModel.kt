@@ -110,16 +110,16 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
 //        repo.getAllUsers (callback)
 //    }
 
-    fun getAllUsers(callback: ((Boolean, String, List<UserModel>) -> Unit)? = null) {
+    fun getAllUsers(callback:(Boolean, String, List<UserModel>) -> Unit){
         _loading.postValue(true)
         repo.getAllUsers { success, msg, users ->
-            if (success) {
+            if(success) {
                 _allUsers.postValue(users)
             } else {
                 _allUsers.postValue(emptyList())
             }
             _loading.postValue(false)
-            callback?.invoke(success, msg, users)
+            callback(success, msg, users)
         }
     }
 

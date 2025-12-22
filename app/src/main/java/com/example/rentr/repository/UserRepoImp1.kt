@@ -127,13 +127,17 @@ class UserRepoImp1 : UserRepo {
 //        })
 //    }
 
+    // In UserRepoImp1.kt, modify the getAllUsers method:
     override fun getAllUsers(callback: (Boolean, String, List<UserModel>) -> Unit) {
         ref.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val users = mutableListOf<UserModel>()
                 for (data in snapshot.children) {
-                    val user = data.getValue(UserModel::class.java)?.copy(userId = data.key ?: "")
-                    user?.let { users.add(it) }
+                    val user = data.getValue(UserModel::class.java)
+                    user?.let {
+                        // Set the userId from the key
+                        users.add(it.copy(userId = data.key ?: ""))
+                    }
                 }
                 callback(true, "Users fetched", users)
             }
