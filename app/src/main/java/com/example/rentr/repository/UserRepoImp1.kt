@@ -8,6 +8,8 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.MutableData
+import com.google.firebase.database.Transaction
 import com.google.firebase.database.ValueEventListener
 
 class UserRepoImp1 : UserRepo {
@@ -230,14 +232,67 @@ class UserRepoImp1 : UserRepo {
         reason: String,
         callback: (Boolean, String?) -> Unit
     ) {
-        TODO("Not yet implemented")
+        ref.child(userId).runTransaction(object : Transaction.Handler {
+            override fun doTransaction(currentData: MutableData): Transaction.Result {
+                val user = currentData.getValue(UserModel::class.java)
+                if (user == null) {
+                    return Transaction.success(currentData)
+                }
+
+                if (approved) {
+                    // Approve KYC - mark as verified
+                    currentData.child("verified").value = true
+                    currentData.child("kycRejectionReason").value = ""
+
+                    // Update all documents to approved status
+                    val kycDetails = user.kycDetails.toMutableMap()
+                    kycDetails.forEach { (key, value) ->
+                        currentData.child("kycDetails").child(key).child("status").value = "approved"
+                    }
+                } else {
+                    // Reject KYC
+                    currentData.child("verified").value = false
+                    currentData.child("kycRejectionReason").value = reason
+
+                    // Remove KYC documents to allow re-upload
+                    currentData.child("kycDetails").value = null
+                    currentData.child("kycUrl").value = emptyList<String>()
+                }
+
+                return Transaction.success(currentData)
+            }
+
+            override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
+                if (error == null && committed) {
+                    callback(true, null)
+                } else {
+                    callback(false, error?.message ?: "Transaction failed")
+                }
+            }
+        })
     }
 
     override fun getKYCStatus(
         userId: String,
         callback: (Boolean, String, Map<String, KYCStatus>?) -> Unit
     ) {
-        TODO("Not yet implemented")
+        ref.child(userId).child("kycDetails").addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val kycDetails = mutableMapOf<String, KYCStatus>()
+                for (data in snapshot.children) {
+                    val docType = data.key ?: continue
+                    val status = data.getValue(KYCStatus::class.java)
+                    if (status != null) {
+                        kycDetails[docType] = status
+                    }
+                }
+                callback(true, "KYC details fetched", kycDetails)
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                callback(false, error.message, null)
+            }
+        })
     }
 
     override fun updateKYCStatus(
@@ -246,7 +301,14 @@ class UserRepoImp1 : UserRepo {
         status: String,
         callback: (Boolean, String?) -> Unit
     ) {
-        TODO("Not yet implemented")
+        ref.child(userId).child("kycDetails").child(documentType).child("status")
+            .setValue(status) { error, _ ->
+                if (error == null) {
+                    callback(true, null)
+                } else {
+                    callback(false, error.message)
+                }
+            }
     }
 
     override fun changePassword(
