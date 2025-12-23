@@ -1,5 +1,6 @@
 package com.example.rentr.repository
 
+import com.example.rentr.model.KYCStatus
 import com.example.rentr.model.UserModel
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
@@ -221,6 +222,31 @@ class UserRepoImp1 : UserRepo {
                 callback(false, task.exception?.message ?: "Unknown error")
             }
         }
+    }
+
+    override fun verifyUserKYC(
+        userId: String,
+        approved: Boolean,
+        reason: String,
+        callback: (Boolean, String?) -> Unit
+    ) {
+        TODO("Not yet implemented")
+    }
+
+    override fun getKYCStatus(
+        userId: String,
+        callback: (Boolean, String, Map<String, KYCStatus>?) -> Unit
+    ) {
+        TODO("Not yet implemented")
+    }
+
+    override fun updateKYCStatus(
+        userId: String,
+        documentType: String,
+        status: String,
+        callback: (Boolean, String?) -> Unit
+    ) {
+        TODO("Not yet implemented")
     }
 
     override fun changePassword(

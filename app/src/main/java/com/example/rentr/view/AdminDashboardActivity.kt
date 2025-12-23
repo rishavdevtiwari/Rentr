@@ -1,5 +1,6 @@
 package com.example.rentr.view
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -106,6 +107,7 @@ fun AdminDashboardScreen(
         }
     )
 ) {
+    val context = LocalContext.current
     val products by productViewModel.allProducts.observeAsState(initial = emptyList())
     val users by userViewModel.allUsers.observeAsState(initial = emptyList())
 
@@ -386,6 +388,8 @@ fun AdminProductCard(product: AdminProduct) {
 
 @Composable
 fun KYCListSection(users: List<UserKYC>) {
+    val context = LocalContext.current
+
     if (users.isEmpty()) {
         Text(
             "No users found",
@@ -398,20 +402,33 @@ fun KYCListSection(users: List<UserKYC>) {
             contentPadding = PaddingValues(horizontal = 4.dp)
         ) {
             items(users) { user ->
-                KYCUserCard(user = user)
+                KYCUserCard(
+                    user = user,
+                    onUserClick = { userId ->
+                        // Navigate to KYC Verification Activity
+                        val intent = Intent(context, KYCVerificationActivity::class.java)
+                        intent.putExtra("userId", userId)
+                        context.startActivity(intent)
+                    }
+                )
             }
         }
     }
 }
 
 @Composable
-fun KYCUserCard(user: UserKYC) {
+fun KYCUserCard(
+    user: UserKYC,
+    onUserClick: (String) -> Unit = {}
+) {
     val context = LocalContext.current
 
     Card(
         modifier = Modifier
             .width(160.dp)
-            .clickable { /* Handle user click */ },
+            .clickable {
+                onUserClick(user.id)
+            },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Field),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -490,7 +507,10 @@ fun KYCUserCard(user: UserKYC) {
                 Box(
                     modifier = Modifier
                         .size(28.dp)
-                        .clickable { /* Approve KYC */ }
+                        .clickable {
+                            // Approve KYC directly from dashboard
+                            // You might want to implement a confirmation dialog here
+                        }
                 ) {
                     Icon(
                         Icons.Default.CheckCircle,
@@ -502,7 +522,10 @@ fun KYCUserCard(user: UserKYC) {
                 Box(
                     modifier = Modifier
                         .size(28.dp)
-                        .clickable { /* Reject KYC */ }
+                        .clickable {
+                            // Reject KYC directly from dashboard
+                            // You might want to implement a confirmation dialog here
+                        }
                 ) {
                     Icon(
                         Icons.Default.Close,

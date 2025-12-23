@@ -1,5 +1,6 @@
 package com.example.rentr.repository
 
+import com.example.rentr.model.KYCStatus
 import com.example.rentr.model.UserModel
 import com.google.firebase.auth.FirebaseUser
 
@@ -33,6 +34,25 @@ interface UserRepo {
         userId: String,
         model:UserModel,
         callback:(Boolean, String) -> Unit
+    )
+
+    fun verifyUserKYC(
+        userId: String,
+        approved: Boolean,
+        reason: String = "",
+        callback: (Boolean, String?) -> Unit
+    )
+
+    fun getKYCStatus(
+        userId: String,
+        callback: (Boolean, String, Map<String, KYCStatus>?) -> Unit
+    )
+
+    fun updateKYCStatus(
+        userId: String,
+        documentType: String,
+        status: String,
+        callback: (Boolean, String?) -> Unit
     )
 }
 

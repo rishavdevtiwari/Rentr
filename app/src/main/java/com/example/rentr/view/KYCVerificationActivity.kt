@@ -4,63 +4,32 @@ import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.example.rentr.R
+import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.viewmodel.UserViewModel
 
 // Color palette (same as KYC screen for consistency)
 private val primaryColor = Color(0xFF1E1E1E)
@@ -74,32 +43,56 @@ private val cardBackgroundColor = Color(0xFF2C2C2E)
 class KYCVerificationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val userId = intent.getStringExtra("userId") ?: ""
+
         setContent {
-            KYCVerificationScreen()
+            KYCVerificationScreen(userId = userId)
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun KYCVerificationScreen() {
+fun KYCVerificationScreen(userId: String) {
     val context = LocalContext.current
     val activity = context as? Activity
 
-    // Sample document data - backend logic to implement later
-    val documents = listOf(
-        DocumentItem("Citizenship Front", "user_123_citizenship_front.jpg", Icons.Default.Description),
-        DocumentItem("Citizenship Back", "user_123_citizenship_back.jpg", Icons.Default.Description),
-        DocumentItem("Pan Card", "user_123_pan_card.jpg", Icons.Default.Description),
-        DocumentItem("Bank A/c Details", "user_123_bank_details.pdf", Icons.Default.Description),
-        DocumentItem("Profile Pic", "user_123_profile.jpg", Icons.Default.AccountCircle)
+    // Initialize ViewModel
+    val userViewModel: UserViewModel = viewModel(
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return UserViewModel(UserRepoImp1()) as T
+            }
+        }
     )
 
-    var isLoading by remember { mutableStateOf(false) }
-
-    // State for rejection dialog
+    // State variables
+    var userData by remember { mutableStateOf<UserData?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
     var showRejectionDialog by remember { mutableStateOf(false) }
     var rejectionReason by remember { mutableStateOf("") }
+
+    // Fetch user data when screen loads
+    LaunchedEffect(userId) {
+        if (userId.isNotEmpty()) {
+            userViewModel.getUserById(userId) { success, _, user ->
+                if (success && user != null) {
+                    // Transform to UserData
+                    userData = UserData(
+                        id = user.userId,
+                        name = user.fullName,
+                        email = user.email,
+                        phone = user.phoneNumber ?: "Not provided",
+                        profileImage = user.profileImage,
+                        verified = user.verified,
+                        documents = getSampleDocumentsForUser(userId)
+                    )
+                }
+                isLoading = false
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -133,6 +126,10 @@ fun KYCVerificationScreen() {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = accentColor)
             }
+        } else if (userData == null) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("User not found", color = textColor)
+            }
         } else {
             Column(
                 modifier = Modifier
@@ -140,7 +137,7 @@ fun KYCVerificationScreen() {
                     .padding(paddingValues)
             ) {
                 // User info section
-                UserInfoSection()
+                UserInfoSection(userData = userData!!)
 
                 // Scrollable documents section
                 LazyColumn(
@@ -150,7 +147,7 @@ fun KYCVerificationScreen() {
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(documents) { document ->
+                    items(userData!!.documents) { document ->
                         DocumentCard(document)
                     }
                 }
@@ -159,8 +156,9 @@ fun KYCVerificationScreen() {
                 ActionButtonsSection(
                     onRejectClick = { showRejectionDialog = true },
                     onAcceptClick = {
-                        // Backend logic to implement later
-                        // Handle KYC acceptance
+                        // TODO: Implement KYC acceptance
+                        // userViewModel.verifyUserKYC(userId, true, "") { ... }
+                        activity?.finish() // Go back after approval
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -238,11 +236,11 @@ fun KYCVerificationScreen() {
                         }
                         Button(
                             onClick = {
-                                // Backend logic to implement later
-                                // Submit KYC rejection with reason: rejectionReason
+                                // TODO: Implement KYC rejection
+                                // userViewModel.verifyUserKYC(userId, false, rejectionReason) { ... }
                                 showRejectionDialog = false
-                                // Reset reason
                                 rejectionReason = ""
+                                activity?.finish() // Go back to admin dashboard
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = errorColor
@@ -261,7 +259,7 @@ fun KYCVerificationScreen() {
 }
 
 @Composable
-private fun UserInfoSection() {
+private fun UserInfoSection(userData: UserData) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -276,36 +274,54 @@ private fun UserInfoSection() {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Profile image placeholder - using Icon instead of Image with painterResource
+                // Profile image
                 Box(
                     modifier = Modifier
                         .size(60.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF3A3A3C)),
-                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        Icons.Default.AccountCircle,
+                    AsyncImage(
+                        model = userData.profileImage,
                         contentDescription = "Profile",
-                        modifier = Modifier.size(40.dp),
-                        tint = textLightColor
+                        modifier = Modifier.fillMaxSize(),
+                        placeholder = @androidx.compose.runtime.Composable {
+                            Icon(
+                                Icons.Default.AccountCircle,
+                                contentDescription = "Profile",
+                                modifier = Modifier.size(40.dp),
+                                tint = textLightColor
+                            )
+                        } as Painter?,
+                        error = @androidx.compose.runtime.Composable {
+                            Icon(
+                                Icons.Default.AccountCircle,
+                                contentDescription = "Profile",
+                                modifier = Modifier.size(40.dp),
+                                tint = textLightColor
+                            )
+                        } as Painter?
                     )
                 }
 
                 Column {
                     Text(
-                        text = "John Doe",
+                        text = userData.name,
                         color = textColor,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "User ID: USR-001234",
+                        text = "User ID: ${userData.id}",
                         color = textLightColor,
                         fontSize = 14.sp
                     )
                     Text(
-                        text = "Submitted: 12 Dec 2023",
+                        text = "Email: ${userData.email}",
+                        color = textLightColor,
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        text = "Phone: ${userData.phone}",
                         color = textLightColor,
                         fontSize = 12.sp
                     )
@@ -356,61 +372,36 @@ private fun DocumentCard(document: DocumentItem) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Image preview placeholder
+            // Document preview placeholder
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF3A3A3C))
+                    .background(Color(0xFF3A3A3C)),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    // Placeholder for document preview
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            document.icon,
-                            contentDescription = "Document",
-                            modifier = Modifier.size(50.dp),
-                            tint = textLightColor
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Document Preview",
-                            color = textLightColor,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-
-                // Status badge (if verified/rejected)
-                if (document.status != null) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(
-                                when (document.status) {
-                                    DocumentStatus.VERIFIED -> successColor
-                                    DocumentStatus.REJECTED -> errorColor
-                                    DocumentStatus.PENDING -> accentColor
-                                }
-                            )
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = document.status.name,
-                            color = textColor,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Icon(
+                        document.icon,
+                        contentDescription = "Document",
+                        modifier = Modifier.size(50.dp),
+                        tint = textLightColor
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Document Preview",
+                        color = textLightColor,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = "(Would show actual document)",
+                        color = textLightColor.copy(alpha = 0.7f),
+                        fontSize = 12.sp
+                    )
                 }
             }
 
@@ -422,7 +413,7 @@ private fun DocumentCard(document: DocumentItem) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
-                    onClick = { /* View full document - backend logic to implement later */ },
+                    onClick = { /* TODO: Implement view full document */ },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -437,7 +428,7 @@ private fun DocumentCard(document: DocumentItem) {
                 }
 
                 Button(
-                    onClick = { /* Zoom document - backend logic to implement later */ },
+                    onClick = { /* TODO: Implement zoom document */ },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -523,11 +514,32 @@ private fun ActionButtonsSection(
     }
 }
 
+// Helper function to get documents
+private fun getSampleDocumentsForUser(userId: String): List<DocumentItem> {
+    return listOf(
+        DocumentItem("Citizenship Front", "citizenship_front.jpg", Icons.Default.Description),
+        DocumentItem("Citizenship Back", "citizenship_back.jpg", Icons.Default.Description),
+        DocumentItem("PAN Card", "pan_card.jpg", Icons.Default.Description),
+        DocumentItem("Bank Details", "bank_details.pdf", Icons.Default.Description),
+        DocumentItem("Profile Photo", "profile.jpg", Icons.Default.AccountCircle)
+    )
+}
+
 // Data classes
+data class UserData(
+    val id: String,
+    val name: String,
+    val email: String,
+    val phone: String,
+    val profileImage: String,
+    val verified: Boolean,
+    val documents: List<DocumentItem>
+)
+
 data class DocumentItem(
     val label: String,
     val fileName: String,
-    val icon: ImageVector = Icons.Default.Description,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector = Icons.Default.Description,
     val status: DocumentStatus? = null
 )
 
@@ -538,5 +550,5 @@ enum class DocumentStatus {
 @Preview(showBackground = true, backgroundColor = 0xFF1E1E1E)
 @Composable
 fun KYCVerificationScreenPreview() {
-    KYCVerificationScreen()
+    KYCVerificationScreen(userId = "test_user_123")
 }

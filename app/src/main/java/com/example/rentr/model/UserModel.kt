@@ -10,7 +10,10 @@ data class UserModel(
     val listings: List<String> = emptyList(),
     val verified: Boolean = false,
     val profileImage: String = "",
-    val kycUrl: List<String> = emptyList()
+    val kycUrl: List<String> = emptyList(),
+    var kycDetails: Map<String, KYCStatus> = emptyMap(),
+    var kycRejectionReason: String = "",
+    var kycSubmittedAt: Long = 0
 )
 {
     fun toMap() : Map < String, Any?>{
@@ -27,3 +30,9 @@ data class UserModel(
         )
     }
 }
+data class KYCStatus(
+    val documentUrl: String = "",
+    val documentType: String = "", // "citizenship_front", "citizenship_back", "pan", "bank", "profile"
+    val status: String = "pending", // "pending", "approved", "rejected"
+    val uploadedAt: Long = 0
+)
