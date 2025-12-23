@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.example.rentr.model.KYCStatus
 import com.example.rentr.model.UserModel
 import com.example.rentr.repository.UserRepo
 import com.google.firebase.auth.FirebaseUser
@@ -82,27 +83,30 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
             }
     }
 
-    fun updateKyc(
+
+    fun verifyUserKYC(
         userId: String,
-        kycUrl: String,
-        callback: (Boolean, String?) -> Unit){
-        FirebaseDatabase.getInstance()
-            .getReference("users")
-            .child(userId)
-            .child("kycUrl")
-            .setValue(kycUrl)
-            .addOnSuccessListener {
-                callback(true, null)
-            }
-            .addOnFailureListener {
-                callback(false, it.message)
-            }
+        approved: Boolean,
+        reason: String = "",
+        callback: (Boolean, String?) -> Unit
+    ) {
+        repo.verifyUserKYC(userId, approved, reason, callback)
     }
 
-    fun removeKyc(
+    fun getKYCStatus(
         userId: String,
-        callback: (Boolean, String?) -> Unit){
-        repo.removeKyc(userId,callback)
+        callback: (Boolean, String, Map<String, KYCStatus>?) -> Unit
+    ) {
+        repo.getKYCStatus(userId, callback)
+    }
+
+    fun updateKYCStatus(
+        userId: String,
+        documentType: String,
+        status: String,
+        callback: (Boolean, String?) -> Unit
+    ) {
+        repo.updateKYCStatus(userId, documentType, status, callback)
     }
 
 
