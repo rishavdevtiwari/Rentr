@@ -1,4 +1,4 @@
-    package com.example.rentr.view
+package com.example.rentr.view
 
 import android.app.Activity
 import android.net.Uri
@@ -62,6 +62,7 @@ import coil.compose.AsyncImage
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
+import com.example.rentr.model.KYCStatus
 import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
@@ -95,6 +96,7 @@ fun KYCScreen() {
 
     var currentStep by remember { mutableStateOf(1) }
     val steps = listOf("Citizenship Front", "Citizenship Back", "Pan Card", "Bank A/c Details", "Profile Pic")
+    val kycTypes = listOf("citizenship_front", "citizenship_back", "pan", "bank", "profile")
 
     var selectedImageUris by remember { mutableStateOf<Map<Int, Uri>>(emptyMap()) }
     var isLoading by remember { mutableStateOf(false) }
@@ -154,7 +156,7 @@ fun KYCScreen() {
                                 currentStep++
                             }
                         } else {
-                            // Final submission logic
+                            // Final submission logic - USING NEW KYC STRUCTURE
                             coroutineScope.launch {
                                 isLoading = true
                                 val user = userViewModel.user.value
@@ -172,13 +174,19 @@ fun KYCScreen() {
                                     return@launch
                                 }
 
-                                val uploadedUrls = mutableListOf<String>()
+                                val uploadedDetails = mutableMapOf<String, KYCStatus>()
                                 for (i in 1..steps.size) {
                                     val uri = selectedImageUris[i]
                                     if (uri != null) {
                                         val url = uploadKycImage(uri)
                                         if (url != null) {
-                                            uploadedUrls.add(url)
+                                            val docType = kycTypes[i-1]
+                                            uploadedDetails[docType] = KYCStatus(
+                                                documentUrl = url,
+                                                documentType = docType,
+                                                status = "pending",
+                                                uploadedAt = System.currentTimeMillis()
+                                            )
                                         } else {
                                             Toast.makeText(context, "Upload failed for ${steps[i-1]}.", Toast.LENGTH_SHORT).show()
                                             isLoading = false
@@ -187,7 +195,18 @@ fun KYCScreen() {
                                     }
                                 }
 
-                                val updatedUser = user.copy(kycUrl = uploadedUrls)
+                                // Convert old URLs to list for backward compatibility
+                                val kycUrls = uploadedDetails.values.map { it.documentUrl }
+
+                                // Update user with both old and new KYC structure
+                                val updatedUser = user.copy(
+                                    kycUrl = kycUrls,
+                                    kycDetails = uploadedDetails,
+                                    kycSubmittedAt = System.currentTimeMillis(),
+                                    verified = false, // Reset verification status when new KYC is uploaded
+                                    kycRejectionReason = "" // Clear any previous rejection
+                                )
+
                                 userViewModel.updateProfile(userId, updatedUser) { success, msg ->
                                     if (success) {
                                         Toast.makeText(context, "KYC Submitted Successfully!", Toast.LENGTH_LONG).show()

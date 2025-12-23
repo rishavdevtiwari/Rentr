@@ -8,17 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,40 +17,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.HighlightOff
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Update
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -79,7 +40,6 @@ import coil.compose.AsyncImage
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
-import com.example.rentr.model.UserModel
 import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
@@ -93,6 +53,10 @@ private val accentColor = Color(0xFFFF6200)
 private val textColor = Color.White
 private val textLightColor = Color(0xFFAFAFAF)
 private val cardBackgroundColor = Color(0xFF2C2C2E)
+private val pendingColor = Color(0xFFFFC107)
+private val successColor = Color(0xFF4CAF50)
+private val errorColor = Color(0xFFF44336)
+private val warningColor = Color(0xFFFF9800)
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -193,7 +157,7 @@ fun ProfileScreen(userViewModel: UserViewModel) {
 }
 
 @Composable
-private fun ProfileCard(user: UserModel?, isLoading: Boolean, onAvatarClick: () -> Unit) {
+private fun ProfileCard(user: com.example.rentr.model.UserModel?, isLoading: Boolean, onAvatarClick: () -> Unit) {
     val context = LocalContext.current
     val activity = context as? Activity
 
@@ -229,27 +193,88 @@ private fun ProfileCard(user: UserModel?, isLoading: Boolean, onAvatarClick: () 
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // KYC Status Logic
+            // KYC Status Logic - UPDATED FOR NEW STRUCTURE
             user?.let {
+                val hasKYC = it.kycDetails.isNotEmpty() || it.kycUrl.isNotEmpty()
+                val hasPendingKYC = it.kycDetails.values.any { status -> status.status == "pending" }
+
                 when {
-                    // Condition 1: Pending Verification
-                    it.kycUrl.size == 5 && !it.verified -> {
+                    // Condition 1: KYC is pending verification
+                    hasKYC && !it.verified && !hasPendingKYC && it.kycRejectionReason.isEmpty() -> {
                         Button(
                             onClick = { /* Non-clickable status indicator */ },
-                            enabled = false, // This makes it non-clickable
+                            enabled = false,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
-                                disabledContainerColor = Color.Yellow, // Yellow background
-                                disabledContentColor = Color.Black // Black text for readability
+                                disabledContainerColor = pendingColor,
+                                disabledContentColor = Color.Black
                             ),
                             elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                         ) {
-                            Text("KYC: Pending Verification", fontWeight = FontWeight.Medium)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(Icons.Default.HourglassEmpty, contentDescription = null, tint = Color.Black)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("KYC: Under Review", fontWeight = FontWeight.Medium)
+                            }
                         }
                     }
-                    // Condition 2: Update KYC button
-                    it.kycUrl.isEmpty() && !it.verified -> {
+
+                    // Condition 2: KYC was rejected
+                    !it.kycRejectionReason.isNullOrEmpty() -> {
+                        Column {
+                            Button(
+                                onClick = {
+                                    val intent = Intent(context, KYC::class.java)
+                                    activity?.startActivity(intent)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = errorColor)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color.White)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("KYC Rejected - Upload Again", color = Color.White, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = errorColor.copy(alpha = 0.2f)
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp)
+                                ) {
+                                    Text(
+                                        text = "Reason for rejection:",
+                                        color = textColor,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = it.kycRejectionReason,
+                                        color = textLightColor,
+                                        fontSize = 12.sp,
+                                        maxLines = 3
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Condition 3: No KYC uploaded or documents are pending
+                    (!hasKYC || hasPendingKYC) && !it.verified -> {
                         Button(
                             onClick = {
                                 val intent = Intent(context, KYC::class.java)
@@ -260,9 +285,53 @@ private fun ProfileCard(user: UserModel?, isLoading: Boolean, onAvatarClick: () 
                             colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                             elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                         ) {
-                            Icon(Icons.Default.Update, contentDescription = null, tint = Color.White)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Update KYC", color = Color.White, fontWeight = FontWeight.Medium)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(Icons.Default.Update, contentDescription = null, tint = Color.White)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = if (!hasKYC) "Complete KYC" else "Update KYC Documents",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        if (hasPendingKYC) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Some documents need to be re-uploaded",
+                                color = warningColor,
+                                fontSize = 12.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+
+                    // Condition 4: KYC is verified
+                    it.verified -> {
+                        Button(
+                            onClick = { /* View KYC status */ },
+                            enabled = false,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                disabledContainerColor = successColor,
+                                disabledContentColor = Color.White
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(Icons.Default.Verified, contentDescription = null, tint = Color.White)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("KYC Verified", color = Color.White, fontWeight = FontWeight.Medium)
+                            }
                         }
                     }
                 }
@@ -272,7 +341,7 @@ private fun ProfileCard(user: UserModel?, isLoading: Boolean, onAvatarClick: () 
 }
 
 @Composable
-private fun Avatar(user: UserModel?, isLoading: Boolean, onClick: () -> Unit) {
+private fun Avatar(user: com.example.rentr.model.UserModel?, isLoading: Boolean, onClick: () -> Unit) {
     fun getInitials(name: String): String {
         val names = name.trim().split(" ")
         return if (names.size > 1) {
@@ -347,7 +416,6 @@ data class SettingInfo(val icon: ImageVector, val title: String, val destination
 private fun SettingsList(onEditProfile: () -> Unit, userViewModel : UserViewModel) {
     val context = LocalContext.current
     val activity = context as? Activity
-    ////al user = userViewModel.getCurrentUser()
 
     val settings = listOf(
         SettingInfo(Icons.Default.Person, "Edit Profile", action = onEditProfile),
