@@ -3,7 +3,6 @@ package com.example.rentr.model
 import com.google.firebase.database.Exclude
 
 data class UserModel(
-    val userId: String = "",
     val fullName: String = "",
     val gender: String = "",
     val phoneNumber: String = "",
@@ -14,10 +13,9 @@ data class UserModel(
     val profileImage: String = "",
     val kycUrl: List<String> = emptyList()
 ) {
-    @Exclude
+//    @Exclude
     fun toMap(): Map<String, Any?> {
         return mapOf(
-            "userId" to userId,
             "fullName" to fullName,
             "gender" to gender,
             "phoneNumber" to phoneNumber,

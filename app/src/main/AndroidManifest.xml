@@ -15,31 +15,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Rentr">
         <activity
-            android:name=".view.FlaggedReviewActivity"
-            android:exported="true"
-            android:label="@string/title_activity_flagged_review"
-            android:theme="@style/Theme.Rentr">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        <activity
             android:name=".view.ProductVerificationActivity"
             android:exported="true"
             android:label="@string/title_activity_product_verification"
-            android:theme="@style/Theme.Rentr">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        <activity
-            android:name=".view.KYCVerificationActivity"
-            android:exported="true"
-            android:label="@string/title_activity_kycverification"
             android:theme="@style/Theme.Rentr">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -69,17 +47,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".viewmodel.AdminDDashboardActivity"
-            android:exported="true"
-            android:label="@string/title_activity_admin_ddashboard"
-            android:theme="@style/Theme.Rentr">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity> <!-- Launcher Activity -->
         <activity
             android:name=".view.SplashActivity"
             android:exported="true"
@@ -160,6 +127,18 @@
             android:theme="@style/Theme.Rentr" />
         <activity
             android:name=".view.TermsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".view.FlagReviewActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr"/>
+        <activity
+            android:name=".view.KYCVerificationActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr"/>
+        <activity
+            android:name=".view.KYCListingActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
     </application>

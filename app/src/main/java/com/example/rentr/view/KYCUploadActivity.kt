@@ -8,45 +8,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,7 +32,6 @@ import coil.compose.AsyncImage
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
-import com.example.rentr.model.KYCStatus
 import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
@@ -96,7 +65,6 @@ fun KYCScreen() {
 
     var currentStep by remember { mutableStateOf(1) }
     val steps = listOf("Citizenship Front", "Citizenship Back", "Pan Card", "Bank A/c Details", "Profile Pic")
-    val kycTypes = listOf("citizenship_front", "citizenship_back", "pan", "bank", "profile")
 
     var selectedImageUris by remember { mutableStateOf<Map<Int, Uri>>(emptyMap()) }
     var isLoading by remember { mutableStateOf(false) }
@@ -156,7 +124,7 @@ fun KYCScreen() {
                                 currentStep++
                             }
                         } else {
-                            // Final submission logic - USING NEW KYC STRUCTURE
+                            // Final submission logic
                             coroutineScope.launch {
                                 isLoading = true
                                 val user = userViewModel.user.value
@@ -174,19 +142,14 @@ fun KYCScreen() {
                                     return@launch
                                 }
 
-                                val uploadedDetails = mutableMapOf<String, KYCStatus>()
+                                // Upload all images and collect URLs
+                                val kycUrls = mutableListOf<String>()
                                 for (i in 1..steps.size) {
                                     val uri = selectedImageUris[i]
                                     if (uri != null) {
                                         val url = uploadKycImage(uri)
                                         if (url != null) {
-                                            val docType = kycTypes[i-1]
-                                            uploadedDetails[docType] = KYCStatus(
-                                                documentUrl = url,
-                                                documentType = docType,
-                                                status = "pending",
-                                                uploadedAt = System.currentTimeMillis()
-                                            )
+                                            kycUrls.add(url)
                                         } else {
                                             Toast.makeText(context, "Upload failed for ${steps[i-1]}.", Toast.LENGTH_SHORT).show()
                                             isLoading = false
@@ -195,18 +158,13 @@ fun KYCScreen() {
                                     }
                                 }
 
-                                // Convert old URLs to list for backward compatibility
-                                val kycUrls = uploadedDetails.values.map { it.documentUrl }
-
-                                // Update user with both old and new KYC structure
                                 val updatedUser = user.copy(
                                     kycUrl = kycUrls,
-                                    kycDetails = uploadedDetails,
-                                    kycSubmittedAt = System.currentTimeMillis(),
-                                    verified = false, // Reset verification status when new KYC is uploaded
-                                    kycRejectionReason = "" // Clear any previous rejection
+                                    verified = false // Reset verified status when new KYC is uploaded
                                 )
 
+                                // ----------------------- IMPORTANT: Use updateKyc method -----------------------
+                                // Instead of updateProfile, use updateKyc to add KYC URLs
                                 userViewModel.updateProfile(userId, updatedUser) { success, msg ->
                                     if (success) {
                                         Toast.makeText(context, "KYC Submitted Successfully!", Toast.LENGTH_LONG).show()
@@ -383,7 +341,7 @@ private fun StepLabel(label: String, isActive: Boolean) {
         fontSize = 10.sp,
         textAlign = TextAlign.Center,
         lineHeight = 12.sp,
-        modifier = Modifier.width(60.dp) // Set a fixed width to ensure labels wrap and align nicely
+        modifier = Modifier.width(60.dp)
     )
 }
 

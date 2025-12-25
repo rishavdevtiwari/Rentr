@@ -1,6 +1,5 @@
 package com.example.rentr.repository
 
-import com.example.rentr.model.KYCStatus
 import com.example.rentr.model.UserModel
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
@@ -79,30 +78,12 @@ class UserRepoImp1 : UserRepo {
         callback(true, "Logged out")
     }
 
-//    override fun getUserById(userId: String, callback: (Boolean, String, UserModel?) -> Unit) {
-//        ref.child(userId).addListenerForSingleValueEvent(object : ValueEventListener {
-//            override fun onDataChange(snapshot: DataSnapshot) {
-//                val user = snapshot.getValue(UserModel::class.java)
-//                if (user != null) {
-//                    callback(true, "User found", user)
-//                } else {
-//                    callback(false, "User not found", null)
-//                }
-//            }
-//
-//            override fun onCancelled(error: DatabaseError) {
-//                callback(false, error.message, null)
-//            }
-//        })
-//    }
-
     override fun getUserById(userId: String, callback: (Boolean, String, UserModel?) -> Unit) {
         ref.child(userId).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val user = snapshot.getValue(UserModel::class.java)
                 if (user != null) {
-                    // Add userId to the user object
-                    callback(true, "User found", user.copy(userId = userId))
+                    callback(true, "User found", user)
                 } else {
                     callback(false, "User not found", null)
                 }
@@ -130,23 +111,21 @@ class UserRepoImp1 : UserRepo {
 //        })
 //    }
 
-    // In UserRepoImp1.kt, modify the getAllUsers method:
-    override fun getAllUsers(callback: (Boolean, String, List<UserModel>) -> Unit) {
+    override fun getAllUsers(callback: (Boolean, String, Map<String, UserModel>) -> Unit) {
         ref.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val users = mutableListOf<UserModel>()
+                val usersMap = mutableMapOf<String, UserModel>()
                 for (data in snapshot.children) {
                     val user = data.getValue(UserModel::class.java)
-                    user?.let {
-                        // Set the userId from the key
-                        users.add(it.copy(userId = data.key ?: ""))
+                    if (user != null) {
+                        usersMap[data.key ?: ""] = user
                     }
                 }
-                callback(true, "Users fetched", users)
+                callback(true, "Users fetched", usersMap)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                callback(false, error.message, emptyList())
+                callback(false, error.message, emptyMap())
             }
         })
     }
@@ -226,10 +205,9 @@ class UserRepoImp1 : UserRepo {
         }
     }
 
-    override fun verifyUserKYC(
+       override fun verifyUserKYC(
         userId: String,
         approved: Boolean,
-        reason: String,
         callback: (Boolean, String?) -> Unit
     ) {
         ref.child(userId).runTransaction(object : Transaction.Handler {
@@ -242,20 +220,9 @@ class UserRepoImp1 : UserRepo {
                 if (approved) {
                     // Approve KYC - mark as verified
                     currentData.child("verified").value = true
-                    currentData.child("kycRejectionReason").value = ""
-
-                    // Update all documents to approved status
-                    val kycDetails = user.kycDetails.toMutableMap()
-                    kycDetails.forEach { (key, value) ->
-                        currentData.child("kycDetails").child(key).child("status").value = "approved"
-                    }
                 } else {
-                    // Reject KYC
+                    // Reject KYC - mark as not verified and clear KYC URLs
                     currentData.child("verified").value = false
-                    currentData.child("kycRejectionReason").value = reason
-
-                    // Remove KYC documents to allow re-upload
-                    currentData.child("kycDetails").value = null
                     currentData.child("kycUrl").value = emptyList<String>()
                 }
 
@@ -270,45 +237,6 @@ class UserRepoImp1 : UserRepo {
                 }
             }
         })
-    }
-
-    override fun getKYCStatus(
-        userId: String,
-        callback: (Boolean, String, Map<String, KYCStatus>?) -> Unit
-    ) {
-        ref.child(userId).child("kycDetails").addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val kycDetails = mutableMapOf<String, KYCStatus>()
-                for (data in snapshot.children) {
-                    val docType = data.key ?: continue
-                    val status = data.getValue(KYCStatus::class.java)
-                    if (status != null) {
-                        kycDetails[docType] = status
-                    }
-                }
-                callback(true, "KYC details fetched", kycDetails)
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                callback(false, error.message, null)
-            }
-        })
-    }
-
-    override fun updateKYCStatus(
-        userId: String,
-        documentType: String,
-        status: String,
-        callback: (Boolean, String?) -> Unit
-    ) {
-        ref.child(userId).child("kycDetails").child(documentType).child("status")
-            .setValue(status) { error, _ ->
-                if (error == null) {
-                    callback(true, null)
-                } else {
-                    callback(false, error.message)
-                }
-            }
     }
 
     override fun changePassword(
@@ -344,7 +272,7 @@ class UserRepoImp1 : UserRepo {
         callback: (Boolean, String?) -> Unit
     ) {
         ref.child(userId).child("profileImage").setValue(imageUrl){
-            error, _ ->
+                error, _ ->
             if(error == null){
                 callback(true, null)
             }else{

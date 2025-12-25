@@ -1,19 +1,18 @@
 package com.example.rentr.view
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -44,7 +43,9 @@ class AdminDashboardActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            AdminDashboardScreen()
+            RentrTheme {
+                AdminDashboardScreen()
+            }
         }
     }
 }
@@ -60,7 +61,7 @@ data class AdminProduct(
 )
 
 data class UserKYC(
-    val id: String,
+    val userId: String,
     val name: String,
     val imageRes: String,
     val verificationStatus: VerificationStatus
@@ -88,6 +89,7 @@ enum class FlagType(val color: Color, val text: String) {
     OUTDATED(Color.Gray, "Outdated")
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminDashboardScreen(
     productViewModel: ProductViewModel = viewModel(
@@ -109,7 +111,7 @@ fun AdminDashboardScreen(
 ) {
     val context = LocalContext.current
     val products by productViewModel.allProducts.observeAsState(initial = emptyList())
-    val users by userViewModel.allUsers.observeAsState(initial = emptyList())
+    val usersMap by userViewModel.allUsersMap.observeAsState(initial = emptyMap())
 
     LaunchedEffect(Unit) {
         productViewModel.getAllProducts { _, _, _ -> }
@@ -130,20 +132,23 @@ fun AdminDashboardScreen(
         }
     }
 
-    // Transform UserModel to UserKYC
-    val kycUsers = remember(users) {
-        users?.map { user ->
+    // Get users with pending KYC
+    val pendingKYCUsers = remember(usersMap) {
+        usersMap.filter { (_, user) ->
+            user.kycUrl.isNotEmpty() && !user.verified
+        }.entries.map { (userId, user) ->
             UserKYC(
-                id = user.userId,
+                userId = userId,
                 name = user.fullName,
                 imageRes = user.profileImage,
-                verificationStatus = if (user.verified) VerificationStatus.VERIFIED else VerificationStatus.PENDING
+                verificationStatus = VerificationStatus.PENDING
             )
-        } ?: emptyList()
+        }
     }
 
+    // Demo flagged products
     val flaggedProducts = remember {
-        (1..10).map { index ->
+        (1..5).map { index ->
             FlaggedProduct(
                 id = index,
                 productName = "Product $index",
@@ -152,7 +157,7 @@ fun AdminDashboardScreen(
                     1 -> R.drawable.car
                     else -> R.drawable.toy
                 },
-                flaggedBy = "Reporter ${index * 3}",
+                flaggedBy = "User ${index * 3}",
                 flagType = when (index % 4) {
                     0 -> FlagType.SUSPICIOUS
                     1 -> FlagType.INAPPROPRIATE
@@ -165,8 +170,8 @@ fun AdminDashboardScreen(
     }
 
     Scaffold(
-        containerColor = Color.Black,
-        topBar = { AdminTopBar() }
+        topBar = { AdminTopBar() },
+        containerColor = Color.Black
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -175,25 +180,32 @@ fun AdminDashboardScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                // Section 1: Products
+                // Section 1: Products Management
                 SectionHeader(
                     title = "Product Management",
                     subtitle = "Manage all listed products",
-                    icon = Icons.Default.Info
+                    icon = Icons.Default.Info,
+                    onViewAllClick = {
+                        Toast.makeText(context, "Product Management Coming Soon", Toast.LENGTH_SHORT).show()
+                    }
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                ProductListSection(products = adminProducts)
+                ProductListSection(products = adminProducts.take(3))
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Section 2: KYC Verification
                 SectionHeader(
                     title = "KYC Verification",
-                    subtitle = "Review user verification requests",
-                    icon = Icons.Default.Person
+                    subtitle = "${pendingKYCUsers.size} pending requests",
+                    icon = Icons.Default.Person,
+                    onViewAllClick = {
+                        val intent = Intent(context, KYCListingActivity::class.java)
+                        context.startActivity(intent)
+                    }
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                KYCListSection(users = kycUsers)
+                KYCListSection(users = pendingKYCUsers)
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -201,47 +213,57 @@ fun AdminDashboardScreen(
                 SectionHeader(
                     title = "Flagged Items",
                     subtitle = "Review flagged products",
-                    icon = Icons.Default.Warning
+                    icon = Icons.Default.Warning,
+                    onViewAllClick = {
+                        Toast.makeText(context, "Flagged Items Management Coming Soon", Toast.LENGTH_SHORT).show()
+                    }
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 FlaggedProductsSection(products = flaggedProducts)
 
-                Spacer(modifier = Modifier.height(100.dp)) // Extra space for scrolling
+                Spacer(modifier = Modifier.height(100.dp))
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminTopBar() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.Black)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column {
-            Text("Admin Dashboard", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("Manage platform content", color = Orange.copy(alpha = 0.8f), fontSize = 14.sp)
+    TopAppBar(
+        title = {
+            Column {
+                Text("Admin Dashboard", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("Manage platform content", color = Orange.copy(alpha = 0.8f), fontSize = 12.sp)
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = Color.Black,
+            titleContentColor = Color.White
+        ),
+        actions = {
+            IconButton(onClick = { /* Profile or settings */ }) {
+                Icon(
+                    Icons.Default.Person,
+                    contentDescription = "Admin",
+                    tint = Orange,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(Orange.copy(alpha = 0.2f), CircleShape)
+                        .padding(6.dp)
+                )
+            }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.Default.Person,
-                contentDescription = "Admin",
-                tint = Orange,
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(Orange.copy(alpha = 0.2f), CircleShape)
-                    .padding(8.dp)
-            )
-        }
-    }
+    )
 }
 
 @Composable
-fun SectionHeader(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+fun SectionHeader(
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onViewAllClick: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -269,23 +291,34 @@ fun SectionHeader(title: String, subtitle: String, icon: androidx.compose.ui.gra
                 )
             }
         }
-        Text(
-            "View All",
-            color = Orange,
-            fontSize = 14.sp,
-            modifier = Modifier.clickable { /* Handle view all */ }
-        )
+        TextButton(
+            onClick = onViewAllClick
+        ) {
+            Text(
+                text = "View All",
+                color = Orange,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }
 
 @Composable
 fun ProductListSection(products: List<AdminProduct>) {
     if (products.isEmpty()) {
-        Text(
-            "No products found",
-            color = Color.Gray,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "No products found",
+                color = Color.Gray,
+            )
+        }
     } else {
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -391,11 +424,36 @@ fun KYCListSection(users: List<UserKYC>) {
     val context = LocalContext.current
 
     if (users.isEmpty()) {
-        Text(
-            "No users found",
-            color = Color.Gray,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp)
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    Icons.Default.Verified,
+                    contentDescription = "No pending KYC",
+                    tint = Color.Gray,
+                    modifier = Modifier.size(48.dp)
+                )
+                Text(
+                    "No pending KYC requests",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    "All KYC requests have been reviewed",
+                    color = Color.Gray,
+                    fontSize = 14.sp
+                )
+            }
+        }
     } else {
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -405,7 +463,6 @@ fun KYCListSection(users: List<UserKYC>) {
                 KYCUserCard(
                     user = user,
                     onUserClick = { userId ->
-                        // Navigate to KYC Verification Activity
                         val intent = Intent(context, KYCVerificationActivity::class.java)
                         intent.putExtra("userId", userId)
                         context.startActivity(intent)
@@ -421,24 +478,27 @@ fun KYCUserCard(
     user: UserKYC,
     onUserClick: (String) -> Unit = {}
 ) {
-    val context = LocalContext.current
-
     Card(
         modifier = Modifier
             .width(160.dp)
-            .clickable {
-                onUserClick(user.id)
-            },
+            .clickable { onUserClick(user.userId) },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Field),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            // User Profile Image
-            Box {
+            // User Profile Image with Status
+            Box(
+                modifier = Modifier.size(80.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // Profile Image
                 AsyncImage(
                     model = user.imageRes,
                     contentDescription = user.name,
@@ -449,89 +509,63 @@ fun KYCUserCard(
                         .clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
-                // Verification Status Indicator
+
+                // Status indicator (small ring)
                 Box(
                     modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .size(20.dp)
-                        .background(Color.Black, CircleShape)
-                ) {
-                    Icon(
-                        when (user.verificationStatus) {
-                            VerificationStatus.VERIFIED -> Icons.Default.CheckCircle
-                            VerificationStatus.PENDING -> Icons.Default.Info
-                            VerificationStatus.REJECTED -> Icons.Default.Close
-                        },
-                        contentDescription = "Status",
-                        tint = user.verificationStatus.color,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+                        .size(84.dp)
+                        .border(
+                            width = 2.dp,
+                            color = user.verificationStatus.color,
+                            shape = CircleShape
+                        )
+                )
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // User Name (centered)
+            Text(
+                text = user.name,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                user.name,
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
+            // Status Badge (centered)
             Box(
                 modifier = Modifier
                     .background(
                         user.verificationStatus.color.copy(alpha = 0.2f),
                         RoundedCornerShape(8.dp)
                     )
-                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
             ) {
-                Text(
-                    user.verificationStatus.text,
-                    color = user.verificationStatus.color,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Action buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clickable {
-                            // Approve KYC directly from dashboard
-                            // You might want to implement a confirmation dialog here
-                        }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
                     Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = "Approve",
-                        tint = Color.Green,
-                        modifier = Modifier.size(28.dp)
+                        when (user.verificationStatus) {
+                            VerificationStatus.VERIFIED -> Icons.Default.CheckCircle
+                            VerificationStatus.PENDING -> Icons.Default.Schedule
+                            VerificationStatus.REJECTED -> Icons.Default.Close
+                        },
+                        contentDescription = "Status",
+                        tint = user.verificationStatus.color,
+                        modifier = Modifier.size(14.dp)
                     )
-                }
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clickable {
-                            // Reject KYC directly from dashboard
-                            // You might want to implement a confirmation dialog here
-                        }
-                ) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Reject",
-                        tint = Color.Red,
-                        modifier = Modifier.size(28.dp)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = user.verificationStatus.text,
+                        color = user.verificationStatus.color,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
@@ -676,7 +710,7 @@ fun VerificationBadge(status: VerificationStatus) {
             Icon(
                 when (status) {
                     VerificationStatus.VERIFIED -> Icons.Default.Verified
-                    VerificationStatus.PENDING -> Icons.Default.Info
+                    VerificationStatus.PENDING -> Icons.Default.Schedule
                     VerificationStatus.REJECTED -> Icons.Default.Close
                 },
                 contentDescription = status.text,
@@ -697,5 +731,7 @@ fun VerificationBadge(status: VerificationStatus) {
 @Preview
 @Composable
 fun AdminDashboardPreview() {
-    AdminDashboardScreen()
+    RentrTheme {
+        AdminDashboardScreen()
+    }
 }

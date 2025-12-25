@@ -26,7 +26,10 @@ interface UserRepo {
     fun getCurrentUser() : FirebaseUser?
     fun logout(callback: (Boolean, String) -> Unit)
     fun getUserById(userId: String, callback:(Boolean,String, UserModel?) -> Unit)
-    fun getAllUsers(callback:(Boolean, String, List<UserModel>) -> Unit)
+
+//    fun getAllUsers(callback:(Boolean, String, List<UserModel>) -> Unit)
+
+    fun getAllUsers(callback:(Boolean, String, Map<String, UserModel>) -> Unit)
     fun deleteAccount(userId: String, callback:(Boolean, String) -> Unit)
 
     fun addUserToDatabase(

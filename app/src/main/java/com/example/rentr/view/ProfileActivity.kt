@@ -5,8 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -193,14 +192,37 @@ private fun ProfileCard(user: com.example.rentr.model.UserModel?, isLoading: Boo
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // KYC Status Logic - UPDATED FOR NEW STRUCTURE
+            // KYC Status Logic
             user?.let {
-                val hasKYC = it.kycDetails.isNotEmpty() || it.kycUrl.isNotEmpty()
-                val hasPendingKYC = it.kycDetails.values.any { status -> status.status == "pending" }
+                val hasKYC = it.kycUrl.isNotEmpty()
 
                 when {
-                    // Condition 1: KYC is pending verification
-                    hasKYC && !it.verified && !hasPendingKYC && it.kycRejectionReason.isEmpty() -> {
+                    // Condition 1: KYC is verified
+                    it.verified -> {
+                        Button(
+                            onClick = { /* View KYC status - already verified */ },
+                            enabled = false,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                disabledContainerColor = successColor,
+                                disabledContentColor = Color.White
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(Icons.Default.Verified, contentDescription = null, tint = Color.White)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("KYC Verified", color = Color.White, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                    }
+
+                    // Condition 2: KYC is under review (has documents but not verified)
+                    hasKYC && !it.verified -> {
                         Button(
                             onClick = { /* Non-clickable status indicator */ },
                             enabled = false,
@@ -223,62 +245,14 @@ private fun ProfileCard(user: com.example.rentr.model.UserModel?, isLoading: Boo
                         }
                     }
 
-                    // Condition 2: KYC was rejected
-                    !it.kycRejectionReason.isNullOrEmpty() -> {
-                        Column {
-                            Button(
-                                onClick = {
-                                    val intent = Intent(context, KYC::class.java)
-                                    activity?.startActivity(intent)
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = errorColor)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color.White)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("KYC Rejected - Upload Again", color = Color.White, fontWeight = FontWeight.Medium)
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = errorColor.copy(alpha = 0.2f)
-                                )
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(12.dp)
-                                ) {
-                                    Text(
-                                        text = "Reason for rejection:",
-                                        color = textColor,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = it.kycRejectionReason,
-                                        color = textLightColor,
-                                        fontSize = 12.sp,
-                                        maxLines = 3
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Condition 3: No KYC uploaded or documents are pending
-                    (!hasKYC || hasPendingKYC) && !it.verified -> {
+                    // Condition 3: No KYC uploaded - Navigate to KYC Upload
+                    else -> {
                         Button(
                             onClick = {
-                                val intent = Intent(context, KYC::class.java)
+                                // ----------------------- INTENT CODE -----------------------
+                                val intent = Intent(context, KYC::class.java) // Changed from KYCListingActivity to KYC (Upload)
                                 activity?.startActivity(intent)
+                                // ----------------------- END INTENT CODE -----------------------
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
@@ -292,45 +266,10 @@ private fun ProfileCard(user: com.example.rentr.model.UserModel?, isLoading: Boo
                                 Icon(Icons.Default.Update, contentDescription = null, tint = Color.White)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = if (!hasKYC) "Complete KYC" else "Update KYC Documents",
+                                    text = "Complete KYC",
                                     color = Color.White,
                                     fontWeight = FontWeight.Medium
                                 )
-                            }
-                        }
-
-                        if (hasPendingKYC) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Some documents need to be re-uploaded",
-                                color = warningColor,
-                                fontSize = 12.sp,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-
-                    // Condition 4: KYC is verified
-                    it.verified -> {
-                        Button(
-                            onClick = { /* View KYC status */ },
-                            enabled = false,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                disabledContainerColor = successColor,
-                                disabledContentColor = Color.White
-                            ),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Icon(Icons.Default.Verified, contentDescription = null, tint = Color.White)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("KYC Verified", color = Color.White, fontWeight = FontWeight.Medium)
                             }
                         }
                     }

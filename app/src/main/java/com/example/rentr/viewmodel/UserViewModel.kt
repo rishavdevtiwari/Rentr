@@ -4,7 +4,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.example.rentr.model.KYCStatus
 import com.example.rentr.model.UserModel
 import com.example.rentr.repository.UserRepo
 import com.google.firebase.auth.FirebaseUser
@@ -45,8 +44,12 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
     val user : LiveData<UserModel?>
         get() = _user
     private val _allUsers = MutableLiveData<List<UserModel>?>()
-    val allUsers : MutableLiveData<List<UserModel>?>
-        get() = _allUsers
+//    val allUsers : MutableLiveData<List<UserModel>?>
+//        get() = _allUsers
+
+    private val _allUsersMap = MutableLiveData<Map<String, UserModel>>()
+    val allUsersMap : MutableLiveData<Map<String, UserModel>>
+        get() = _allUsersMap
 
     private val _loading = MutableLiveData<Boolean>()
     val loading : MutableLiveData<Boolean>
@@ -87,43 +90,38 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
     fun verifyUserKYC(
         userId: String,
         approved: Boolean,
-        reason: String = "",
         callback: (Boolean, String?) -> Unit
     ) {
-        repo.verifyUserKYC(userId, approved, reason, callback)
+        repo.verifyUserKYC(userId, approved, callback)
     }
-
-    fun getKYCStatus(
-        userId: String,
-        callback: (Boolean, String, Map<String, KYCStatus>?) -> Unit
-    ) {
-        repo.getKYCStatus(userId, callback)
-    }
-
-    fun updateKYCStatus(
-        userId: String,
-        documentType: String,
-        status: String,
-        callback: (Boolean, String?) -> Unit
-    ) {
-        repo.updateKYCStatus(userId, documentType, status, callback)
-    }
-
 
 //    fun getAllUsers(callback:(Boolean, String, List<UserModel>) -> Unit){
 //        repo.getAllUsers (callback)
 //    }
 
-    fun getAllUsers(callback:(Boolean, String, List<UserModel>) -> Unit){
+//    fun getAllUsers(callback:(Boolean, String, List<UserModel>) -> Unit){
+//        _loading.postValue(true)
+//        repo.getAllUsers { success, msg, users ->
+//            if(success) {
+//                _allUsers.postValue(users)
+//            } else {
+//                _allUsers.postValue(emptyList())
+//            }
+//            _loading.postValue(false)
+//            callback(success, msg, users)
+//        }
+//    }
+
+    fun getAllUsers(callback:(Boolean, String, Map<String, UserModel>) -> Unit){
         _loading.postValue(true)
-        repo.getAllUsers { success, msg, users ->
+        repo.getAllUsers { success, msg, usersMap ->
             if(success) {
-                _allUsers.postValue(users)
+                _allUsersMap.postValue(usersMap)
             } else {
-                _allUsers.postValue(emptyList())
+                _allUsersMap.postValue(emptyMap())
             }
             _loading.postValue(false)
-            callback(success, msg, users)
+            callback(success, msg, usersMap)
         }
     }
 
