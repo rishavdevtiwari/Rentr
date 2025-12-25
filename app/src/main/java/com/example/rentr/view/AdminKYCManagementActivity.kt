@@ -35,7 +35,7 @@ import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.viewmodel.UserViewModel
 
-class KYCListingActivity : ComponentActivity() {
+class AdminKYCManagementActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {

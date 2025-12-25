@@ -19,12 +19,18 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// --- COLORS (Directly from your palette) ---
 val Field = Color(0xFF333232)
 val Orange = Color(0xFFFF5D18)
 val Outline = Color(0xFF818181)
 
-// --- DATA MODELS ---
+class AdminReviewManagementActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            ReviewScreenContent()
+        }
+    }
+}
 enum class FlagStatus(val label: String, val color: Color) {
     PENDING("PENDING", Color.Yellow),
     RESOLVED("RESOLVED", Color.Green),
@@ -39,7 +45,6 @@ data class FlaggedUser(
     val status: FlagStatus
 )
 
-// --- UI COMPONENTS ---
 
 @Composable
 fun FlaggedUserCard(user: FlaggedUser) {
@@ -148,17 +153,6 @@ fun ReviewScreenContent() {
     }
 }
 
-// --- ACTIVITY CLASS ---
-class ReviewActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            ReviewScreenContent()
-        }
-    }
-}
-
-// --- PREVIEW ---
 @Preview(showBackground = true, name = "Flagged Reviews Screen")
 @Composable
 fun ReviewScreenPreview() {

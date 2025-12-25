@@ -23,7 +23,6 @@ import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.RentrTheme
 import com.example.rentr.ui.theme.splash
 
-// Data class for Admin, can be moved to a separate file later.
 data class AdminProfile(
     val name: String,
     val age: Int,
@@ -31,7 +30,7 @@ data class AdminProfile(
     val profileImage: Int
 )
 
-class UpdateAdmjinProfile : ComponentActivity() {
+class AdminUpdateProfile : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {

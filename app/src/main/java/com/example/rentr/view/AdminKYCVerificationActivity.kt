@@ -32,7 +32,7 @@ import com.example.rentr.model.UserModel
 import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.viewmodel.UserViewModel
 
-class KYCVerificationActivity : ComponentActivity() {
+class AdminKYCVerificationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // ----------------------- INTENT CODE -----------------------

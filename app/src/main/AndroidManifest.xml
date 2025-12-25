@@ -15,28 +15,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Rentr">
         <activity
-            android:name=".view.AdminDashboardActivity"
-            android:exported="true"
-            android:label="@string/title_activity_admin_dashboard"
-            android:theme="@style/Theme.Rentr">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        <activity
-            android:name=".view.AdminSettings"
-            android:exported="true"
-            android:label="@string/title_activity_admin_settings"
-            android:theme="@style/Theme.Rentr">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        <activity
             android:name=".view.SplashActivity"
             android:exported="true"
             android:theme="@style/Theme.Rentr">
@@ -118,26 +96,52 @@
             android:name=".view.TermsActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
+
+
+
         <activity
-            android:name=".view.FlagReviewActivity"
+            android:name=".view.AdminDashboardActivity"
+            android:exported="true"
+            android:label="@string/title_activity_admin_dashboard"
+            android:theme="@style/Theme.Rentr">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".view.AdminFlaggedReviewActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".view.KYCVerificationActivity"
+            android:name=".view.AdminKYCVerificationActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".view.KYCListingActivity"
+            android:name=".view.AdminKYCManagementActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
-            android:name=".view.ProductVerificationActivity"
+            android:name=".view.AdminProductVerificationActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
             android:name=".view.AdminProductManagementActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".view.AdminUpdateProfile"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".view.AdminSettings"
+            android:exported="true"
+            android:theme="@style/Theme.Rentr"/>
+        <activity
+            android:name=".view.AdminReviewManagementActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Rentr"/>
     </application>
 
 </manifest>
