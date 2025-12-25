@@ -1,5 +1,6 @@
 package com.example.rentr.view
 
+import android.R.attr.onClick
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -24,6 +25,7 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -68,6 +70,12 @@ val categories = listOf(
     Category("Sports & Adventure", Icons.Default.DirectionsBike),
     Category("Baby Items", Icons.Default.Toys)
 )
+private val primaryColor = Color.Black
+private val secondaryColor = Color(0xFF2A2A2A)
+private val accentColor = Color(0xFFFF6200)
+private val textColor = Color.White
+private val textLightColor = Color(0xFFAFAFAF)
+private val cardBackgroundColor = Color(0xFF2C2C2E)
 
 @Composable
 fun DashboardScreen() {
@@ -122,7 +130,7 @@ fun DashboardScreen() {
                 .verticalScroll(rememberScrollState())
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                TopBar(userName = user?.fullName)
+                TopBar(userName = user?.fullName, userViewModelDash)
                 Spacer(modifier = Modifier.height(20.dp))
                 SearchBar(searchQuery) { searchQuery = it }
                 Spacer(modifier = Modifier.height(20.dp))
@@ -197,21 +205,49 @@ fun DashboardScreen() {
 }
 
 @Composable
-fun TopBar(userName: String?) {
+fun TopBar(userName: String?,userViewModel: UserViewModel) {
+    val user by userViewModel.user.observeAsState(null)
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
+        fun getInitials(name: String): String {
+            val names = name.trim().split(" ")
+            return if (names.size > 1) {
+                "${names.first().firstOrNull() ?: ""}${names.last().firstOrNull() ?: ""}".uppercase()
+            } else {
+                (name.firstOrNull()?.toString() ?: "").uppercase()
+            }
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Default.AccountCircle,
-                contentDescription = "Profile Image",
-                tint = Color.White,
+            Box(
                 modifier = Modifier
-                    .size(45.dp)
+                    .size(37.dp)
                     .clip(CircleShape)
-            )
+                    .background(Brush.verticalGradient(listOf(accentColor, Color(0xFFFFC66C))))
+                    .padding(2.dp) // Simulates border
+                    .clip(CircleShape)
+                    .background(cardBackgroundColor)
+            ) {
+                if (!user?.profileImage.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = user?.profileImage,
+                        contentDescription = "Profile Picture",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        text = user?.fullName?.let { getInitials(it) } ?: "...",
+                        color = textColor,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+            }
             Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text("Good Morning", color = Color.Gray, fontSize = 12.sp)
