@@ -210,7 +210,7 @@ fun AdminProductManagementScreen(
                         AdminProductListItem(
                             productData = productData,
                             onClick = {
-                                val intent = android.content.Intent(context, ProductVerificationActivity::class.java).apply {
+                                val intent = android.content.Intent(context, AdminProductVerificationActivity::class.java).apply {
                                     putExtra("productId", productData.product.productId)
                                     putExtra("productName", productData.product.title)
                                     putExtra("listedBy", productData.product.listedBy)

@@ -388,7 +388,7 @@ fun UsersList(
                 onClick = {
                     // Only redirect if user has KYC documents AND status is PENDING
                     if (userItem.user.kycUrl.isNotEmpty() && userItem.status == KYCStatus.PENDING) {
-                        val intent = Intent(context, KYCVerificationActivity::class.java)
+                        val intent = Intent(context, AdminKYCVerificationActivity::class.java)
                         intent.putExtra("userId", userItem.userId)
                         context.startActivity(intent)
                     }

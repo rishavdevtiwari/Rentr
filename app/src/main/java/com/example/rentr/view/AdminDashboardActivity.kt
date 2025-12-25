@@ -197,7 +197,7 @@ fun AdminDashboardScreen(
                     products = adminProducts.take(3),
                     onProductClick = { product ->
                         // Navigate to Product Verification Activity
-                        val intent = Intent(context, ProductVerificationActivity::class.java).apply {
+                        val intent = Intent(context, AdminProductVerificationActivity::class.java).apply {
                             putExtra("productId", product.id)
                             putExtra("productName", product.name)
                             putExtra("listedBy", product.listedBy)
@@ -217,7 +217,7 @@ fun AdminDashboardScreen(
                     subtitle = "${pendingKYCUsers.size} pending requests",
                     icon = Icons.Default.Person,
                     onViewAllClick = {
-                        val intent = Intent(context, KYCListingActivity::class.java)
+                        val intent = Intent(context, AdminKYCManagementActivity::class.java)
                         context.startActivity(intent)
                     }
                 )
@@ -488,7 +488,7 @@ fun KYCListSection(users: List<UserKYC>) {
                 KYCUserCard(
                     user = user,
                     onUserClick = { userId ->
-                        val intent = Intent(context, KYCVerificationActivity::class.java)
+                        val intent = Intent(context, AdminKYCVerificationActivity::class.java)
                         intent.putExtra("userId", userId)
                         context.startActivity(intent)
                     }
