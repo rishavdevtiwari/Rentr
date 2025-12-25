@@ -110,6 +110,7 @@ fun AdminDashboardScreen(
     )
 ) {
     val context = LocalContext.current
+    val activity = context as? Activity
     val products by productViewModel.allProducts.observeAsState(initial = emptyList())
     val usersMap by userViewModel.allUsersMap.observeAsState(initial = emptyMap())
 
@@ -118,13 +119,13 @@ fun AdminDashboardScreen(
         userViewModel.getAllUsers { _, _, _ -> }
     }
 
-    // Transform ProductModel to AdminProduct
-    val adminProducts = remember(products) {
+    val adminProducts = remember(products, usersMap) {
         products.map { product ->
+            val sellerName = usersMap[product.listedBy]?.fullName ?: "Unknown"
             AdminProduct(
                 id = product.productId,
                 name = product.title,
-                listedBy = product.listedBy,
+                listedBy = sellerName, // Use full name instead of ID
                 price = product.price.toInt(),
                 imageRes = product.imageUrl.firstOrNull() ?: "",
                 verificationStatus = if (product.verified) VerificationStatus.VERIFIED else VerificationStatus.PENDING
@@ -186,11 +187,27 @@ fun AdminDashboardScreen(
                     subtitle = "Manage all listed products",
                     icon = Icons.Default.Info,
                     onViewAllClick = {
-                        Toast.makeText(context, "Product Management Coming Soon", Toast.LENGTH_SHORT).show()
+                        val intent = Intent(context, AdminProductManagementActivity::class.java)
+                        context.startActivity(intent)
                     }
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                ProductListSection(products = adminProducts.take(3))
+
+                ProductListSection(
+                    products = adminProducts.take(3),
+                    onProductClick = { product ->
+                        // Navigate to Product Verification Activity
+                        val intent = Intent(context, ProductVerificationActivity::class.java).apply {
+                            putExtra("productId", product.id)
+                            putExtra("productName", product.name)
+                            putExtra("listedBy", product.listedBy)
+                            putExtra("price", product.price)
+                            putExtra("imageUrl", product.imageRes)
+                            putExtra("verificationStatus", product.verificationStatus.name)
+                        }
+                        context.startActivity(intent)
+                    }
+                )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -215,7 +232,7 @@ fun AdminDashboardScreen(
                     subtitle = "Review flagged products",
                     icon = Icons.Default.Warning,
                     onViewAllClick = {
-                        Toast.makeText(context, "Flagged Items Management Coming Soon", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Flagged Items Management not added", Toast.LENGTH_SHORT).show()
                     }
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -305,7 +322,10 @@ fun SectionHeader(
 }
 
 @Composable
-fun ProductListSection(products: List<AdminProduct>) {
+fun ProductListSection(
+    products: List<AdminProduct>,
+    onProductClick: (AdminProduct) -> Unit = {}
+) {
     if (products.isEmpty()) {
         Box(
             modifier = Modifier
@@ -325,18 +345,23 @@ fun ProductListSection(products: List<AdminProduct>) {
             contentPadding = PaddingValues(horizontal = 4.dp)
         ) {
             items(products) { product ->
-                AdminProductCard(product = product)
+                AdminProductCard(
+                    product = product,
+                    onProductClick = onProductClick
+                )
             }
         }
     }
 }
-
 @Composable
-fun AdminProductCard(product: AdminProduct) {
+fun AdminProductCard(
+    product: AdminProduct,
+    onProductClick: (AdminProduct) -> Unit = {}
+) {
     Card(
         modifier = Modifier
             .width(200.dp)
-            .clickable { /* Handle product click */ },
+            .clickable { onProductClick(product) },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Field),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)

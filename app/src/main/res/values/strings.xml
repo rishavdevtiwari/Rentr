@@ -11,4 +11,5 @@
     <string name="title_activity_kycverification">KYCVerificationActivity</string>
     <string name="title_activity_product_verification">ProductVerificationActivity</string>
     <string name="title_activity_flagged_review">FlaggedReviewActivity</string>
+    <string name="title_activity_admin_product_management">AdminProductManagement</string>
 </resources>

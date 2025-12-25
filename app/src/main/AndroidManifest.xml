@@ -15,17 +15,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Rentr">
         <activity
-            android:name=".view.ProductVerificationActivity"
-            android:exported="true"
-            android:label="@string/title_activity_product_verification"
-            android:theme="@style/Theme.Rentr">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        <activity
             android:name=".view.AdminDashboardActivity"
             android:exported="true"
             android:label="@string/title_activity_admin_dashboard"
@@ -132,13 +121,21 @@
         <activity
             android:name=".view.FlagReviewActivity"
             android:exported="false"
-            android:theme="@style/Theme.Rentr"/>
+            android:theme="@style/Theme.Rentr" />
         <activity
             android:name=".view.KYCVerificationActivity"
             android:exported="false"
-            android:theme="@style/Theme.Rentr"/>
+            android:theme="@style/Theme.Rentr" />
         <activity
             android:name=".view.KYCListingActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".view.ProductVerificationActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".view.AdminProductManagementActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
     </application>
