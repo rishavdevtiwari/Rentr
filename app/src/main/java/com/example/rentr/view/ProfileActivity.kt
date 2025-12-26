@@ -328,23 +328,25 @@ private fun Avatar(user: com.example.rentr.model.UserModel?, isLoading: Boolean,
 
 @Composable
 private fun PillBadge(isVerified: Boolean) {
-    val text = if (isVerified) "Verified" else "Unverified"
-    val icon = if (isVerified) Icons.Default.CheckCircle else Icons.Default.HighlightOff
-    val backgroundColor = if (isVerified) cardBackgroundColor.copy(alpha = 0.5f) else Color.Red
-    val iconColor = if (isVerified) accentColor else Color.White
-    val textColor = if (isVerified) textLightColor else Color.White
+    if (isVerified){}else{
+        val text = if (isVerified) "Verified" else "Unverified"
+        val icon = if (isVerified) Icons.Default.CheckCircle else Icons.Default.HighlightOff
+        val backgroundColor = if (isVerified) cardBackgroundColor.copy(alpha = 0.5f) else Color.Red
+        val iconColor = if (isVerified) accentColor else Color.White
+        val textColor = if (isVerified) textLightColor else Color.White
 
-    Surface(
-        shape = RoundedCornerShape(50),
-        color = backgroundColor,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Surface(
+            shape = RoundedCornerShape(50),
+            color = backgroundColor,
         ) {
-            Icon(icon, contentDescription = text, tint = iconColor, modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(text, color = textColor, fontSize = 12.sp)
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(icon, contentDescription = text, tint = iconColor, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text, color = textColor, fontSize = 12.sp)
+            }
         }
     }
 }
