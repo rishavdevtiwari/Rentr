@@ -324,7 +324,7 @@ fun AdminProductListItem(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Price, Category and Quantity
+                // Price, Category and etc.
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -348,11 +348,6 @@ fun AdminProductListItem(
                     Column(
                         horizontalAlignment = Alignment.End
                     ) {
-                        Text(
-                            "Qty: ${product.quantity}",
-                            color = Color.Gray,
-                            fontSize = 12.sp
-                        )
                         if (!product.availability) {
                             Text(
                                 "Not Available",

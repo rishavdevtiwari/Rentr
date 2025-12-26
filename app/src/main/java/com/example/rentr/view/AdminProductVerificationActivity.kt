@@ -301,7 +301,6 @@ fun ProductDetailsSection(product: com.example.rentr.model.ProductModel) {
                 ProductDetailRow("Title", product.title)
                 ProductDetailRow("Price", "NPR. ${product.price}")
                 ProductDetailRow("Category", product.category)
-                ProductDetailRow("Quantity", product.quantity.toString())
                 ProductDetailRow("Availability", if (product.availability) "Available" else "Not Available")
                 ProductDetailRow("Stock Status", if (product.outOfStock) "Out of Stock" else "In Stock")
                 ProductDetailRow("Rating", "${product.rating} (${product.ratingCount} reviews)")
