@@ -3,6 +3,7 @@ package com.example.rentr.viewmodel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import com.example.rentr.model.UserModel
 import com.example.rentr.repository.UserRepo
 import com.google.firebase.auth.FirebaseUser
@@ -43,8 +44,12 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
     val user : LiveData<UserModel?>
         get() = _user
     private val _allUsers = MutableLiveData<List<UserModel>?>()
-    val allUsers : MutableLiveData<List<UserModel>?>
-        get() = _allUsers
+//    val allUsers : MutableLiveData<List<UserModel>?>
+//        get() = _allUsers
+
+    private val _allUsersMap = MutableLiveData<Map<String, UserModel>>()
+    val allUsersMap : MutableLiveData<Map<String, UserModel>>
+        get() = _allUsersMap
 
     private val _loading = MutableLiveData<Boolean>()
     val loading : MutableLiveData<Boolean>
@@ -81,32 +86,43 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
             }
     }
 
-    fun updateKyc(
+
+    fun verifyUserKYC(
         userId: String,
-        kycUrl: String,
-        callback: (Boolean, String?) -> Unit){
-        FirebaseDatabase.getInstance()
-            .getReference("users")
-            .child(userId)
-            .child("kycUrl")
-            .setValue(kycUrl)
-            .addOnSuccessListener {
-                callback(true, null)
-            }
-            .addOnFailureListener {
-                callback(false, it.message)
-            }
+        approved: Boolean,
+        callback: (Boolean, String?) -> Unit
+    ) {
+        repo.verifyUserKYC(userId, approved, callback)
     }
 
-    fun removeKyc(
-        userId: String,
-        callback: (Boolean, String?) -> Unit){
-        repo.removeKyc(userId,callback)
-    }
+//    fun getAllUsers(callback:(Boolean, String, List<UserModel>) -> Unit){
+//        repo.getAllUsers (callback)
+//    }
 
+//    fun getAllUsers(callback:(Boolean, String, List<UserModel>) -> Unit){
+//        _loading.postValue(true)
+//        repo.getAllUsers { success, msg, users ->
+//            if(success) {
+//                _allUsers.postValue(users)
+//            } else {
+//                _allUsers.postValue(emptyList())
+//            }
+//            _loading.postValue(false)
+//            callback(success, msg, users)
+//        }
+//    }
 
-    fun getAllUsers(callback:(Boolean, String, List<UserModel>) -> Unit){
-        repo.getAllUsers (callback)
+    fun getAllUsers(callback:(Boolean, String, Map<String, UserModel>) -> Unit){
+        _loading.postValue(true)
+        repo.getAllUsers { success, msg, usersMap ->
+            if(success) {
+                _allUsersMap.postValue(usersMap)
+            } else {
+                _allUsersMap.postValue(emptyMap())
+            }
+            _loading.postValue(false)
+            callback(success, msg, usersMap)
+        }
     }
 
     fun deleteAccount(userId: String, callback:(Boolean, String) -> Unit){
@@ -119,5 +135,12 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
         callback:(Boolean, String) -> Unit
     ){
         repo.addUserToDatabase(userId,model,callback)
+    }
+
+    class Factory(private val repo: UserRepo) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            return UserViewModel(repo) as T
+        }
     }
 }
