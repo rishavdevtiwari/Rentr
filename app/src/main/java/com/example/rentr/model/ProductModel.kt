@@ -13,7 +13,7 @@ data class ProductModel(
     val ratingCount: Int = 0,
     val category: String = "", //foreign key,
     val verified: Boolean = false,
-
+    val flaggedBy: List<String> = emptyList(), // this will resolve the flagCount and the button greyed logic
     val flagged: Boolean = false
 ){
     fun toMap() : Map < String, Any?> {
@@ -22,14 +22,14 @@ data class ProductModel(
             "listedBy" to listedBy,
             "description" to description,
             "price" to price,
-            "productId" to productId,
+            "productId" to productId,   
             "availability" to availability,
             "outOfStock" to outOfStock,
             "rating" to rating,
             "ratingCount" to ratingCount,
-            "category" to category,
             "imageUrl" to imageUrl,
             "verified" to verified,
+            "flaggedBy" to flaggedBy, // this will resolve the flagCount and the button greyed logic
             "flagged" to flagged
         )
     }

@@ -27,8 +27,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -39,6 +41,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -91,6 +94,17 @@ fun ProductDisplay(productId: String) {
 
     val product by productViewModel.product.observeAsState()
     var sellerName by remember { mutableStateOf("") }
+    var showFlagDialog by remember { mutableStateOf(false) }
+
+    // Get current user ID
+    val currentUserId = userViewModel.getCurrentUser()?.uid
+
+    // Determine if the current user is the seller
+    val isSeller = product?.listedBy == currentUserId
+
+    // Determine if the item is already flagged by the current user
+    val isAlreadyFlagged = product?.flaggedBy?.contains(currentUserId) == true
+
 
     LaunchedEffect(productId) {
         if (productId.isNotEmpty()) {
@@ -107,6 +121,48 @@ fun ProductDisplay(productId: String) {
         }
     }
 
+    // --- Flag Confirmation Dialog ---
+    if (showFlagDialog) {
+        AlertDialog(
+            onDismissRequest = { showFlagDialog = false },
+            title = { Text("Confirm Flag") },
+            text = { Text("Are you sure you want to flag this item?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val currentProduct = product
+                        if (currentUserId != null && currentProduct != null) {
+                            // Add user ID to the flaggedBy list
+                            val updatedFlaggedBy = currentProduct.flaggedBy.toMutableList().apply {
+                                if (!contains(currentUserId)) add(currentUserId)
+                            }
+                            // Create an updated product model
+                            val updatedProduct = currentProduct.copy(flaggedBy = updatedFlaggedBy)
+
+                            // Use the existing updateProduct function
+                            productViewModel.updateProduct(currentProduct.productId, updatedProduct) { success, _ ->
+                                if (success) {
+                                    // Refresh the product details to reflect the change immediately
+                                    productViewModel.getProductById(productId) { _, _, _ -> }
+                                }
+                            }
+                        }
+                        showFlagDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text("Yes, Flag")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFlagDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+
     val randomPrice = remember { (100..2000).random().toDouble() }
     val productRating = remember { "%.1f".format((3..5).random().toFloat() + (0..9).random().toFloat() / 10) }
     val totalPrice = randomPrice
@@ -114,7 +170,8 @@ fun ProductDisplay(productId: String) {
     Scaffold(
         containerColor = Color.Black,
         bottomBar = {
-            if (product?.availability == true && product?.outOfStock == false) {
+            // Show BottomBar only if the user is NOT the seller and the product is available
+            if (!isSeller && product?.availability == true && product?.outOfStock == false) {
                 BottomBar(price = totalPrice)
             }
         }
@@ -150,16 +207,55 @@ fun ProductDisplay(productId: String) {
                             error = painterResource(id = R.drawable.rentrimage)
                         )
                     }
-                    IconButton(
-                        onClick = { activity?.finish() },
+
+                    // Top Bar with Back and Flag buttons
+                    Row(
                         modifier = Modifier
+                            .fillMaxWidth()
                             .align(Alignment.TopStart)
-                            .padding(16.dp)
-                            .background(Field.copy(alpha = 0.5f), CircleShape)
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
+                        // Back Button
+                        IconButton(
+                            onClick = { activity?.finish() },
+                            modifier = Modifier
+                                .background(Field.copy(alpha = 0.5f), CircleShape)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
+                        }
+
+                        // Flag Button / Flagged Indicator - Visible only if NOT the seller
+                        if (!isSeller) {
+                            if (isAlreadyFlagged) {
+                                // "Flagged" indicator (disabled)
+                                Card(
+                                    shape = RoundedCornerShape(50),
+                                    colors = CardDefaults.cardColors(containerColor = Field.copy(alpha = 0.5f))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Flag, contentDescription = "Flagged", tint = Color.White)
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Flagged", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
+                                }
+                            } else {
+                                // Active Flag Button
+                                IconButton(
+                                    onClick = { showFlagDialog = true },
+                                    modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
+                                ) {
+                                    Icon(Icons.Default.Flag, "Flag item", tint = Color.Red)
+                                }
+                            }
+                        }
                     }
                 }
+
 
                 // Slider Indicator
                 Row(

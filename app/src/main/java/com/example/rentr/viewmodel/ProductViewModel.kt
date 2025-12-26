@@ -3,6 +3,7 @@ package com.example.rentr.viewmodel
 import ProductRepo
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import com.example.rentr.model.ProductModel
 
 class ProductViewModel(val repo: ProductRepo) : ViewModel() {
@@ -33,7 +34,7 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
     fun getProductById(productId: String, callback: (Boolean, String, ProductModel?) -> Unit) {
         _loading.postValue(true)
         repo.getProductById(productId){
-            success, msg, data ->
+                success, msg, data ->
             if(success){
                 _product.postValue(data)
             }else{
@@ -48,7 +49,7 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
     fun getAllProducts(callback: (Boolean, String, List<ProductModel>?) -> Unit) {
         _loading.postValue(true)
         repo.getAllProducts{
-            success, msg, data ->
+                success, msg, data ->
             if(success){
                 _allProducts.postValue(data)
             }else{
@@ -61,7 +62,7 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
     fun getAllProductsByCategory(category: String, callback: (Boolean, String, List<ProductModel>?) -> Unit) {
         _loading.postValue(true)
         repo.getAllProductsByCategory(category){
-            success, msg, data ->
+                success, msg, data ->
             if(success){
                 _allProducts.postValue(data?: emptyList())
             }else{
@@ -85,7 +86,7 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
     fun getAllProductsByUser(userId: String, callback: (Boolean, String, List<ProductModel>) -> Unit) {
         _loading.postValue(true)
         repo.getAllProductsByUser(userId){
-            success, msg, data ->
+                success, msg, data ->
             if(success){
                 _allProducts.postValue(data)
             }else{
@@ -94,6 +95,27 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
             _loading.postValue(false)
         }
 
+    }
+
+    fun updateProductVerification(productId: String, verified: Boolean, callback: (Boolean, String) -> Unit) {
+        _loading.postValue(true)
+        repo.getProductById(productId) { success, msg, product ->
+            if (success && product != null) {
+                repo.updateProduct(productId, product.copy(verified = verified)) { updateSuccess, updateMsg ->
+                    _loading.postValue(false)
+                    if (updateSuccess) {
+                        // Update local state if needed
+                        product?.let {
+                            _product.postValue(it.copy(verified = verified))
+                        }
+                    }
+                    callback(updateSuccess, updateMsg)
+                }
+            } else {
+                _loading.postValue(false)
+                callback(false, "Product not found")
+            }
+        }
     }
 
     fun updateAvailability(productId: String, available: Boolean, callback: (Boolean, String) -> Unit) {
@@ -106,6 +128,13 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
 
     fun clearProducts() {
         _allProducts.postValue(emptyList())
+    }
+
+    class Factory(private val repo: ProductRepo) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            return ProductViewModel(repo) as T
+        }
     }
 
 }

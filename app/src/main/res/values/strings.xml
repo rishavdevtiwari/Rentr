@@ -5,4 +5,11 @@
     <string name="title_activity_faq_screen">FaqScreenActivity</string>
     <string name="title_activity_main">MainActivity</string>
     <string name="title_activity_account_setup">AccountSetupActivity</string>
+    <string name="title_activity_admin_ddashboard">AdminDDashboardActivity</string>
+    <string name="title_activity_admin_settings">AdminSettings</string>
+    <string name="title_activity_admin_dashboard">AdminDashboardActivity</string>
+    <string name="title_activity_kycverification">KYCVerificationActivity</string>
+    <string name="title_activity_product_verification">ProductVerificationActivity</string>
+    <string name="title_activity_flagged_review">FlaggedReviewActivity</string>
+    <string name="title_activity_admin_product_management">AdminProductManagement</string>
 </resources>
