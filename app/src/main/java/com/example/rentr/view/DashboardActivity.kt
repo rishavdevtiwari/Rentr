@@ -110,7 +110,7 @@ fun DashboardScreen() {
     }
 
         val filteredProducts = products?.filter {
-           it.title.contains(searchQuery, ignoreCase = true)
+           it.verified && !it.flagged && it.title.contains(searchQuery, ignoreCase = true)
         } ?: emptyList()
 
         // Limit to 6 items for the dashboard preview
@@ -203,6 +203,7 @@ fun DashboardScreen() {
         }
     }
 }
+
 
 @Composable
 fun TopBar(userName: String?,userViewModel: UserViewModel) {

@@ -86,6 +86,8 @@ fun CategoryScreen(categoryName: String) {
         productViewModel.getAllProductsByCategory(categoryName) { _, _, _ -> }
     }
 
+    val filteredProducts = products.filter { it.verified && !it.flagged }
+
     Scaffold(containerColor = Color.Black) { paddingValues ->
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
@@ -122,7 +124,7 @@ fun CategoryScreen(categoryName: String) {
                 }
             }
 
-            items(products) { product ->
+            items(filteredProducts) { product ->
                 ProductGridItem(product)
             }
         }
