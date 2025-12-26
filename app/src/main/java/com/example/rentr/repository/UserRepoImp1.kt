@@ -7,6 +7,8 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.MutableData
+import com.google.firebase.database.Transaction
 import com.google.firebase.database.ValueEventListener
 
 class UserRepoImp1 : UserRepo {
@@ -93,18 +95,37 @@ class UserRepoImp1 : UserRepo {
         })
     }
 
-    override fun getAllUsers(callback: (Boolean, String, List<UserModel>) -> Unit) {
+//    override fun getAllUsers(callback: (Boolean, String, List<UserModel>) -> Unit) {
+//        ref.addListenerForSingleValueEvent(object : ValueEventListener {
+//            override fun onDataChange(snapshot: DataSnapshot) {
+//                val users = mutableListOf<UserModel>()
+//                for (data in snapshot.children) {
+//                    data.getValue(UserModel::class.java)?.let { users.add(it) }
+//                }
+//                callback(true, "Users fetched", users)
+//            }
+//
+//            override fun onCancelled(error: DatabaseError) {
+//                callback(false, error.message, emptyList())
+//            }
+//        })
+//    }
+
+    override fun getAllUsers(callback: (Boolean, String, Map<String, UserModel>) -> Unit) {
         ref.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val users = mutableListOf<UserModel>()
+                val usersMap = mutableMapOf<String, UserModel>()
                 for (data in snapshot.children) {
-                    data.getValue(UserModel::class.java)?.let { users.add(it) }
+                    val user = data.getValue(UserModel::class.java)
+                    if (user != null) {
+                        usersMap[data.key ?: ""] = user
+                    }
                 }
-                callback(true, "Users fetched", users)
+                callback(true, "Users fetched", usersMap)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                callback(false, error.message, emptyList())
+                callback(false, error.message, emptyMap())
             }
         })
     }
@@ -184,6 +205,40 @@ class UserRepoImp1 : UserRepo {
         }
     }
 
+       override fun verifyUserKYC(
+        userId: String,
+        approved: Boolean,
+        callback: (Boolean, String?) -> Unit
+    ) {
+        ref.child(userId).runTransaction(object : Transaction.Handler {
+            override fun doTransaction(currentData: MutableData): Transaction.Result {
+                val user = currentData.getValue(UserModel::class.java)
+                if (user == null) {
+                    return Transaction.success(currentData)
+                }
+
+                if (approved) {
+                    // Approve KYC - mark as verified
+                    currentData.child("verified").value = true
+                } else {
+                    // Reject KYC - mark as not verified and clear KYC URLs
+                    currentData.child("verified").value = false
+                    currentData.child("kycUrl").value = emptyList<String>()
+                }
+
+                return Transaction.success(currentData)
+            }
+
+            override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
+                if (error == null && committed) {
+                    callback(true, null)
+                } else {
+                    callback(false, error?.message ?: "Transaction failed")
+                }
+            }
+        })
+    }
+
     override fun changePassword(
         oldPass: String,
         newPass: String,
@@ -217,7 +272,7 @@ class UserRepoImp1 : UserRepo {
         callback: (Boolean, String?) -> Unit
     ) {
         ref.child(userId).child("profileImage").setValue(imageUrl){
-            error, _ ->
+                error, _ ->
             if(error == null){
                 callback(true, null)
             }else{
