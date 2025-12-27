@@ -46,7 +46,6 @@ class FillProfileActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // Main surface using your BG40 color
             Surface(
                 modifier = Modifier.fillMaxSize(),
                 color = BG40
@@ -60,24 +59,22 @@ class FillProfileActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FillProfileScreen() {
-    // Form State
     var fullName by remember { mutableStateOf("") }
     var dateOfBirth by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
 
-    //UserViewModel
+    val isFormValid = fullName.isNotBlank() && dateOfBirth.isNotBlank() && phoneNumber.isNotBlank() && gender.isNotBlank()
+
     val userViewModel1 = remember { UserViewModel(UserRepoImp1()) }
 
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
     val activity = context as Activity
 
-    //Capturing email and userId from intent
     val email = activity.intent?.getStringExtra("email") ?: ""
     val password = activity.intent?.getStringExtra("password") ?: ""
 
-    // --- Date Picker Setup ---
     val calendar = Calendar.getInstance()
     val year = calendar.get(Calendar.YEAR)
     val month = calendar.get(Calendar.MONTH)
@@ -93,7 +90,6 @@ fun FillProfileScreen() {
         day
     )
 
-    // --- Gender Picker Setup ---
     val genderOptions = listOf("Male", "Female", "Other")
     var expanded by remember { mutableStateOf(false) }
 
@@ -129,7 +125,6 @@ fun FillProfileScreen() {
                 },
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // --- Profile Image Section ---
             Box(
                 modifier = Modifier
                     .padding(vertical = 24.dp)
@@ -138,7 +133,7 @@ fun FillProfileScreen() {
                 Icon(
                     imageVector = Icons.Default.AccountCircle,
                     contentDescription = "Profile Image",
-                    tint = outline, // Used outline color for the empty state
+                    tint = outline,
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(CircleShape)
@@ -162,8 +157,6 @@ fun FillProfileScreen() {
                 }
             }
 
-
-            // --- Input Fields ---
             RentrTextField(
                 value = fullName,
                 onValueChange = { fullName = it },
@@ -180,7 +173,6 @@ fun FillProfileScreen() {
             )
             Spacer(modifier = Modifier.height(20.dp))
 
-            // --- Date of Birth Picker ---
             Box(modifier = Modifier.clickable { datePickerDialog.show() }) {
                 RentrTextField(
                     value = dateOfBirth,
@@ -202,7 +194,6 @@ fun FillProfileScreen() {
             )
             Spacer(modifier = Modifier.height(20.dp))
 
-            // --- Gender Picker ---
             ExposedDropdownMenuBox(
                 expanded = expanded,
                 onExpandedChange = { expanded = !expanded },
@@ -234,14 +225,8 @@ fun FillProfileScreen() {
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // --- Continue Button ---
             Button(
                 onClick = {
-                    if (dateOfBirth.isBlank()) {
-                        Toast.makeText(context, "Please enter your date of birth.", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
-
                     val parts = dateOfBirth.split("/")
                     if (parts.size != 3) {
                         Toast.makeText(context, "Invalid date format.", Toast.LENGTH_SHORT).show()
@@ -249,7 +234,7 @@ fun FillProfileScreen() {
                     }
 
                     val dobYear = parts[2].toInt()
-                    val dobMonth = parts[1].toInt() - 1 // Calendar month is 0-indexed
+                    val dobMonth = parts[1].toInt() - 1
                     val dobDay = parts[0].toInt()
 
                     val today = Calendar.getInstance()
@@ -273,7 +258,7 @@ fun FillProfileScreen() {
                                     phoneNumber = phoneNumber,
                                     dob = dateOfBirth,
                                     email = email,
-                                    listings = mutableListOf("UNACCEPTED"),
+                                    listings = emptyList(),
                                     verified = false,
                                     kycUrl = emptyList()
                                 )
@@ -297,9 +282,12 @@ fun FillProfileScreen() {
                     .fillMaxWidth()
                     .padding(vertical = 30.dp)
                     .height(55.dp),
+                enabled = isFormValid,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Orange,
-                    contentColor = Color.White
+                    contentColor = Color.White,
+                    disabledContainerColor = ButtonColor,
+                    disabledContentColor = Color.Black.copy(alpha = 0.4f)
                 ),
                 shape = RoundedCornerShape(30.dp),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
@@ -314,7 +302,6 @@ fun FillProfileScreen() {
     }
 }
 
-// --- Custom TextField Component using your colors ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RentrTextField(
@@ -370,7 +357,6 @@ fun FillProfilePreview() {
     FillProfileScreen()
 }
 
-// Dummy Color Vars to prevent Preview errors
 val Purple80 = Color(0xFFD0BCFF)
 val PurpleGrey80 = Color(0xFFCCC2DC)
 val Pink80 = Color(0xFFEFB8C8)
