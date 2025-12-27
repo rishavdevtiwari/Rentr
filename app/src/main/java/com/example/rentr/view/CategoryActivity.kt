@@ -74,6 +74,8 @@ class CategoryActivity : ComponentActivity() {
     }
 }
 
+// for flagged products.
+
 @Composable
 fun CategoryScreen(categoryName: String) {
     val context = LocalContext.current
@@ -84,6 +86,11 @@ fun CategoryScreen(categoryName: String) {
 
     LaunchedEffect(categoryName) {
         productViewModel.getAllProductsByCategory(categoryName) { _, _, _ -> }
+    }
+
+    // Filter out flagged products
+    val filteredProducts = products.filter {
+        it.category == categoryName && it.availability && !it.flagged && it.verified
     }
 
     Scaffold(containerColor = Color.Black) { paddingValues ->
@@ -122,7 +129,7 @@ fun CategoryScreen(categoryName: String) {
                 }
             }
 
-            items(products) { product ->
+            items(filteredProducts) { product ->
                 ProductGridItem(product)
             }
         }

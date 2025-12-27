@@ -14,7 +14,9 @@ data class ProductModel(
     val category: String = "", //foreign key,
     val verified: Boolean = false,
     val flaggedBy: List<String> = emptyList(), // this will resolve the flagCount and the button greyed logic
-    val flagged: Boolean = false
+    val flagged: Boolean = false,
+    val flagReason: String = "", // Reason given by user who flagged
+    val appealReason: String = "" // Appeal reason given by seller
 ){
     fun toMap() : Map < String, Any?> {
         return mapOf(
@@ -30,7 +32,9 @@ data class ProductModel(
             "imageUrl" to imageUrl,
             "verified" to verified,
             "flaggedBy" to flaggedBy, // this will resolve the flagCount and the button greyed logic
-            "flagged" to flagged
+            "flagged" to flagged,
+            "flagReason" to flagReason,
+            "appealReason" to appealReason
         )
     }
 }

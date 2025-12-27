@@ -108,10 +108,13 @@ fun DashboardScreen() {
             }
         }
     }
-
-        val filteredProducts = products?.filter {
-           it.title.contains(searchQuery, ignoreCase = true)
-        } ?: emptyList()
+    val filteredProducts = products?.filter {
+        it.title.contains(searchQuery, ignoreCase = true) &&
+                it.availability &&
+                !it.outOfStock &&
+                !it.flagged &&
+                it.verified
+    } ?: emptyList()
 
         // Limit to 6 items for the dashboard preview
         val displayedProducts = filteredProducts.take(6)
@@ -312,10 +315,19 @@ fun CategorySelection(selectedCategory: String?, onCategorySelected: (String) ->
     }
 }
 
+// Product grid activity updated with flagged products filtering
 @Composable
 fun ProductGrid(products: List<ProductModel>) {
+    // Filter out flagged and unavailable products
+    val filteredProducts = products.filter {
+        it.availability &&
+                !it.outOfStock &&
+                !it.flagged &&
+                it.verified //only show verified products.
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        products.chunked(2).forEach { rowProducts ->
+        filteredProducts.chunked(2).forEach { rowProducts ->
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
                 rowProducts.forEach { product ->
                     Column(modifier = Modifier.weight(1f)) {
