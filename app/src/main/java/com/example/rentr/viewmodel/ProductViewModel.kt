@@ -122,8 +122,8 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
         repo.updateAvailability(productId, available, callback)
     }
 
-    fun updateQuantity(productId: String, quantity: Int, callback: (Boolean, String) -> Unit) {
-        repo.updateQuantity(productId, quantity, callback)
+    fun updateRating(productId: String, userId: String, rating: Int, callback: (Boolean, String) -> Unit) {
+        repo.updateRating(productId, userId, rating, callback)
     }
 
     fun clearProducts() {
