@@ -20,4 +20,6 @@ interface ProductRepo {
 
     fun updateAvailability(productId: String, available: Boolean, callback: (Boolean, String) -> Unit)
 
+    fun updateRating(productId: String, userId: String, rating: Int, callback: (Boolean, String) -> Unit)
+
 }

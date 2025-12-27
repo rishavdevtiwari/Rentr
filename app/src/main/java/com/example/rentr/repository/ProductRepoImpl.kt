@@ -35,9 +35,7 @@ class ProductRepoImpl : ProductRepo {
         product: ProductModel,
         callback: (Boolean, String) -> Unit
     ) {
-        ref.child(productId).updateChildren(product.toMap()).addOnCompleteListener { //setValue() affects the whole node unlike updateChildren which only affects
-            // specific attributes. Thus, we use a .toMap() fn in the updateUser because
-            // we usually only update some fields.
+        ref.child(productId).updateChildren(product.toMap()).addOnCompleteListener { 
             if (it.isSuccessful) {
                 callback(true, "Product updated")
             } else {
@@ -166,4 +164,56 @@ class ProductRepoImpl : ProductRepo {
         }
     }
 
+    override fun updateRating(productId: String, userId: String, rating: Int, callback: (Boolean, String) -> Unit) {
+        ref.child(productId).runTransaction(object : Transaction.Handler {
+            override fun doTransaction(currentData: MutableData): Transaction.Result {
+                val product = currentData.getValue(ProductModel::class.java)
+                if (product == null) {
+                    return Transaction.success(currentData)
+                }
+
+                val updatedRatedBy = product.ratedBy.toMutableMap()
+                val alreadyRated = updatedRatedBy.containsKey(userId)
+
+                if (rating > 0) {
+                    // Add or update rating
+                    updatedRatedBy[userId] = rating
+                } else {
+                    // Remove rating
+                    updatedRatedBy.remove(userId)
+                }
+
+                val newRatingCount = updatedRatedBy.size
+                val newTotalRating = updatedRatedBy.values.sum()
+                val newAverageRating = if (newRatingCount > 0) {
+                    newTotalRating.toDouble() / newRatingCount
+                } else {
+                    0.0
+                }
+
+                val updatedProduct = product.copy(
+                    ratedBy = updatedRatedBy,
+                    ratingCount = newRatingCount,
+                    rating = newAverageRating
+                )
+
+                currentData.value = updatedProduct
+                return Transaction.success(currentData)
+            }
+
+            override fun onComplete(
+                error: DatabaseError?,
+                committed: Boolean,
+                currentData: DataSnapshot?
+            ) {
+                if (error != null) {
+                    callback(false, error.message)
+                } else if (!committed) {
+                    callback(false, "Rating update was not committed.")
+                } else {
+                    callback(true, "Rating updated successfully.")
+                }
+            }
+        })
+    }
 }
