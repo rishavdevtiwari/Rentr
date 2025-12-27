@@ -2,6 +2,7 @@ package com.example.rentr.view
 
 import android.app.Activity
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -164,7 +165,6 @@ fun ProductDisplay(productId: String) {
 
 
     val randomPrice = remember { (100..2000).random().toDouble() }
-    val productRating = remember { "%.1f".format((3..5).random().toFloat() + (0..9).random().toFloat() / 10) }
     val totalPrice = randomPrice
 
     Scaffold(
@@ -287,16 +287,13 @@ fun ProductDisplay(productId: String) {
                             Card(
                                 shape = RoundedCornerShape(8.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = if (product!!.availability) Orange.copy(alpha = 0.15f) else Field
+                                    containerColor = Orange.copy(alpha = 0.15f)
                                 )
                             ) {
                                 Text(
                                     text = "Available",
-                                    modifier = Modifier.padding(
-                                        horizontal = 12.dp,
-                                        vertical = 6.dp
-                                    ),
-                                    color = if (product!!.availability) Orange else Color.Gray,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    color = Orange,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 12.sp
                                 )
@@ -304,53 +301,102 @@ fun ProductDisplay(productId: String) {
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
+
+                    // --- Dynamic Rating Display ---
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Star, null, tint = Orange, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("$productRating (4,749 reviews)", color = Color.Gray, fontSize = 14.sp)
+                        val ratingText = if (product!!.ratingCount > 0) {
+                            String.format("%.1f (%d reviews)", product!!.rating, product!!.ratingCount)
+                        } else {
+                            "No reviews yet"
+                        }
+                        Text(ratingText, color = Color.Gray, fontSize = 14.sp)
                     }
 
-                    if (product!!.availability && !product!!.outOfStock) {
+                    // --- User Rating Section ---
+                    if (!isSeller && currentUserId != null) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Divider(color = Field)
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("Listed By", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(sellerName, color = Color.Gray, fontSize = 14.sp)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Divider(color = Field)
-                        Text("Description", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(product!!.description, color = Color.Gray, fontSize = 14.sp)
-                        Spacer(modifier = Modifier.height(20.dp))
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 64.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Card(
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = Color.Red.copy(alpha = 0.8f)
+
+                        val currentUserRating = product!!.ratedBy[currentUserId] ?: 0
+
+                        Column {
+                            Text("Your Rating", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RatingBar(
+                                    rating = currentUserRating,
+                                    onRatingChange = { newRating ->
+                                        productViewModel.updateRating(productId, currentUserId, newRating) { success, _ ->
+                                            if (success) {
+                                                Toast.makeText(context, "Rating submitted!", Toast.LENGTH_SHORT).show()
+                                                productViewModel.getProductById(productId) { _, _, _ -> }
+                                            } else {
+                                                Toast.makeText(context, "Failed to submit rating.", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
                                 )
-                            ) {
-                                Text(
-                                    text = if (!product!!.availability) "Unavailable" else "Out of Stock",
-                                    modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp),
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
-                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                if (currentUserRating > 0) {
+                                    TextButton(onClick = {
+                                        productViewModel.updateRating(productId, currentUserId, 0) { success, _ -> // 0 means remove rating
+                                            if (success) {
+                                                Toast.makeText(context, "Rating removed.", Toast.LENGTH_SHORT).show()
+                                                productViewModel.getProductById(productId) { _, _, _ -> }
+                                            }
+                                        }
+                                    }) {
+                                        Text("Clear", color = Orange)
+                                    }
+                                }
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Divider(color = Field)
+
+                    // --- Listed By Section ---
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Listed By", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(sellerName, color = Color.Gray, fontSize = 14.sp)
+
+                    // --- Description Section ---
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Description", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(product!!.description, color = Color.Gray, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(100.dp)) // Padding at the bottom
                 }
             }
         }
     }
 }
+
+@Composable
+fun RatingBar(
+    modifier: Modifier = Modifier,
+    rating: Int,
+    onRatingChange: (Int) -> Unit
+) {
+    Row(modifier = modifier) {
+        (1..5).forEach { index ->
+            IconButton(onClick = { onRatingChange(index) }) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = "Rate $index",
+                    tint = if (index <= rating) Orange else Color.Gray,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+        }
+    }
+}
+
 
 @Composable
 fun BottomBar(price: Double) {
@@ -364,7 +410,7 @@ fun BottomBar(price: Double) {
     ) {
         Column {
             Text("Total price", color = Color.Gray, fontSize = 12.sp)
-            Text("NPR. $price", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("NPR. ${price}", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
         Button(
             onClick = {},
