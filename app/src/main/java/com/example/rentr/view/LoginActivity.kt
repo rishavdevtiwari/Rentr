@@ -57,7 +57,6 @@ import com.example.rentr.ui.theme.Button
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.viewmodel.UserViewModel
-import kotlin.jvm.java
 
 class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,9 +70,7 @@ class LoginActivity : ComponentActivity() {
 @Composable
 fun LoginBody(){
 
-    //UserViewModel
     var userViewModelLogin = remember { UserViewModel(UserRepoImp1()) }
-
 
     var email by remember { mutableStateOf("")}
     var password by remember { mutableStateOf("")}
@@ -84,8 +81,7 @@ fun LoginBody(){
     val context = LocalContext.current
     val activity = context as? Activity
 
-    Scaffold {
-        padding ->
+    Scaffold { padding ->
         Column(
             modifier = Modifier
                 .padding(padding)
@@ -217,8 +213,10 @@ fun LoginBody(){
                 },
                 enabled = isEnabled,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isEnabled) Orange else Button,
-                    disabledContainerColor = Button
+                    containerColor = Orange,
+                    contentColor = Color.White,
+                    disabledContainerColor = Button,
+                    disabledContentColor = Color.Black.copy(alpha = 0.4f)
                 ),
                 elevation = ButtonDefaults.buttonElevation(
                     defaultElevation = 15.dp
