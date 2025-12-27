@@ -237,35 +237,61 @@ fun FillProfileScreen() {
             // --- Continue Button ---
             Button(
                 onClick = {
-                    userViewModel1.register(email, password){ success, msg, userId ->
-                        if(success){
-                            val model = UserModel(
-                                fullName = fullName,
-                                gender = gender,
-                                phoneNumber = phoneNumber,
-                                dob = dateOfBirth,
-                                email = email,
-                                listings = mutableListOf("UNACCEPTED"),
-                                verified = false,
-                                kycUrl = mutableListOf()
-                            )
-                            userViewModel1.addUserToDatabase(userId, model) { success, msg->
-                                if (success) {
-                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                    val intent = Intent(context, DashboardActivity::class.java)
-                                    context.startActivity(intent)
-                                    activity.finish()
-                                } else {
-                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                }
-
-                            }
-                        }else{
-                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                        }
+                    if (dateOfBirth.isBlank()) {
+                        Toast.makeText(context, "Please enter your date of birth.", Toast.LENGTH_SHORT).show()
+                        return@Button
                     }
 
+                    val parts = dateOfBirth.split("/")
+                    if (parts.size != 3) {
+                        Toast.makeText(context, "Invalid date format.", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
 
+                    val dobYear = parts[2].toInt()
+                    val dobMonth = parts[1].toInt() - 1 // Calendar month is 0-indexed
+                    val dobDay = parts[0].toInt()
+
+                    val today = Calendar.getInstance()
+                    val dob = Calendar.getInstance().apply {
+                        set(dobYear, dobMonth, dobDay)
+                    }
+
+                    var age = today.get(Calendar.YEAR) - dob.get(Calendar.YEAR)
+                    if (today.get(Calendar.DAY_OF_YEAR) < dob.get(Calendar.DAY_OF_YEAR)) {
+                        age--
+                    }
+
+                    if (age < 17) {
+                        Toast.makeText(context, "You must be at least 17 years old to register.", Toast.LENGTH_LONG).show()
+                    } else {
+                        userViewModel1.register(email, password) { success, msg, userId ->
+                            if (success) {
+                                val model = UserModel(
+                                    fullName = fullName,
+                                    gender = gender,
+                                    phoneNumber = phoneNumber,
+                                    dob = dateOfBirth,
+                                    email = email,
+                                    listings = mutableListOf("UNACCEPTED"),
+                                    verified = false,
+                                    kycUrl = emptyList()
+                                )
+                                userViewModel1.addUserToDatabase(userId, model) { dbSuccess, dbMsg ->
+                                    if (dbSuccess) {
+                                        Toast.makeText(context, dbMsg, Toast.LENGTH_SHORT).show()
+                                        val intent = Intent(context, DashboardActivity::class.java)
+                                        context.startActivity(intent)
+                                        activity.finish()
+                                    } else {
+                                        Toast.makeText(context, dbMsg, Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            } else {
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
