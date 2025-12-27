@@ -166,17 +166,4 @@ class ProductRepoImpl : ProductRepo {
         }
     }
 
-    override fun updateQuantity(
-        productId: String,
-        quantity: Int,
-        callback: (Boolean, String) -> Unit
-    ) {
-        ref.child(productId).child("quantity").setValue(quantity).addOnCompleteListener { 
-            if (it.isSuccessful) {
-                callback(true, "Quantity updated")
-            } else {
-                callback(false, "Failed to update quantity")
-            }
-        }
-    }
 }

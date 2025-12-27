@@ -121,11 +121,6 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
     fun updateAvailability(productId: String, available: Boolean, callback: (Boolean, String) -> Unit) {
         repo.updateAvailability(productId, available, callback)
     }
-
-    fun updateQuantity(productId: String, quantity: Int, callback: (Boolean, String) -> Unit) {
-        repo.updateQuantity(productId, quantity, callback)
-    }
-
     fun clearProducts() {
         _allProducts.postValue(emptyList())
     }

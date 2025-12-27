@@ -20,6 +20,4 @@ interface ProductRepo {
 
     fun updateAvailability(productId: String, available: Boolean, callback: (Boolean, String) -> Unit)
 
-    fun updateQuantity(productId: String, quantity: Int, callback: (Boolean, String) -> Unit)
-
 }
