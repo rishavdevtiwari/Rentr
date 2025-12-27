@@ -97,15 +97,9 @@ fun ProductDisplay(productId: String) {
     var sellerName by remember { mutableStateOf("") }
     var showFlagDialog by remember { mutableStateOf(false) }
 
-    // Get current user ID
     val currentUserId = userViewModel.getCurrentUser()?.uid
-
-    // Determine if the current user is the seller
     val isSeller = product?.listedBy == currentUserId
-
-    // Determine if the item is already flagged by the current user
     val isAlreadyFlagged = product?.flaggedBy?.contains(currentUserId) == true
-
 
     LaunchedEffect(productId) {
         if (productId.isNotEmpty()) {
@@ -122,7 +116,6 @@ fun ProductDisplay(productId: String) {
         }
     }
 
-    // --- Flag Confirmation Dialog ---
     if (showFlagDialog) {
         AlertDialog(
             onDismissRequest = { showFlagDialog = false },
@@ -133,17 +126,12 @@ fun ProductDisplay(productId: String) {
                     onClick = {
                         val currentProduct = product
                         if (currentUserId != null && currentProduct != null) {
-                            // Add user ID to the flaggedBy list
                             val updatedFlaggedBy = currentProduct.flaggedBy.toMutableList().apply {
                                 if (!contains(currentUserId)) add(currentUserId)
                             }
-                            // Create an updated product model
                             val updatedProduct = currentProduct.copy(flaggedBy = updatedFlaggedBy)
-
-                            // Use the existing updateProduct function
                             productViewModel.updateProduct(currentProduct.productId, updatedProduct) { success, _ ->
                                 if (success) {
-                                    // Refresh the product details to reflect the change immediately
                                     productViewModel.getProductById(productId) { _, _, _ -> }
                                 }
                             }
@@ -151,18 +139,13 @@ fun ProductDisplay(productId: String) {
                         showFlagDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                ) {
-                    Text("Yes, Flag")
-                }
+                ) { Text("Yes, Flag") }
             },
             dismissButton = {
-                TextButton(onClick = { showFlagDialog = false }) {
-                    Text("Cancel")
-                }
+                TextButton(onClick = { showFlagDialog = false }) { Text("Cancel") }
             }
         )
     }
-
 
     val randomPrice = remember { (100..2000).random().toDouble() }
     val totalPrice = randomPrice
@@ -170,7 +153,6 @@ fun ProductDisplay(productId: String) {
     Scaffold(
         containerColor = Color.Black,
         bottomBar = {
-            // Show BottomBar only if the user is NOT the seller and the product is available
             if (!isSeller && product?.availability == true && product?.outOfStock == false) {
                 BottomBar(price = totalPrice)
             }
@@ -187,7 +169,6 @@ fun ProductDisplay(productId: String) {
                     .padding(padding)
                     .verticalScroll(rememberScrollState())
             ) {
-                // Image Slider
                 val pagerState = rememberPagerState(pageCount = { product!!.imageUrl.size })
                 Box(
                     modifier = Modifier
@@ -207,8 +188,6 @@ fun ProductDisplay(productId: String) {
                             error = painterResource(id = R.drawable.rentrimage)
                         )
                     }
-
-                    // Top Bar with Back and Flag buttons
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -217,19 +196,14 @@ fun ProductDisplay(productId: String) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Back Button
                         IconButton(
                             onClick = { activity?.finish() },
-                            modifier = Modifier
-                                .background(Field.copy(alpha = 0.5f), CircleShape)
+                            modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
                         ) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
                         }
-
-                        // Flag Button / Flagged Indicator - Visible only if NOT the seller
                         if (!isSeller) {
                             if (isAlreadyFlagged) {
-                                // "Flagged" indicator (disabled)
                                 Card(
                                     shape = RoundedCornerShape(50),
                                     colors = CardDefaults.cardColors(containerColor = Field.copy(alpha = 0.5f))
@@ -244,7 +218,6 @@ fun ProductDisplay(productId: String) {
                                     }
                                 }
                             } else {
-                                // Active Flag Button
                                 IconButton(
                                     onClick = { showFlagDialog = true },
                                     modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
@@ -255,9 +228,6 @@ fun ProductDisplay(productId: String) {
                         }
                     }
                 }
-
-
-                // Slider Indicator
                 Row(
                     Modifier
                         .height(20.dp)
@@ -275,7 +245,6 @@ fun ProductDisplay(productId: String) {
                         )
                     }
                 }
-
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -286,9 +255,7 @@ fun ProductDisplay(productId: String) {
                         if (product!!.availability && !product!!.outOfStock) {
                             Card(
                                 shape = RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = Orange.copy(alpha = 0.15f)
-                                )
+                                colors = CardDefaults.cardColors(containerColor = Orange.copy(alpha = 0.15f))
                             ) {
                                 Text(
                                     text = "Available",
@@ -301,20 +268,27 @@ fun ProductDisplay(productId: String) {
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-
-                    // --- Dynamic Rating Display ---
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Star, null, tint = Orange, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         val ratingText = if (product!!.ratingCount > 0) {
-                            String.format("%.1f (%d reviews)", product!!.rating, product!!.ratingCount)
+                            String.format("%.1f (%d ratings)", product!!.rating, product!!.ratingCount)
                         } else {
                             "No reviews yet"
                         }
                         Text(ratingText, color = Color.Gray, fontSize = 14.sp)
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Divider(color = Field)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Listed By", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(sellerName, color = Color.Gray, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Description", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(product!!.description, color = Color.Gray, fontSize = 14.sp)
 
-                    // --- User Rating Section ---
                     if (!isSeller && currentUserId != null) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Divider(color = Field)
@@ -322,61 +296,76 @@ fun ProductDisplay(productId: String) {
 
                         val currentUserRating = product!!.ratedBy[currentUserId] ?: 0
 
-                        Column {
-                            Text("Your Rating", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                RatingBar(
-                                    rating = currentUserRating,
-                                    onRatingChange = { newRating ->
-                                        productViewModel.updateRating(productId, currentUserId, newRating) { success, _ ->
-                                            if (success) {
-                                                Toast.makeText(context, "Rating submitted!", Toast.LENGTH_SHORT).show()
-                                                productViewModel.getProductById(productId) { _, _, _ -> }
-                                            } else {
-                                                Toast.makeText(context, "Failed to submit rating.", Toast.LENGTH_SHORT).show()
-                                            }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            RatingBar(
+                                rating = currentUserRating,
+                                onRatingChange = { newRating ->
+                                    val currentProduct = product ?: return@RatingBar
+
+                                    // Optimistic UI Update
+                                    val newRatedBy = currentProduct.ratedBy.toMutableMap().apply { this[currentUserId] = newRating }
+                                    val newRatingCount = newRatedBy.size
+                                    val newAverageRating = if (newRatingCount > 0) newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
+                                    val optimisticallyUpdatedProduct = currentProduct.copy(
+                                        ratedBy = newRatedBy,
+                                        ratingCount = newRatingCount,
+                                        rating = newAverageRating
+                                    )
+                                    productViewModel.product.postValue(optimisticallyUpdatedProduct)
+
+                                    // Update database in background
+                                    productViewModel.updateRating(productId, currentUserId, newRating) { success, _ ->
+                                        if (success) {
+                                            Toast.makeText(context, "Rating submitted!", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "Failed to submit rating.", Toast.LENGTH_SHORT).show()
+                                            productViewModel.product.postValue(currentProduct) // Revert on failure
                                         }
                                     }
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                if (currentUserRating > 0) {
-                                    TextButton(onClick = {
-                                        productViewModel.updateRating(productId, currentUserId, 0) { success, _ -> // 0 means remove rating
-                                            if (success) {
-                                                Toast.makeText(context, "Rating removed.", Toast.LENGTH_SHORT).show()
-                                                productViewModel.getProductById(productId) { _, _, _ -> }
-                                            }
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            if (currentUserRating > 0) {
+                                TextButton(onClick = {
+                                    val currentProduct = product ?: return@TextButton
+
+                                    // Optimistic UI Update for clear
+                                    val newRatedBy = currentProduct.ratedBy.toMutableMap().apply { remove(currentUserId) }
+                                    val newRatingCount = newRatedBy.size
+                                    val newAverageRating = if (newRatingCount > 0) newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
+                                    val optimisticallyUpdatedProduct = currentProduct.copy(
+                                        ratedBy = newRatedBy,
+                                        ratingCount = newRatingCount,
+                                        rating = newAverageRating
+                                    )
+                                    productViewModel.product.postValue(optimisticallyUpdatedProduct)
+
+                                    // Update database in background
+                                    productViewModel.updateRating(productId, currentUserId, 0) { success, _ -> // 0 means remove rating
+                                        if (success) {
+                                            Toast.makeText(context, "Rating removed.", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "Failed to remove rating.", Toast.LENGTH_SHORT).show()
+                                            productViewModel.product.postValue(currentProduct) // Revert on failure
                                         }
-                                    }) {
-                                        Text("Clear", color = Orange)
                                     }
+                                }) {
+                                    Text("Clear", color = Orange)
                                 }
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Divider(color = Field)
-
-                    // --- Listed By Section ---
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Listed By", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(sellerName, color = Color.Gray, fontSize = 14.sp)
-
-                    // --- Description Section ---
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Description", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(product!!.description, color = Color.Gray, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(100.dp)) // Padding at the bottom
                 }
             }
         }
     }
 }
-
 @Composable
 fun RatingBar(
     modifier: Modifier = Modifier,
@@ -390,7 +379,7 @@ fun RatingBar(
                     imageVector = Icons.Default.Star,
                     contentDescription = "Rate $index",
                     tint = if (index <= rating) Orange else Color.Gray,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(28.dp) // Made stars smaller
                 )
             }
         }
