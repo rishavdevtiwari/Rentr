@@ -302,7 +302,7 @@ fun ProductDisplay(productId: String) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(product!!.description, color = Color.Gray, fontSize = 14.sp)
 
-                    if (product!!.availability && !product!!.outOfStock && !isSeller && currentUserId != null) {
+                    if (!isSeller && currentUserId != null) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Divider(color = Field)
                         Spacer(modifier = Modifier.height(16.dp))
