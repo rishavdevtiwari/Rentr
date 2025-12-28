@@ -614,26 +614,61 @@ fun FlaggedProductsSection(
 ) {
     val context = LocalContext.current
 
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(horizontal = 4.dp)
-    ) {
-        items(products.filter { it.flagged && it.flaggedBy.isNotEmpty() }.take(5)) { product ->
-            FlaggedProductCard(
-                product = product,
-                sellerName = usersMap[product.listedBy]?.fullName ?: "Unknown",
-                onClick = {
-                    // Navigate to Flag Review Activity
-                    val intent = Intent(context, AdminFlaggedReviewActivity::class.java)
-                    intent.putExtra("productId", product.productId)
-                    context.startActivity(intent)
-                }
-            )
+    val flaggedProducts = remember(products) {
+        products.filter { it.flagged && it.flaggedBy.isNotEmpty() }.take(5)
+    }
+
+    if (flaggedProducts.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp)
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "No flagged items",
+                    tint = Color.Green,
+                    modifier = Modifier.size(48.dp)
+                )
+                Text(
+                    "No flagged items",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    "All items are clean and verified",
+                    color = Color.Gray,
+                    fontSize = 14.sp
+                )
+            }
+        }
+    } else {
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(horizontal = 4.dp)
+        ) {
+            items(flaggedProducts) { product ->
+                FlaggedProductCard(
+                    product = product,
+                    sellerName = usersMap[product.listedBy]?.fullName ?: "Unknown",
+                    onClick = {
+                        // Navigate to Flag Review Activity
+                        val intent = Intent(context, AdminFlaggedReviewActivity::class.java)
+                        intent.putExtra("productId", product.productId)
+                        context.startActivity(intent)
+                    }
+                )
+            }
         }
     }
 }
-
-// Replace the existing FlaggedProductCard function with this:
 
 @Composable
 fun FlaggedProductCard(
@@ -641,6 +676,30 @@ fun FlaggedProductCard(
     sellerName: String,
     onClick: () -> Unit
 ) {
+    val flagStatus = when {
+        product.appealReason.isNotEmpty() -> "APPEAL"
+        product.flagged -> "FLAGGED"
+        else -> "RESOLVED"
+    }
+
+    val flagStatusColor = when (flagStatus) {
+        "APPEAL" -> Color.Cyan
+        "FLAGGED" -> Color.Yellow
+        else -> Color.Green
+    }
+
+    val flagReasonText = if (product.flagReason.isNotEmpty()) {
+        // Take the first flag reason (or combine them)
+        val firstReason = product.flagReason.firstOrNull() ?: ""
+        if (product.flagReason.size > 1) {
+            "$firstReason (+${product.flagReason.size - 1} more)"
+        } else {
+            firstReason
+        }
+    } else {
+        "No reason provided"
+    }
+
     Card(
         modifier = Modifier
             .width(200.dp)
@@ -670,21 +729,13 @@ fun FlaggedProductCard(
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
                         .background(
-                            when {
-                                product.appealReason.isNotEmpty() -> Color.Cyan
-                                product.flagged -> Color.Yellow
-                                else -> Color.Green
-                            },
+                            flagStatusColor,
                             RoundedCornerShape(8.dp)
                         )
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        when {
-                            product.appealReason.isNotEmpty() -> "APPEAL"
-                            product.flagged -> "FLAGGED"
-                            else -> "RESOLVED"
-                        },
+                        flagStatus,
                         color = Color.Black,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold
@@ -726,7 +777,7 @@ fun FlaggedProductCard(
             if (product.flagReason.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    product.flagReason.take(30) + if (product.flagReason.length > 30) "..." else "",
+                    flagReasonText.take(30) + if (flagReasonText.length > 30) "..." else "",
                     color = Color.LightGray,
                     fontSize = 11.sp,
                     maxLines = 1
@@ -786,7 +837,6 @@ fun FlaggedProductCard(
         }
     }
 }
-
 @Composable
 fun VerificationBadge(status: VerificationStatus) {
     Box(

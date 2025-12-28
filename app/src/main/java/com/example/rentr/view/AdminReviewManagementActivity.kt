@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.rentr.model.ProductModel
+import com.example.rentr.model.UserModel
 import com.example.rentr.repository.ProductRepoImpl
 import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.viewmodel.ProductViewModel
@@ -393,7 +395,7 @@ fun CategoryTab(
 
 @Composable
 fun FlaggedUserCard(
-    user: com.example.rentr.model.UserModel
+    user: UserModel
 ) {
     Card(
         modifier = Modifier
@@ -491,7 +493,7 @@ fun FlaggedUserCard(
 
 @Composable
 fun FlaggedProductCardReal(
-    product: com.example.rentr.model.ProductModel,
+    product: ProductModel,
     sellerName: String,
     onClick: () -> Unit
 ) {
@@ -558,8 +560,13 @@ fun FlaggedProductCardReal(
             Spacer(modifier = Modifier.height(4.dp))
 
             if (product.flagReason.isNotEmpty()) {
+                val flagReasonText = if (product.flagReason is List<*>) {
+                    product.flagReason.joinToString(", ")
+                } else {
+                    product.flagReason.toString()
+                }
                 Text(
-                    text = "Flag Reason: ${product.flagReason.take(50)}${if (product.flagReason.length > 50) "..." else ""}",
+                    text = "Flag Reason: ${flagReasonText.take(50)}${if (flagReasonText.length > 50) "..." else ""}",
                     color = Color.LightGray,
                     fontSize = 14.sp
                 )
@@ -573,8 +580,13 @@ fun FlaggedProductCardReal(
                         color = Color.Cyan,
                         fontSize = 14.sp
                     )
+                    val appealReasonText = if (product.appealReason is List<*>) {
+                        product.appealReason.joinToString(", ")
+                    } else {
+                        product.appealReason.toString()
+                    }
                     Text(
-                        text = "Appeal: ${product.appealReason.take(50)}${if (product.appealReason.length > 50) "..." else ""}",
+                        text = "Appeal: ${appealReasonText.take(50)}${if (appealReasonText.length > 50) "..." else ""}",
                         color = Color.Cyan.copy(alpha = 0.8f),
                         fontSize = 14.sp,
                         fontStyle = FontStyle.Italic,

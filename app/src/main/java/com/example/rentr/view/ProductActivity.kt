@@ -21,13 +21,8 @@ import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -82,6 +77,8 @@ fun ProductDisplay(productId: String) {
     val currentUserId = userViewModel.getCurrentUser()?.uid
     val isSeller = product?.listedBy == currentUserId
     val isAlreadyFlagged = product?.flaggedBy?.contains(currentUserId) == true
+    val isProductFlagged = product?.flagged == true && product?.flaggedBy?.isNotEmpty() == true
+    val hasAppeal = product?.appealReason?.isNotEmpty() == true
 
     LaunchedEffect(productId) {
         if (productId.isNotEmpty()) {
@@ -98,15 +95,12 @@ fun ProductDisplay(productId: String) {
         }
     }
 
-    val randomPrice = remember { (100..2000).random().toDouble() }
-    val productRating = remember { "%.1f".format((3..5).random().toFloat() + (0..9).random().toFloat() / 10) }
-    val totalPrice = randomPrice
-
     Scaffold(
         containerColor = Color.Black,
         bottomBar = {
-            if (!isSeller && product?.availability == true && product?.outOfStock == false) {
-                BottomBar(price = totalPrice)
+            val isAvailable = product?.availability == true && product?.outOfStock == false
+            if (!isSeller && isAvailable && !isProductFlagged) {
+                BottomBar(price = product?.price ?: 0.0)
             }
         }
     ) { padding ->
@@ -132,7 +126,7 @@ fun ProductDisplay(productId: String) {
                         modifier = Modifier.fillMaxSize()
                     ) { page ->
                         AsyncImage(
-                            model = product!!.imageUrl[page],
+                            model = product!!.imageUrl.getOrNull(page) ?: "",
                             contentDescription = "Product image",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
@@ -157,7 +151,7 @@ fun ProductDisplay(productId: String) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
                         }
 
-                        if (!isSeller) {
+                        if (!isSeller && !isProductFlagged) {
                             if (isAlreadyFlagged) {
                                 Card(
                                     shape = RoundedCornerShape(50),
@@ -180,6 +174,22 @@ fun ProductDisplay(productId: String) {
                                     modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
                                 ) {
                                     Icon(Icons.Default.Flag, "Flag item", tint = Color.Red)
+                                }
+                            }
+                        }
+
+                        if (isProductFlagged) {
+                            Card(
+                                shape = RoundedCornerShape(50),
+                                colors = CardDefaults.cardColors(containerColor = Color.Yellow.copy(alpha = 0.8f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Flag, contentDescription = "Reported", tint = Color.Black)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("REPORTED", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 }
                             }
                         }
@@ -211,33 +221,69 @@ fun ProductDisplay(productId: String) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(product!!.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        if (product!!.availability && !product!!.outOfStock) {
-                            Card(
-                                shape = RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (product!!.availability) Orange.copy(alpha = 0.15f) else Field
-                                )
-                            ) {
-                                Text(
-                                    text = "Available",
-                                    modifier = Modifier.padding(
-                                        horizontal = 12.dp,
-                                        vertical = 6.dp
-                                    ),
-                                    color = if (product!!.availability) Orange else Color.Gray,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp)
+
+                        val isAvailable = product!!.availability && !product!!.outOfStock && !isProductFlagged
+                        Card(
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = when {
+                                    isProductFlagged -> Color.Yellow.copy(alpha = 0.15f)
+                                    isAvailable -> Orange.copy(alpha = 0.15f)
+                                    else -> Color.Gray.copy(alpha = 0.15f)
+                                }
+                            )
+                        ) {
+                            val statusText = when {
+                                isProductFlagged -> "REPORTED"
+                                isAvailable -> "Available"
+                                !product!!.availability -> "Unavailable"
+                                else -> "Out of Stock"
                             }
+                            val statusColor = when {
+                                isProductFlagged -> Color.Yellow
+                                isAvailable -> Orange
+                                else -> Color.Gray
+                            }
+                            Text(
+                                text = statusText,
+                                modifier = Modifier.padding(
+                                    horizontal = 12.dp,
+                                    vertical = 6.dp
+                                ),
+                                color = statusColor,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
                         }
                     }
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Star, null, tint = Orange, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("$productRating (4,749 reviews)", color = Color.Gray, fontSize = 14.sp)
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "NPR. ${product!!.price}/day",
+                            color = if (isProductFlagged) Color.Yellow else Orange,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Star, null, tint = Orange, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                "${product!!.rating} (${product!!.ratingCount} reviews)",
+                                color = Color.Gray,
+                                fontSize = 12.sp
+                            )
+                        }
                     }
 
-                    if (product!!.availability && !product!!.outOfStock) {
+                    val canShowDetails = product!!.availability && !product!!.outOfStock && !isProductFlagged
+
+                    if (canShowDetails) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Divider(color = Field)
                         Spacer(modifier = Modifier.height(16.dp))
@@ -260,16 +306,57 @@ fun ProductDisplay(productId: String) {
                             Card(
                                 shape = RoundedCornerShape(16.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = Color.Red.copy(alpha = 0.8f)
+                                    containerColor = when {
+                                        isProductFlagged -> Color.Yellow.copy(alpha = 0.8f)
+                                        !product!!.availability -> Color.Gray.copy(alpha = 0.8f)
+                                        else -> Color.Red.copy(alpha = 0.8f)
+                                    }
                                 )
                             ) {
+                                val message = when {
+                                    isProductFlagged -> "This product has been reported"
+                                    !product!!.availability -> "Currently Unavailable"
+                                    else -> "Out of Stock"
+                                }
                                 Text(
-                                    text = if (!product!!.availability) "Unavailable" else "Out of Stock",
+                                    text = message,
                                     modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp),
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp
                                 )
+                            }
+                        }
+
+                        if (isProductFlagged) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.Yellow.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                                    .padding(16.dp)
+                            ) {
+                                Text(
+                                    "Report Status",
+                                    color = Color.Yellow,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    "Reason: ${product!!.flagReason.joinToString(", ")}",
+                                    color = Color.Gray,
+                                    fontSize = 14.sp
+                                )
+                                if (hasAppeal) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        "Seller has submitted an appeal: ${product!!.appealReason.joinToString(", ")}",
+                                        color = Color.Cyan,
+                                        fontSize = 12.sp,
+                                        fontStyle = FontStyle.Italic
+                                    )
+                                }
                             }
                         }
                     }
@@ -449,10 +536,14 @@ fun ProductDisplay(productId: String) {
                                     if (!contains(currentUserId)) add(currentUserId)
                                 }
 
+                                val updatedFlagReason = currentProduct.flagReason.toMutableList().apply {
+                                    add(flagReason)
+                                }
+
                                 val updatedProduct = currentProduct.copy(
                                     flaggedBy = updatedFlaggedBy,
-                                    flagged = true,
-                                    flagReason = flagReason
+                                    flagged = updatedFlaggedBy.isNotEmpty(),
+                                    flagReason = updatedFlagReason
                                 )
 
                                 productViewModel.updateProduct(
@@ -460,7 +551,6 @@ fun ProductDisplay(productId: String) {
                                     updatedProduct
                                 ) { success, message ->
                                     if (success) {
-                                        // Increase flag count for seller
                                         val sellerId = currentProduct.listedBy
                                         userViewModel.getUserById(sellerId) { sellerSuccess, _, seller ->
                                             if (sellerSuccess && seller != null) {

@@ -5,12 +5,9 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,9 +20,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,7 +31,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
 import coil.compose.AsyncImage
 import com.example.rentr.R
 import com.example.rentr.model.ProductModel
@@ -69,12 +63,11 @@ fun ListedScreen() {
 
     val userViewModel = remember { UserViewModel(UserRepoImp1()) }
     val uId = userViewModel.getCurrentUser()?.uid
+    var isUserVerified by remember { mutableStateOf(false) }
 
-    // State for delete dialog
     var showDeleteDialog by remember { mutableStateOf(false) }
     var productToDelete by remember { mutableStateOf<ProductModel?>(null) }
 
-    // State for appeal dialog
     var showAppealDialog by remember { mutableStateOf(false) }
     var productToAppeal by remember { mutableStateOf<ProductModel?>(null) }
     var appealReason by remember { mutableStateOf("") }
@@ -82,17 +75,24 @@ fun ListedScreen() {
     LaunchedEffect(uId) {
         uId?.let {
             productViewModel.getAllProductsByUser(userId = it) { _, _, _ -> }
+
+            userViewModel.getUserById(it) { success, msg, user ->
+                if (success) {
+                    user?.let { fetchedUser ->
+                        isUserVerified = fetchedUser.verified
+                    }
+                }
+            }
         }
     }
 
     val filteredList = when (selectedTabIndex) {
-        0 -> products.filter { !it.outOfStock && !(it.flagged && it.flaggedBy.isNotEmpty()) } // show available + unavailable
-        1 -> products.filter { it.outOfStock && !(it.flagged && it.flaggedBy.isNotEmpty()) } // rented out
-        2 -> products.filter { it.flagged && it.flaggedBy.isNotEmpty() } // flagged products
+        0 -> products.filter { !it.outOfStock && !(it.flagged && it.flaggedBy.isNotEmpty()) }
+        1 -> products.filter { it.outOfStock && !(it.flagged && it.flaggedBy.isNotEmpty()) }
+        2 -> products.filter { it.flagged && it.flaggedBy.isNotEmpty() }
         else -> emptyList()
     }
 
-    // Delete Confirmation Dialog
     if (showDeleteDialog && productToDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -124,7 +124,6 @@ fun ListedScreen() {
         )
     }
 
-    // Appeal Dialog
     if (showAppealDialog && productToAppeal != null) {
         AlertDialog(
             onDismissRequest = {
@@ -163,10 +162,9 @@ fun ListedScreen() {
                 Button(
                     onClick = {
                         productToAppeal?.let { product ->
-                            val updatedProduct = product.copy(appealReason = appealReason)
+                            val updatedProduct = product.copy(appealReason = listOf(appealReason))
                             productViewModel.updateProduct(product.productId, updatedProduct) { success, _ ->
                                 if (success) {
-                                    // Refresh
                                     uId?.let { productViewModel.getAllProductsByUser(userId = it) { _, _, _ -> } }
                                     Toast.makeText(context, "Appeal submitted", Toast.LENGTH_SHORT).show()
                                 }
@@ -197,11 +195,19 @@ fun ListedScreen() {
         containerColor = Color.Black,
         topBar = { ListedTopAppBar() },
         floatingActionButton = {
-            if (selectedTabIndex != 2) { // Don't show FAB for flagged tab
+            if (selectedTabIndex != 2) {
                 FloatingActionButton(
                     onClick = {
-                        val intent = Intent(context, NewListingActivity::class.java)
-                        (context as Activity).startActivityForResult(intent, 1)
+                        if (!isUserVerified) {
+                            Toast.makeText(
+                                context,
+                                "This feature is locked for you. You are not verified yet.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            val intent = Intent(context, NewListingActivity::class.java)
+                            (context as Activity).startActivityForResult(intent, 1)
+                        }
                     },
                     containerColor = Orange,
                     shape = CircleShape
@@ -253,7 +259,6 @@ fun ListedScreen() {
                         product = product,
                         isFlaggedTab = selectedTabIndex == 2,
                         onEditClicked = {
-                            // Can't edit flagged OR rented items
                             val isProductFlagged = product.flagged && product.flaggedBy.isNotEmpty()
                             val isRented = product.outOfStock
 
@@ -270,7 +275,6 @@ fun ListedScreen() {
                             }
                         },
                         onDeleteClicked = {
-                            // Can't delete flagged OR rented items
                             val isProductFlagged = product.flagged && product.flaggedBy.isNotEmpty()
                             val isRented = product.outOfStock
 
@@ -286,7 +290,6 @@ fun ListedScreen() {
                             }
                         },
                         onAppealClicked = {
-                            // Can only appeal flagged products
                             val isProductFlagged = product.flagged && product.flaggedBy.isNotEmpty()
                             if (isProductFlagged && product.appealReason.isEmpty()) {
                                 productToAppeal = product
@@ -297,11 +300,10 @@ fun ListedScreen() {
                         }
                     )
                 }
-            } // Closing bracket for LazyColumn
-        } // Closing bracket for Column
-    } // Closing bracket for Scaffold
-} // Closing bracket for ListedScreen
-//brackets were confsing
+            }
+        }
+    }
+}
 
 @Composable
 fun ListedItemCardCompact(
@@ -311,7 +313,6 @@ fun ListedItemCardCompact(
     onDeleteClicked: () -> Unit,
     onAppealClicked: () -> Unit
 ) {
-    // Always check if product is flagged first
     val status = when {
         product.flagged && product.flaggedBy.isNotEmpty() -> "FLAGGED"
         product.outOfStock -> "Rented Out"
@@ -323,8 +324,6 @@ fun ListedItemCardCompact(
     val isUnavailable = status == "Unavailable"
     val isFlagged = status == "FLAGGED"
     val imageUrl = product.imageUrl.firstOrNull()
-
-    // Check if appeal already submitted
     val hasAppeal = product.appealReason.isNotEmpty()
 
     Card(
@@ -405,7 +404,6 @@ fun ListedItemCardCompact(
                     fontWeight = FontWeight.SemiBold
                 )
 
-                // Show flag reason for flagged items
                 if (isFlagged && product.flagReason.isNotEmpty()) {
                     Text(
                         text = "Flagged: ${product.flagReason.take(30)}...",
@@ -414,7 +412,6 @@ fun ListedItemCardCompact(
                     )
                 }
 
-                // Show appeal status
                 if (isFlagged && hasAppeal) {
                     Box(
                         modifier = Modifier
@@ -431,12 +428,10 @@ fun ListedItemCardCompact(
                 }
             }
 
-            // Action buttons - Show based on flagged status, NOT tab
             if (isFlagged) {
-                // For flagged products: Show appeal button
                 IconButton(
                     onClick = onAppealClicked,
-                    enabled = !hasAppeal // Disable if appeal already submitted
+                    enabled = !hasAppeal
                 ) {
                     Icon(
                         imageVector = Icons.Default.Gavel,
@@ -445,7 +440,6 @@ fun ListedItemCardCompact(
                     )
                 }
             } else {
-                // For non-flagged products: Show edit and delete buttons
                 Row {
                     IconButton(
                         onClick = onEditClicked,
@@ -492,10 +486,4 @@ fun ListedTopAppBar() {
         }
         Spacer(modifier = Modifier.height(12.dp))
     }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF000000)
-@Composable
-fun ListedScreenPreview() {
-    ListedScreen()
 }
