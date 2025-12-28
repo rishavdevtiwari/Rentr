@@ -139,7 +139,9 @@ fun ProductDisplay(productId: String) {
                         showFlagDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                ) { Text("Yes, Flag") }
+                ) {
+                    Text("Yes, Flag")
+                }
             },
             dismissButton = {
                 TextButton(onClick = { showFlagDialog = false }) { Text("Cancel") }
@@ -153,8 +155,11 @@ fun ProductDisplay(productId: String) {
     Scaffold(
         containerColor = Color.Black,
         bottomBar = {
-            if (!isSeller && product?.availability == true && product?.outOfStock == false) {
-                BottomBar(price = totalPrice)
+            if (!isSeller) {
+                BottomBar(
+                    price = totalPrice,
+                    enabled = product?.availability == true && product?.outOfStock == false
+                )
             }
         }
     ) { padding ->
@@ -252,19 +257,25 @@ fun ProductDisplay(productId: String) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(product!!.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        if (product!!.availability && !product!!.outOfStock) {
-                            Card(
-                                shape = RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(containerColor = Orange.copy(alpha = 0.15f))
-                            ) {
-                                Text(
-                                    text = "Available",
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    color = Orange,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp
-                                )
-                            }
+                        val isProductAvailable = product!!.availability && !product!!.outOfStock
+                        val statusText = when {
+                            product!!.outOfStock -> "Rented Out"
+                            !product!!.availability -> "Unavailable"
+                            else -> "Available"
+                        }
+                        Card(
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isProductAvailable) Orange.copy(alpha = 0.15f) else Field
+                            )
+                        ) {
+                            Text(
+                                text = statusText,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                color = if (isProductAvailable) Orange else Color.Gray,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -285,11 +296,13 @@ fun ProductDisplay(productId: String) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(sellerName, color = Color.Gray, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(16.dp))
+                    Divider(color = Field)
+                    Spacer(modifier = Modifier.height(16.dp))
                     Text("Description", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(product!!.description, color = Color.Gray, fontSize = 14.sp)
 
-                    if (!isSeller && currentUserId != null) {
+                    if (product!!.availability && !product!!.outOfStock && !isSeller && currentUserId != null) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Divider(color = Field)
                         Spacer(modifier = Modifier.height(16.dp))
@@ -305,8 +318,6 @@ fun ProductDisplay(productId: String) {
                                 rating = currentUserRating,
                                 onRatingChange = { newRating ->
                                     val currentProduct = product ?: return@RatingBar
-
-                                    // Optimistic UI Update
                                     val newRatedBy = currentProduct.ratedBy.toMutableMap().apply { this[currentUserId] = newRating }
                                     val newRatingCount = newRatedBy.size
                                     val newAverageRating = if (newRatingCount > 0) newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
@@ -317,7 +328,6 @@ fun ProductDisplay(productId: String) {
                                     )
                                     productViewModel.product.postValue(optimisticallyUpdatedProduct)
 
-                                    // Update database in background
                                     productViewModel.updateRating(productId, currentUserId, newRating) { success, _ ->
                                         if (success) {
                                             Toast.makeText(context, "Rating submitted!", Toast.LENGTH_SHORT).show()
@@ -332,8 +342,6 @@ fun ProductDisplay(productId: String) {
                             if (currentUserRating > 0) {
                                 TextButton(onClick = {
                                     val currentProduct = product ?: return@TextButton
-
-                                    // Optimistic UI Update for clear
                                     val newRatedBy = currentProduct.ratedBy.toMutableMap().apply { remove(currentUserId) }
                                     val newRatingCount = newRatedBy.size
                                     val newAverageRating = if (newRatingCount > 0) newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
@@ -344,8 +352,7 @@ fun ProductDisplay(productId: String) {
                                     )
                                     productViewModel.product.postValue(optimisticallyUpdatedProduct)
 
-                                    // Update database in background
-                                    productViewModel.updateRating(productId, currentUserId, 0) { success, _ -> // 0 means remove rating
+                                    productViewModel.updateRating(productId, currentUserId, 0) { success, _ ->
                                         if (success) {
                                             Toast.makeText(context, "Rating removed.", Toast.LENGTH_SHORT).show()
                                         } else {
@@ -366,6 +373,7 @@ fun ProductDisplay(productId: String) {
         }
     }
 }
+
 @Composable
 fun RatingBar(
     modifier: Modifier = Modifier,
@@ -379,7 +387,7 @@ fun RatingBar(
                     imageVector = Icons.Default.Star,
                     contentDescription = "Rate $index",
                     tint = if (index <= rating) Orange else Color.Gray,
-                    modifier = Modifier.size(28.dp) // Made stars smaller
+                    modifier = Modifier.size(28.dp)
                 )
             }
         }
@@ -388,7 +396,7 @@ fun RatingBar(
 
 
 @Composable
-fun BottomBar(price: Double) {
+fun BottomBar(price: Double, enabled: Boolean) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -403,7 +411,13 @@ fun BottomBar(price: Double) {
         }
         Button(
             onClick = {},
-            colors = ButtonDefaults.buttonColors(containerColor = Orange),
+            enabled = enabled,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Orange,
+                contentColor = Color.Black,
+                disabledContainerColor = Color.Gray,
+                disabledContentColor = Color.Black.copy(alpha = 0.5f)
+            ),
             shape = RoundedCornerShape(16.dp),
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp)
         ) {
