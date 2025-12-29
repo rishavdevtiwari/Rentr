@@ -11,7 +11,8 @@ data class ProductModel(
     val outOfStock: Boolean = false,
     val rating: Double = 0.0,
     val ratingCount: Int = 0,
-    val category: String = "", //foreign key,
+    val ratedBy : Map <String,Int> = emptyMap(),
+    val category: String = "", //foreign key
     val verified: Boolean = false,
     val flaggedBy: List<String> = emptyList(), // this will resolve the flagCount and the button greyed logic
     val flagged: Boolean = false,
@@ -29,6 +30,7 @@ data class ProductModel(
             "outOfStock" to outOfStock,
             "rating" to rating,
             "ratingCount" to ratingCount,
+            "ratedBy" to ratedBy,
             "imageUrl" to imageUrl,
             "verified" to verified,
             "flaggedBy" to flaggedBy, // this will resolve the flagCount and the button greyed logic

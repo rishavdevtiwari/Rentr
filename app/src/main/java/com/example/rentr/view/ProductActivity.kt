@@ -95,12 +95,18 @@ fun ProductDisplay(productId: String) {
         }
     }
 
+    val randomPrice = remember { (100..2000).random().toDouble() }
+    val totalPrice = randomPrice
+
     Scaffold(
         containerColor = Color.Black,
         bottomBar = {
             val isAvailable = product?.availability == true && product?.outOfStock == false
-            if (!isSeller && isAvailable && !isProductFlagged) {
-                BottomBar(price = product?.price ?: 0.0)
+            if (!isSeller) {
+                BottomBar(
+                    price = totalPrice,
+                    enabled = product?.availability == true && product?.outOfStock == false
+                )
             }
         }
     ) { padding ->
@@ -145,8 +151,7 @@ fun ProductDisplay(productId: String) {
                     ) {
                         IconButton(
                             onClick = { activity?.finish() },
-                            modifier = Modifier
-                                .background(Field.copy(alpha = 0.5f), CircleShape)
+                            modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
                         ) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
                         }
@@ -167,6 +172,7 @@ fun ProductDisplay(productId: String) {
                                     }
                                 }
                             } else {
+                                // Active Flag Button
                                 IconButton(
                                     onClick = {
                                         showFlagReasonDialog = true
@@ -196,6 +202,7 @@ fun ProductDisplay(productId: String) {
                     }
                 }
 
+                // Page Indicators
                 Row(
                     Modifier
                         .height(20.dp)
@@ -214,6 +221,7 @@ fun ProductDisplay(productId: String) {
                     }
                 }
 
+                // Product Details
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -292,10 +300,87 @@ fun ProductDisplay(productId: String) {
                         Text(sellerName, color = Color.Gray, fontSize = 14.sp)
                         Spacer(modifier = Modifier.height(16.dp))
                         Divider(color = Field)
+                        Spacer(modifier = Modifier.height(16.dp))
                         Text("Description", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(product!!.description, color = Color.Gray, fontSize = 14.sp)
                         Spacer(modifier = Modifier.height(20.dp))
+
+                        // Rating section
+                        if (!isSeller && currentUserId != null) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Divider(color = Field)
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            val currentUserRating = product!!.ratedBy[currentUserId] ?: 0
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                RatingBar(
+                                    rating = currentUserRating,
+                                    onRatingChange = { newRating ->
+                                        val currentProduct = product ?: return@RatingBar
+                                        val newRatedBy = currentProduct.ratedBy.toMutableMap().apply {
+                                            this[currentUserId] = newRating
+                                        }
+                                        val newRatingCount = newRatedBy.size
+                                        val newAverageRating = if (newRatingCount > 0)
+                                            newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
+
+                                        val optimisticallyUpdatedProduct = currentProduct.copy(
+                                            ratedBy = newRatedBy,
+                                            ratingCount = newRatingCount,
+                                            rating = newAverageRating
+                                        )
+                                        productViewModel.product.postValue(optimisticallyUpdatedProduct)
+
+                                        productViewModel.updateRating(productId, currentUserId, newRating) { success, _ ->
+                                            if (success) {
+                                                Toast.makeText(context, "Rating submitted!", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, "Failed to submit rating.", Toast.LENGTH_SHORT).show()
+                                                productViewModel.product.postValue(currentProduct)
+                                            }
+                                        }
+                                    }
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                if (currentUserRating > 0) {
+                                    TextButton(onClick = {
+                                        val currentProduct = product ?: return@TextButton
+                                        val newRatedBy = currentProduct.ratedBy.toMutableMap().apply {
+                                            remove(currentUserId)
+                                        }
+                                        val newRatingCount = newRatedBy.size
+                                        val newAverageRating = if (newRatingCount > 0)
+                                            newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
+
+                                        val optimisticallyUpdatedProduct = currentProduct.copy(
+                                            ratedBy = newRatedBy,
+                                            ratingCount = newRatingCount,
+                                            rating = newAverageRating
+                                        )
+                                        productViewModel.product.postValue(optimisticallyUpdatedProduct)
+
+                                        productViewModel.updateRating(productId, currentUserId, 0) { success, _ ->
+                                            if (success) {
+                                                Toast.makeText(context, "Rating removed.", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, "Failed to remove rating.", Toast.LENGTH_SHORT).show()
+                                                productViewModel.product.postValue(currentProduct)
+                                            }
+                                        }
+                                    }) {
+                                        Text("Clear", color = Orange)
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(100.dp))
                     } else {
                         Box(
                             modifier = Modifier
@@ -351,7 +436,7 @@ fun ProductDisplay(productId: String) {
                                 if (hasAppeal) {
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        "Seller has submitted an appeal: ${product!!.appealReason.joinToString(", ")}",
+                                        "Seller has submitted an appeal: ${product!!.appealReason}",
                                         color = Color.Cyan,
                                         fontSize = 12.sp,
                                         fontStyle = FontStyle.Italic
@@ -365,6 +450,7 @@ fun ProductDisplay(productId: String) {
         }
     }
 
+    // Dialogs
     if (showFlagReasonDialog) {
         AlertDialog(
             onDismissRequest = {
@@ -598,7 +684,27 @@ fun ProductDisplay(productId: String) {
 }
 
 @Composable
-fun BottomBar(price: Double) {
+fun RatingBar(
+    modifier: Modifier = Modifier,
+    rating: Int,
+    onRatingChange: (Int) -> Unit
+) {
+    Row(modifier = modifier) {
+        (1..5).forEach { index ->
+            IconButton(onClick = { onRatingChange(index) }) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = "Rate $index",
+                    tint = if (index <= rating) Orange else Color.Gray,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun BottomBar(price: Double, enabled: Boolean) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -613,7 +719,13 @@ fun BottomBar(price: Double) {
         }
         Button(
             onClick = {},
-            colors = ButtonDefaults.buttonColors(containerColor = Orange),
+            enabled = enabled,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Orange,
+                contentColor = Color.Black,
+                disabledContainerColor = Color.Gray,
+                disabledContentColor = Color.Black.copy(alpha = 0.5f)
+            ),
             shape = RoundedCornerShape(16.dp),
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp)
         ) {

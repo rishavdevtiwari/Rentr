@@ -90,7 +90,7 @@ fun CategoryScreen(categoryName: String) {
 
     // Filter out flagged products
     val filteredProducts = products.filter {
-        it.category == categoryName && it.availability && !it.flagged && it.verified
+        it.category == categoryName && !it.flagged && it.verified
     }
 
     Scaffold(containerColor = Color.Black) { paddingValues ->

@@ -138,7 +138,7 @@ fun ForgotPassGmailBody() {
             }
             Spacer(modifier = Modifier.height(50.dp))
             Text(
-                text = "Enter your registered email to receive the OTP.",
+                text = "Enter your registered email to receive the link.",
                 color = Color.Gray,
                 fontSize = 13.sp,
                 textAlign= TextAlign.Center,
