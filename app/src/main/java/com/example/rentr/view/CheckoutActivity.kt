@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,21 +21,41 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.rentr.model.TransactionModel
+import com.example.rentr.repository.TransactionRepoImpl
+import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.RentrTheme
+import com.example.rentr.viewmodel.TransactionViewModel
+import com.example.rentr.viewmodel.UserViewModel
+import java.util.UUID
 
 class CheckoutActivity : ComponentActivity() {
+
+    private val transactionViewModel: TransactionViewModel by viewModels {
+        object : androidx.lifecycle.ViewModelProvider.Factory {
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return TransactionViewModel(TransactionRepoImpl()) as T
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val productTitle = intent.getStringExtra("productTitle") ?: "Product"
         val productPrice = intent.getDoubleExtra("productPrice", 0.0)
+        val productId = intent.getStringExtra("productId") ?: ""
+        val sellerId = intent.getStringExtra("sellerId") ?: ""
 
         setContent {
             RentrTheme {
                 CheckoutScreen(
                     productTitle = productTitle,
-                    productPrice = productPrice
+                    productPrice = productPrice,
+                    productId = productId,
+                    sellerId = sellerId,
+                    viewModel = transactionViewModel
                 )
             }
         }
@@ -42,12 +64,36 @@ class CheckoutActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CheckoutScreen(productTitle: String, productPrice: Double) {
+fun CheckoutScreen(
+    productTitle: String,
+    productPrice: Double,
+    productId: String,
+    sellerId: String,
+    viewModel: TransactionViewModel
+) {
     var location by remember { mutableStateOf("") }
     val paymentOptions = listOf("Cash on Delivery", "Pay Online via Khalti")
     var selectedPayment by remember { mutableStateOf(paymentOptions[0]) }
     val context = LocalContext.current
     val activity = context as? Activity
+
+    val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+    val currentUser = userViewModel.getCurrentUser()
+
+    val isLoading by viewModel.isLoading.observeAsState(false)
+    val transactionResult by viewModel.transactionResult.observeAsState()
+
+    LaunchedEffect(transactionResult) {
+        transactionResult?.let {
+            val (success, message) = it
+            if (success) {
+                Toast.makeText(context, "Order for $productTitle confirmed!", Toast.LENGTH_LONG).show()
+                activity?.finish()
+            } else {
+                Toast.makeText(context, "Order failed: ${message ?: "Unknown error"}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     Scaffold(
         containerColor = Color.Black,
@@ -67,20 +113,38 @@ fun CheckoutScreen(productTitle: String, productPrice: Double) {
                 onClick = {
                     if (location.isBlank()) {
                         Toast.makeText(context, "Please enter a delivery location", Toast.LENGTH_SHORT).show()
-                    } else {
-                        // TODO: Handle order confirmation logic
-                        Toast.makeText(context, "Order for $productTitle confirmed!", Toast.LENGTH_LONG).show()
-                        activity?.finish()
+                        return@Button
                     }
+                    if (currentUser == null) {
+                        Toast.makeText(context, "You must be logged in to place an order", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    val transaction = TransactionModel(
+                        transactionId = UUID.randomUUID().toString(),
+                        productId = productId,
+                        renterId = currentUser.uid,
+                        sellerId = sellerId,
+                        basePrice = productPrice,
+                        paymentOption = selectedPayment,
+                        pickupLocation = location,
+                        startTime = System.currentTimeMillis().toString() // Add start time
+                    )
+                    viewModel.addTransaction(transaction)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
                     .height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Orange),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(16.dp),
+                enabled = !isLoading
             ) {
-                Text("Confirm Order", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.Black)
+                if (isLoading) {
+                    CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(24.dp))
+                } else {
+                    Text("Confirm Order", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.Black)
+                }
             }
         }
     ) { padding ->
