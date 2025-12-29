@@ -8,18 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -31,24 +20,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -91,15 +66,25 @@ fun ProductDisplay(productId: String) {
     val activity = context as? Activity
 
     val productViewModel = remember { ProductViewModel(ProductRepoImpl()) }
-    val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+    val sellerViewModel = remember { UserViewModel(UserRepoImp1()) }
+    val currentUserViewModel = remember { UserViewModel(UserRepoImp1()) }
 
     val product by productViewModel.product.observeAsState()
+    val currentUser by currentUserViewModel.user.observeAsState()
     var sellerName by remember { mutableStateOf("") }
-    var showFlagDialog by remember { mutableStateOf(false) }
 
-    val currentUserId = userViewModel.getCurrentUser()?.uid
+    var showFlagReasonDialog by remember { mutableStateOf(false) }
+
+    val currentUserId = currentUserViewModel.getCurrentUser()?.uid
     val isSeller = product?.listedBy == currentUserId
     val isAlreadyFlagged = product?.flaggedBy?.contains(currentUserId) == true
+    val isUserVerified = currentUser?.verified == true
+
+    LaunchedEffect(currentUserId) {
+        currentUserId?.let {
+            currentUserViewModel.getUserById(it) { _, _, _ -> }
+        }
+    }
 
     LaunchedEffect(productId) {
         if (productId.isNotEmpty()) {
@@ -109,18 +94,30 @@ fun ProductDisplay(productId: String) {
 
     LaunchedEffect(product?.listedBy) {
         val sellerId = product?.listedBy ?: return@LaunchedEffect
-        userViewModel.getUserById(sellerId) { success, _, user ->
+        sellerViewModel.getUserById(sellerId) { success, _, user ->
             if (success && user != null) {
                 sellerName = user.fullName
             }
         }
     }
+    if (showFlagReasonDialog) {
+        var flagReasonText by remember { mutableStateOf("") }
 
-    if (showFlagDialog) {
         AlertDialog(
-            onDismissRequest = { showFlagDialog = false },
-            title = { Text("Confirm Flag") },
-            text = { Text("Are you sure you want to flag this item?") },
+            onDismissRequest = { showFlagReasonDialog = false },
+            title = { Text("Report Item") },
+            text = {
+                Column {
+                    Text("Please provide a reason for flagging this item.")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = flagReasonText,
+                        onValueChange = { flagReasonText = it },
+                        placeholder = { Text("Reason...") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
             confirmButton = {
                 Button(
                     onClick = {
@@ -129,36 +126,50 @@ fun ProductDisplay(productId: String) {
                             val updatedFlaggedBy = currentProduct.flaggedBy.toMutableList().apply {
                                 if (!contains(currentUserId)) add(currentUserId)
                             }
-                            val updatedProduct = currentProduct.copy(flaggedBy = updatedFlaggedBy)
+                            val updatedFlagReasons = (currentProduct.flaggedReason ?: emptyList()).toMutableList().apply {
+                                add(flagReasonText)
+                            }
+                            val updatedProduct = currentProduct.copy(
+                                flaggedBy = updatedFlaggedBy,
+                                flaggedReason = updatedFlagReasons
+                            )
                             productViewModel.updateProduct(currentProduct.productId, updatedProduct) { success, _ ->
                                 if (success) {
+                                    Toast.makeText(context, "Item flagged. Thank you for your feedback.", Toast.LENGTH_SHORT).show()
                                     productViewModel.getProductById(productId) { _, _, _ -> }
+                                } else {
+                                    Toast.makeText(context, "Failed to flag item.", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
-                        showFlagDialog = false
+                        showFlagReasonDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                    enabled = flagReasonText.isNotBlank()
                 ) {
-                    Text("Yes, Flag")
+                    Text("Submit")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showFlagDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showFlagReasonDialog = false }) { Text("Cancel") }
             }
         )
     }
-
-    val randomPrice = remember { (100..2000).random().toDouble() }
-    val totalPrice = randomPrice
 
     Scaffold(
         containerColor = Color.Black,
         bottomBar = {
             if (!isSeller) {
                 BottomBar(
-                    price = totalPrice,
-                    enabled = product?.availability == true && product?.outOfStock == false
+                    price = product?.price ?: 0.0,
+                    enabled = product?.availability == true && product?.outOfStock == false,
+                    onClick = {
+                        if (isUserVerified) {
+                            // TODO: Proceed to payment
+                            Toast.makeText(context, "Proceeding to payment...", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "Please complete KYC to rent items.", Toast.LENGTH_LONG).show()
+                        }
+                    }
                 )
             }
         }
@@ -185,7 +196,7 @@ fun ProductDisplay(productId: String) {
                         modifier = Modifier.fillMaxSize()
                     ) { page ->
                         AsyncImage(
-                            model = product!!.imageUrl[page],
+                            model = product!!.imageUrl.getOrNull(page) ?: "",
                             contentDescription = "Product image",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
@@ -193,6 +204,7 @@ fun ProductDisplay(productId: String) {
                             error = painterResource(id = R.drawable.rentrimage)
                         )
                     }
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -203,10 +215,12 @@ fun ProductDisplay(productId: String) {
                     ) {
                         IconButton(
                             onClick = { activity?.finish() },
-                            modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
+                            modifier = Modifier
+                                .background(Field.copy(alpha = 0.5f), CircleShape)
                         ) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
                         }
+
                         if (!isSeller) {
                             if (isAlreadyFlagged) {
                                 Card(
@@ -224,7 +238,13 @@ fun ProductDisplay(productId: String) {
                                 }
                             } else {
                                 IconButton(
-                                    onClick = { showFlagDialog = true },
+                                    onClick = {
+                                        if (isUserVerified) {
+                                            showFlagReasonDialog = true
+                                        } else {
+                                            Toast.makeText(context, "Please verify your account to flag items.", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
                                     modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
                                 ) {
                                     Icon(Icons.Default.Flag, "Flag item", tint = Color.Red)
@@ -233,6 +253,7 @@ fun ProductDisplay(productId: String) {
                         }
                     }
                 }
+
                 Row(
                     Modifier
                         .height(20.dp)
@@ -250,6 +271,7 @@ fun ProductDisplay(productId: String) {
                         )
                     }
                 }
+
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -257,47 +279,62 @@ fun ProductDisplay(productId: String) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(product!!.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        val isProductAvailable = product!!.availability && !product!!.outOfStock
-                        val statusText = when {
-                            product!!.outOfStock -> "Rented Out"
-                            !product!!.availability -> "Unavailable"
-                            else -> "Available"
-                        }
+
+                        val isAvailable = product!!.availability && !product!!.outOfStock
                         Card(
                             shape = RoundedCornerShape(8.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = if (isProductAvailable) Orange.copy(alpha = 0.15f) else Field
+                                containerColor = if (isAvailable) Orange.copy(alpha = 0.15f) else Color.Gray.copy(alpha = 0.15f)
                             )
                         ) {
+                            val statusText = when {
+                                isAvailable -> "Available"
+                                !product!!.availability -> "Unavailable"
+                                else -> "Rented Out"
+                            }
+                            val statusColor = if (isAvailable) Orange else Color.Gray
                             Text(
                                 text = statusText,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                color = if (isProductAvailable) Orange else Color.Gray,
+                                color = statusColor,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp
                             )
                         }
                     }
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Star, null, tint = Orange, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        val ratingText = if (product!!.ratingCount > 0) {
-                            String.format("%.1f (%d ratings)", product!!.rating, product!!.ratingCount)
-                        } else {
-                            "No reviews yet"
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "NPR. ${product!!.price}/day",
+                            color = Orange,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Star, null, tint = Orange, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                "${product!!.rating} (${product!!.ratingCount} reviews)",
+                                color = Color.Gray,
+                                fontSize = 12.sp
+                            )
                         }
-                        Text(ratingText, color = Color.Gray, fontSize = 14.sp)
                     }
+
                     Spacer(modifier = Modifier.height(16.dp))
                     Divider(color = Field)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("Listed By", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                     Text(sellerName, color = Color.Gray, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(16.dp))
                     Divider(color = Field)
-                    Spacer(modifier = Modifier.height(16.dp))
                     Text("Description", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(product!!.description, color = Color.Gray, fontSize = 14.sp)
@@ -317,6 +354,10 @@ fun ProductDisplay(productId: String) {
                             RatingBar(
                                 rating = currentUserRating,
                                 onRatingChange = { newRating ->
+                                    if (!isUserVerified) {
+                                        Toast.makeText(context, "Please verify your account to rate items.", Toast.LENGTH_SHORT).show()
+                                        return@RatingBar
+                                    }
                                     val currentProduct = product ?: return@RatingBar
                                     val newRatedBy = currentProduct.ratedBy.toMutableMap().apply { this[currentUserId] = newRating }
                                     val newRatingCount = newRatedBy.size
@@ -341,6 +382,10 @@ fun ProductDisplay(productId: String) {
                             Spacer(modifier = Modifier.width(8.dp))
                             if (currentUserRating > 0) {
                                 TextButton(onClick = {
+                                    if (!isUserVerified) {
+                                        Toast.makeText(context, "Please verify your account to change your rating.", Toast.LENGTH_SHORT).show()
+                                        return@TextButton
+                                    }
                                     val currentProduct = product ?: return@TextButton
                                     val newRatedBy = currentProduct.ratedBy.toMutableMap().apply { remove(currentUserId) }
                                     val newRatingCount = newRatedBy.size
@@ -367,7 +412,7 @@ fun ProductDisplay(productId: String) {
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(100.dp)) // Padding at the bottom
+                    Spacer(modifier = Modifier.height(100.dp))
                 }
             }
         }
@@ -396,7 +441,7 @@ fun RatingBar(
 
 
 @Composable
-fun BottomBar(price: Double, enabled: Boolean) {
+fun BottomBar(price: Double, enabled: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -407,10 +452,10 @@ fun BottomBar(price: Double, enabled: Boolean) {
     ) {
         Column {
             Text("Total price", color = Color.Gray, fontSize = 12.sp)
-            Text("NPR. ${price}", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("NPR. $price", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
         Button(
-            onClick = {},
+            onClick = onClick,
             enabled = enabled,
             colors = ButtonDefaults.buttonColors(
                 containerColor = Orange,

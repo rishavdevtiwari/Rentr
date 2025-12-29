@@ -18,7 +18,6 @@ data class ProductModel(
     val flagged: Boolean = false,
     val flaggedReason:List<String> = emptyList(),
     val appealReason:String=""
-
 ){
     fun toMap() : Map < String, Any?> {
         return mapOf(
@@ -35,7 +34,9 @@ data class ProductModel(
             "imageUrl" to imageUrl,
             "verified" to verified,
             "flaggedBy" to flaggedBy,
-            "flagged" to flagged
+            "flagged" to flagged,
+            "flaggedReason" to flaggedReason,
+            "appealReason" to appealReason
         )
     }
 }
