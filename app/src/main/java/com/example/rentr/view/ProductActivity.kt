@@ -9,7 +9,18 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -21,9 +32,25 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,7 +63,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.rentr.R
-import com.example.rentr.model.ProductModel
 import com.example.rentr.repository.ProductRepoImpl
 import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.ui.theme.Field
@@ -114,7 +140,9 @@ fun ProductDisplay(productId: String) {
                         showFlagDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                ) { Text("Yes, Flag") }
+                ) {
+                    Text("Yes, Flag")
+                }
             },
             dismissButton = {
                 TextButton(onClick = { showFlagDialog = false }) { Text("Cancel") }
@@ -122,23 +150,30 @@ fun ProductDisplay(productId: String) {
         )
     }
 
+    val randomPrice = remember { (100..2000).random().toDouble() }
+    val totalPrice = randomPrice
+
     Scaffold(
         containerColor = Color.Black,
         bottomBar = {
-            if (!isSeller && product?.availability == true && product?.outOfStock == false) {
+            if (!isSeller && product != null) {
+                val safeProduct = product
+
                 BottomBar(
-                    price = product!!.price,
-                    onPayNowClick = {
+                    price = totalPrice,
+                    enabled = safeProduct?.availability == true && safeProduct.outOfStock == false,
+                    onPayClick = {
                         val intent = Intent(context, CheckoutActivity::class.java).apply {
-                            putExtra("productTitle", product!!.title)
-                            putExtra("productPrice", product!!.price)
+                            putExtra("productTitle", safeProduct?.title ?: "")
+                            putExtra("productPrice", totalPrice)
                         }
                         context.startActivity(intent)
                     }
                 )
             }
         }
-    ) { padding ->
+    )
+    { padding ->
         if (product == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = Orange)
@@ -233,19 +268,25 @@ fun ProductDisplay(productId: String) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(product!!.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        if (product!!.availability && !product!!.outOfStock) {
-                            Card(
-                                shape = RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(containerColor = Orange.copy(alpha = 0.15f))
-                            ) {
-                                Text(
-                                    text = "Available",
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    color = Orange,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp
-                                )
-                            }
+                        val isProductAvailable = product!!.availability && !product!!.outOfStock
+                        val statusText = when {
+                            product!!.outOfStock -> "Rented Out"
+                            !product!!.availability -> "Unavailable"
+                            else -> "Available"
+                        }
+                        Card(
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isProductAvailable) Orange.copy(alpha = 0.15f) else Field
+                            )
+                        ) {
+                            Text(
+                                text = statusText,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                color = if (isProductAvailable) Orange else Color.Gray,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -265,6 +306,8 @@ fun ProductDisplay(productId: String) {
                     Text("Listed By", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(sellerName, color = Color.Gray, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Divider(color = Field)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("Description", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
@@ -286,7 +329,6 @@ fun ProductDisplay(productId: String) {
                                 rating = currentUserRating,
                                 onRatingChange = { newRating ->
                                     val currentProduct = product ?: return@RatingBar
-
                                     val newRatedBy = currentProduct.ratedBy.toMutableMap().apply { this[currentUserId] = newRating }
                                     val newRatingCount = newRatedBy.size
                                     val newAverageRating = if (newRatingCount > 0) newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
@@ -311,7 +353,6 @@ fun ProductDisplay(productId: String) {
                             if (currentUserRating > 0) {
                                 TextButton(onClick = {
                                     val currentProduct = product ?: return@TextButton
-
                                     val newRatedBy = currentProduct.ratedBy.toMutableMap().apply { remove(currentUserId) }
                                     val newRatingCount = newRatedBy.size
                                     val newAverageRating = if (newRatingCount > 0) newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
@@ -322,7 +363,7 @@ fun ProductDisplay(productId: String) {
                                     )
                                     productViewModel.product.postValue(optimisticallyUpdatedProduct)
 
-                                    productViewModel.updateRating(productId, currentUserId, 0) { success, _ -> // 0 means remove rating
+                                    productViewModel.updateRating(productId, currentUserId, 0) { success, _ ->
                                         if (success) {
                                             Toast.makeText(context, "Rating removed.", Toast.LENGTH_SHORT).show()
                                         } else {
@@ -343,6 +384,7 @@ fun ProductDisplay(productId: String) {
         }
     }
 }
+
 @Composable
 fun RatingBar(
     modifier: Modifier = Modifier,
@@ -356,15 +398,20 @@ fun RatingBar(
                     imageVector = Icons.Default.Star,
                     contentDescription = "Rate $index",
                     tint = if (index <= rating) Orange else Color.Gray,
-                    modifier = Modifier.size(28.dp) // Made stars smaller
+                    modifier = Modifier.size(28.dp)
                 )
             }
         }
     }
 }
 
+
 @Composable
-fun BottomBar(price: Double, onPayNowClick: () -> Unit) {
+fun BottomBar(
+price: Double,
+enabled: Boolean,
+onPayClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -378,14 +425,20 @@ fun BottomBar(price: Double, onPayNowClick: () -> Unit) {
             Text("NPR. ${price}", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
         Button(
-            onClick = onPayNowClick,
-            colors = ButtonDefaults.buttonColors(containerColor = Orange),
+            onClick = onPayClick,
+            enabled = enabled,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Orange,
+                contentColor = Color.Black,
+                disabledContainerColor = Color.Gray,
+                disabledContentColor = Color.Black.copy(alpha = 0.5f)
+            ),
             shape = RoundedCornerShape(16.dp),
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp)
         ) {
             Icon(Icons.Default.ShoppingCart, null, tint = Color.Black)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Pay Now", color = Color.Black, fontWeight = FontWeight.Bold)
+            Text("Pay to Rent", color = Color.Black, fontWeight = FontWeight.Bold)
         }
     }
 }

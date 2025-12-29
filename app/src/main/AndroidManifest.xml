@@ -142,6 +142,10 @@
             android:name=".view.AdminReviewManagementActivity"
             android:exported="true"
             android:theme="@style/Theme.Rentr"/>
+        <activity
+            android:name=".view.CheckoutActivity"
+            android:exported="false" />
     </application>
+
 
 </manifest>
