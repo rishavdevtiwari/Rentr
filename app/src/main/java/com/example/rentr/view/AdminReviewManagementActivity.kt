@@ -559,11 +559,11 @@ fun FlaggedProductCardReal(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            if (product.flagReason.isNotEmpty()) {
-                val flagReasonText = if (product.flagReason is List<*>) {
-                    product.flagReason.joinToString(", ")
+            if (product.flaggedReason.isNotEmpty()) {
+                val flagReasonText = if (product.flaggedReason is List<*>) {
+                    product.flaggedReason.joinToString(", ")
                 } else {
-                    product.flagReason.toString()
+                    product.flaggedReason.toString()
                 }
                 Text(
                     text = "Flag Reason: ${flagReasonText.take(50)}${if (flagReasonText.length > 50) "..." else ""}",

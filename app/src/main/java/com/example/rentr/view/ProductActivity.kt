@@ -429,7 +429,7 @@ fun ProductDisplay(productId: String) {
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    "Reason: ${product!!.flagReason.joinToString(", ")}",
+                                    "Reason: ${product!!.flaggedReason.joinToString(", ")}",
                                     color = Color.Gray,
                                     fontSize = 14.sp
                                 )
@@ -622,14 +622,14 @@ fun ProductDisplay(productId: String) {
                                     if (!contains(currentUserId)) add(currentUserId)
                                 }
 
-                                val updatedFlagReason = currentProduct.flagReason.toMutableList().apply {
+                                val updatedFlagReason = currentProduct.flaggedReason.toMutableList().apply {
                                     add(flagReason)
                                 }
 
                                 val updatedProduct = currentProduct.copy(
                                     flaggedBy = updatedFlaggedBy,
                                     flagged = updatedFlaggedBy.isNotEmpty(),
-                                    flagReason = updatedFlagReason
+                                    flaggedReason = updatedFlagReason
                                 )
 
                                 productViewModel.updateProduct(

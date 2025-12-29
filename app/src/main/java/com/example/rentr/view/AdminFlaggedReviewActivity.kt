@@ -384,14 +384,10 @@ fun FlagReviewScreen(productId: String) {
 
                             Spacer(modifier = Modifier.height(4.dp))
 
-                            if (product?.flagReason?.isNotEmpty() == true) {
-                                val flagReasonText = if (product!!.flagReason is List<*>) {
-                                    product!!.flagReason.joinToString(", ")
-                                } else {
-                                    product!!.flagReason.toString()
-                                }
+                            if (product?.flaggedReason?.isNotEmpty() == true) {
+                                // flaggedReason is List<String> - join it directly
                                 Text(
-                                    text = flagReasonText,
+                                    text = product!!.flaggedReason.joinToString(", "),
                                     color = textLightColor,
                                     fontSize = 13.sp,
                                     lineHeight = 18.sp
@@ -417,13 +413,9 @@ fun FlagReviewScreen(productId: String) {
 
                                 Spacer(modifier = Modifier.height(4.dp))
 
-                                val appealReasonText = if (product!!.appealReason is List<*>) {
-                                    product!!.appealReason.joinToString(", ")
-                                } else {
-                                    product!!.appealReason.toString()
-                                }
+                                // appealReason is String - use it directly
                                 Text(
-                                    text = appealReasonText,
+                                    text = product!!.appealReason,
                                     color = Color.Cyan.copy(alpha = 0.8f),
                                     fontSize = 13.sp,
                                     lineHeight = 18.sp,
@@ -718,8 +710,8 @@ fun FlagReviewScreen(productId: String) {
                                 val updatedProduct = currentProduct.copy(
                                     flagged = false,
                                     flaggedBy = emptyList(),
-                                    flagReason = emptyList(),
-                                    appealReason = emptyList(),
+                                    flaggedReason = emptyList(),
+                                    appealReason = "",
                                     availability = true
                                 )
                                 productViewModel.updateProduct(currentProduct.productId, updatedProduct) { success, _ ->

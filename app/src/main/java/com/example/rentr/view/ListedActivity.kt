@@ -136,7 +136,7 @@ fun ListedScreen() {
                 Column {
                     Text("Appeal for: ${productToAppeal?.title}", color = Color.Gray)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Reason for flagging: ${productToAppeal?.flagReason}", color = Color.LightGray, fontSize = 12.sp)
+                    Text("Reason for flagging: ${productToAppeal?.flaggedReason}", color = Color.LightGray, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(16.dp))
                     TextField(
                         value = appealReason,
@@ -162,7 +162,7 @@ fun ListedScreen() {
                 Button(
                     onClick = {
                         productToAppeal?.let { product ->
-                            val updatedProduct = product.copy(appealReason = listOf(appealReason))
+                            val updatedProduct = product.copy(appealReason = appealReason)
                             productViewModel.updateProduct(product.productId, updatedProduct) { success, _ ->
                                 if (success) {
                                     uId?.let { productViewModel.getAllProductsByUser(userId = it) { _, _, _ -> } }
@@ -404,9 +404,9 @@ fun ListedItemCardCompact(
                     fontWeight = FontWeight.SemiBold
                 )
 
-                if (isFlagged && product.flagReason.isNotEmpty()) {
+                if (isFlagged && product.flaggedReason.isNotEmpty()) {
                     Text(
-                        text = "Flagged: ${product.flagReason.take(30)}...",
+                        text = "Flagged: ${product.flaggedReason.joinToString(", ").take(30)}...",
                         color = Color.LightGray,
                         fontSize = 11.sp
                     )

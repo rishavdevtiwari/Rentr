@@ -688,11 +688,11 @@ fun FlaggedProductCard(
         else -> Color.Green
     }
 
-    val flagReasonText = if (product.flagReason.isNotEmpty()) {
+    val flagReasonText = if (product.flaggedReason.isNotEmpty()) {
         // Take the first flag reason (or combine them)
-        val firstReason = product.flagReason.firstOrNull() ?: ""
-        if (product.flagReason.size > 1) {
-            "$firstReason (+${product.flagReason.size - 1} more)"
+        val firstReason = product.flaggedReason.firstOrNull() ?: ""
+        if (product.flaggedReason.size > 1) {
+            "$firstReason (+${product.flaggedReason.size - 1} more)"
         } else {
             firstReason
         }
@@ -774,7 +774,7 @@ fun FlaggedProductCard(
             }
 
             // Flag Reason (shortened)
-            if (product.flagReason.isNotEmpty()) {
+            if (product.flaggedReason.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     flagReasonText.take(30) + if (flagReasonText.length > 30) "..." else "",
