@@ -8,19 +8,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -32,25 +22,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -100,7 +74,6 @@ fun ProductDisplay(productId: String) {
 
     val currentUserId = userViewModel.getCurrentUser()?.uid
     val isSeller = product?.listedBy == currentUserId
-    val isAlreadyFlagged = product?.flaggedBy?.contains(currentUserId) == true
 
     LaunchedEffect(productId) {
         if (productId.isNotEmpty()) {
@@ -125,24 +98,21 @@ fun ProductDisplay(productId: String) {
             confirmButton = {
                 Button(
                     onClick = {
-                        val currentProduct = product
-                        if (currentUserId != null && currentProduct != null) {
-                            val updatedFlaggedBy = currentProduct.flaggedBy.toMutableList().apply {
-                                if (!contains(currentUserId)) add(currentUserId)
-                            }
-                            val updatedProduct = currentProduct.copy(flaggedBy = updatedFlaggedBy)
-                            productViewModel.updateProduct(currentProduct.productId, updatedProduct) { success, _ ->
-                                if (success) {
-                                    productViewModel.getProductById(productId) { _, _, _ -> }
-                                }
+                        val currentProduct = product ?: return@Button
+                        val uid = currentUserId ?: return@Button
+
+                        val updatedFlaggedBy = currentProduct.flaggedBy.toMutableList().apply {
+                            if (!contains(uid)) add(uid)
+                        }
+                        productViewModel.updateProduct(currentProduct.productId, currentProduct.copy(flaggedBy = updatedFlaggedBy)) { success, _ ->
+                            if (success) {
+                                productViewModel.getProductById(productId) { _, _, _ -> }
                             }
                         }
                         showFlagDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                ) {
-                    Text("Yes, Flag")
-                }
+                ) { Text("Yes, Flag") }
             },
             dismissButton = {
                 TextButton(onClick = { showFlagDialog = false }) { Text("Cancel") }
@@ -150,53 +120,55 @@ fun ProductDisplay(productId: String) {
         )
     }
 
-    val randomPrice = remember { (100..2000).random().toDouble() }
-    val totalPrice = randomPrice
-
     Scaffold(
         containerColor = Color.Black,
         bottomBar = {
-            if (!isSeller && product != null) {
-                val safeProduct = product
-
+            val safeProduct = product
+            if (!isSeller && safeProduct?.availability == true && safeProduct.outOfStock == false) {
                 BottomBar(
-                    price = totalPrice,
-                    enabled = safeProduct?.availability == true && safeProduct.outOfStock == false,
-                    onPayClick = {
+                    price = safeProduct.price,
+                    onPayNowClick = {
                         val intent = Intent(context, CheckoutActivity::class.java).apply {
-                            putExtra("productTitle", safeProduct?.title ?: "")
-                            putExtra("productPrice", totalPrice)
+                            putExtra("productTitle", safeProduct.title)
+                            putExtra("productPrice", safeProduct.price)
+                            putExtra("productId", safeProduct.productId) // FIX: Added productId
+                            putExtra("sellerId", safeProduct.listedBy)   // FIX: Added sellerId
                         }
                         context.startActivity(intent)
                     }
                 )
             }
         }
-    )
-    { padding ->
-        if (product == null) {
+    ) { padding ->
+        val safeProduct = product
+        if (safeProduct == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = Orange)
             }
-        } else {
-            Column(
+            return@Scaffold
+        }
+
+        val isAlreadyFlagged = safeProduct.flaggedBy.contains(currentUserId)
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+        ) {
+            val pagerState = rememberPagerState { safeProduct.imageUrl.size }
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState())
+                    .fillMaxWidth()
+                    .height(400.dp)
             ) {
-                val pagerState = rememberPagerState(pageCount = { product!!.imageUrl.size })
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(400.dp)
-                ) {
+                if (safeProduct.imageUrl.isNotEmpty()) {
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize()
                     ) { page ->
                         AsyncImage(
-                            model = product!!.imageUrl[page],
+                            model = safeProduct.imageUrl[page],
                             contentDescription = "Product image",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
@@ -204,46 +176,55 @@ fun ProductDisplay(productId: String) {
                             error = painterResource(id = R.drawable.rentrimage)
                         )
                     }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.TopStart)
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                } else {
+                    Image(
+                        painter = painterResource(id = R.drawable.rentrimage),
+                        contentDescription = "Product image",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopStart)
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { activity?.finish() },
+                        modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
                     ) {
-                        IconButton(
-                            onClick = { activity?.finish() },
-                            modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
-                        }
-                        if (!isSeller) {
-                            if (isAlreadyFlagged) {
-                                Card(
-                                    shape = RoundedCornerShape(50),
-                                    colors = CardDefaults.cardColors(containerColor = Field.copy(alpha = 0.5f))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
+                    }
+                    if (!isSeller) {
+                        if (isAlreadyFlagged) {
+                            Card(
+                                shape = RoundedCornerShape(50),
+                                colors = CardDefaults.cardColors(containerColor = Field.copy(alpha = 0.5f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(Icons.Default.Flag, contentDescription = "Flagged", tint = Color.White)
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Flagged", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                    }
+                                    Icon(Icons.Default.Flag, contentDescription = "Flagged", tint = Color.White)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Flagged", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 }
-                            } else {
-                                IconButton(
-                                    onClick = { showFlagDialog = true },
-                                    modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
-                                ) {
-                                    Icon(Icons.Default.Flag, "Flag item", tint = Color.Red)
-                                }
+                            }
+                        } else {
+                            IconButton(
+                                onClick = { showFlagDialog = true },
+                                modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
+                            ) {
+                                Icon(Icons.Default.Flag, "Flag item", tint = Color.Red)
                             }
                         }
                     }
                 }
+            }
+            if (safeProduct.imageUrl.size > 1) {
                 Row(
                     Modifier
                         .height(20.dp)
@@ -261,125 +242,95 @@ fun ProductDisplay(productId: String) {
                         )
                     }
                 }
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(product!!.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        val isProductAvailable = product!!.availability && !product!!.outOfStock
-                        val statusText = when {
-                            product!!.outOfStock -> "Rented Out"
-                            !product!!.availability -> "Unavailable"
-                            else -> "Available"
-                        }
+            }
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(safeProduct.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    if (safeProduct.availability && !safeProduct.outOfStock) {
                         Card(
                             shape = RoundedCornerShape(8.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isProductAvailable) Orange.copy(alpha = 0.15f) else Field
-                            )
+                            colors = CardDefaults.cardColors(containerColor = Orange.copy(alpha = 0.15f))
                         ) {
                             Text(
-                                text = statusText,
+                                text = "Available",
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                color = if (isProductAvailable) Orange else Color.Gray,
+                                color = Orange,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Star, null, tint = Orange, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        val ratingText = if (product!!.ratingCount > 0) {
-                            String.format("%.1f (%d ratings)", product!!.rating, product!!.ratingCount)
-                        } else {
-                            "No reviews yet"
-                        }
-                        Text(ratingText, color = Color.Gray, fontSize = 14.sp)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Star, null, tint = Orange, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    val ratingText = if (safeProduct.ratingCount > 0) {
+                        String.format("%.1f (%d ratings)", safeProduct.rating, safeProduct.ratingCount)
+                    } else {
+                        "No reviews yet"
                     }
+                    Text(ratingText, color = Color.Gray, fontSize = 14.sp)
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Divider(color = Field)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Listed By", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(sellerName, color = Color.Gray, fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Description", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(safeProduct.description, color = Color.Gray, fontSize = 14.sp)
+
+                if (!isSeller && currentUserId != null) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Divider(color = Field)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Listed By", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(sellerName, color = Color.Gray, fontSize = 14.sp)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Divider(color = Field)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Description", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(product!!.description, color = Color.Gray, fontSize = 14.sp)
 
-                    if (!isSeller && currentUserId != null) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Divider(color = Field)
-                        Spacer(modifier = Modifier.height(16.dp))
+                    val currentUserRating = safeProduct.ratedBy[currentUserId] ?: 0
 
-                        val currentUserRating = product!!.ratedBy[currentUserId] ?: 0
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            RatingBar(
-                                rating = currentUserRating,
-                                onRatingChange = { newRating ->
-                                    val currentProduct = product ?: return@RatingBar
-                                    val newRatedBy = currentProduct.ratedBy.toMutableMap().apply { this[currentUserId] = newRating }
-                                    val newRatingCount = newRatedBy.size
-                                    val newAverageRating = if (newRatingCount > 0) newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
-                                    val optimisticallyUpdatedProduct = currentProduct.copy(
-                                        ratedBy = newRatedBy,
-                                        ratingCount = newRatingCount,
-                                        rating = newAverageRating
-                                    )
-                                    productViewModel.product.postValue(optimisticallyUpdatedProduct)
-
-                                    productViewModel.updateRating(productId, currentUserId, newRating) { success, _ ->
-                                        if (success) {
-                                            Toast.makeText(context, "Rating submitted!", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(context, "Failed to submit rating.", Toast.LENGTH_SHORT).show()
-                                            productViewModel.product.postValue(currentProduct) // Revert on failure
-                                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        RatingBar(
+                            rating = currentUserRating,
+                            onRatingChange = { newRating ->
+                                productViewModel.updateRating(productId, currentUserId, newRating) { success, _ ->
+                                    if (success) {
+                                        Toast.makeText(context, "Rating submitted!", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Failed to submit rating.", Toast.LENGTH_SHORT).show()
                                     }
+                                    productViewModel.getProductById(productId) { _, _, _ -> }
                                 }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            if (currentUserRating > 0) {
-                                TextButton(onClick = {
-                                    val currentProduct = product ?: return@TextButton
-                                    val newRatedBy = currentProduct.ratedBy.toMutableMap().apply { remove(currentUserId) }
-                                    val newRatingCount = newRatedBy.size
-                                    val newAverageRating = if (newRatingCount > 0) newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
-                                    val optimisticallyUpdatedProduct = currentProduct.copy(
-                                        ratedBy = newRatedBy,
-                                        ratingCount = newRatingCount,
-                                        rating = newAverageRating
-                                    )
-                                    productViewModel.product.postValue(optimisticallyUpdatedProduct)
-
-                                    productViewModel.updateRating(productId, currentUserId, 0) { success, _ ->
-                                        if (success) {
-                                            Toast.makeText(context, "Rating removed.", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(context, "Failed to remove rating.", Toast.LENGTH_SHORT).show()
-                                            productViewModel.product.postValue(currentProduct) // Revert on failure
-                                        }
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        if (currentUserRating > 0) {
+                            TextButton(onClick = {
+                                productViewModel.updateRating(productId, currentUserId, 0) { success, _ -> // 0 means remove rating
+                                    if (success) {
+                                        Toast.makeText(context, "Rating removed.", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Failed to remove rating.", Toast.LENGTH_SHORT).show()
                                     }
-                                }) {
-                                    Text("Clear", color = Orange)
+                                    productViewModel.getProductById(productId) { _, _, _ -> }
                                 }
+                            }) {
+                                Text("Clear", color = Orange)
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(100.dp)) // Padding at the bottom
                 }
+
+                Spacer(modifier = Modifier.height(100.dp)) // Padding at the bottom
             }
         }
     }
@@ -398,20 +349,15 @@ fun RatingBar(
                     imageVector = Icons.Default.Star,
                     contentDescription = "Rate $index",
                     tint = if (index <= rating) Orange else Color.Gray,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(32.dp)
                 )
             }
         }
     }
 }
 
-
 @Composable
-fun BottomBar(
-price: Double,
-enabled: Boolean,
-onPayClick: () -> Unit
-) {
+fun BottomBar(price: Double, onPayNowClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -422,23 +368,17 @@ onPayClick: () -> Unit
     ) {
         Column {
             Text("Total price", color = Color.Gray, fontSize = 12.sp)
-            Text("NPR. ${price}", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(String.format("NPR. %.2f", price), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
         Button(
-            onClick = onPayClick,
-            enabled = enabled,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Orange,
-                contentColor = Color.Black,
-                disabledContainerColor = Color.Gray,
-                disabledContentColor = Color.Black.copy(alpha = 0.5f)
-            ),
+            onClick = onPayNowClick,
+            colors = ButtonDefaults.buttonColors(containerColor = Orange),
             shape = RoundedCornerShape(16.dp),
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp)
         ) {
             Icon(Icons.Default.ShoppingCart, null, tint = Color.Black)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Pay to Rent", color = Color.Black, fontWeight = FontWeight.Bold)
+            Text("Pay Now", color = Color.Black, fontWeight = FontWeight.Bold)
         }
     }
 }
