@@ -17,8 +17,6 @@ data class TransactionModel(
         return mapOf(
             "startTime" to startTime,
             "endTime" to endTime,
-            "rentalPrice" to rentalPrice,
-            "penaltyDays" to penaltyDays
         )
     }
 }
