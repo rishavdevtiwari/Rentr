@@ -1,12 +1,14 @@
 package com.example.rentr.view
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -80,6 +82,21 @@ fun ProductDisplay(productId: String) {
     val isProductFlagged = product?.flagged == true && product?.flaggedBy?.isNotEmpty() == true
     val hasAppeal = product?.appealReason?.isNotEmpty() == true
 
+    // User verification check
+    var currentUserVerified by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentUserId) {
+        currentUserId?.let {
+            userViewModel.getUserById(it) { success, _, user ->
+                if (success) {
+                    user?.let { fetchedUser ->
+                        currentUserVerified = fetchedUser.verified
+                    }
+                }
+            }
+        }
+    }
+
     LaunchedEffect(productId) {
         if (productId.isNotEmpty()) {
             productViewModel.getProductById(productId) { _, _, _ -> }
@@ -95,44 +112,67 @@ fun ProductDisplay(productId: String) {
         }
     }
 
-    val randomPrice = remember { (100..2000).random().toDouble() }
-    val totalPrice = randomPrice
+    // Checkout function
+    val onCheckoutClick = {
+        if (currentUserVerified) {
+            val safeProduct = product
+            if (safeProduct != null) {
+                val intent = Intent(context, CheckoutActivity::class.java).apply {
+                    putExtra("productTitle", safeProduct.title)
+                    putExtra("productPrice", safeProduct.price)
+                    putExtra("productId", safeProduct.productId)
+                    putExtra("sellerId", safeProduct.listedBy)
+                }
+                context.startActivity(intent)
+            }
+        } else {
+            Toast.makeText(context, "Please complete KYC to rent items.", Toast.LENGTH_LONG).show()
+        }
+    }
 
     Scaffold(
         containerColor = Color.Black,
         bottomBar = {
-            val isAvailable = product?.availability == true && product?.outOfStock == false
-            if (!isSeller) {
+            val safeProduct = product
+            val isAvailable = safeProduct?.availability == true &&
+                    safeProduct?.outOfStock == false &&
+                    !isProductFlagged
+            if (!isSeller && isAvailable) {
                 BottomBar(
-                    price = totalPrice,
-                    enabled = product?.availability == true && product?.outOfStock == false
+                    price = safeProduct?.price ?: 0.0,
+                    enabled = true,
+                    onClick = onCheckoutClick
                 )
             }
         }
     ) { padding ->
-        if (product == null) {
+        val safeProduct = product
+        if (safeProduct == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = Orange)
             }
-        } else {
-            Column(
+            return@Scaffold
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+        ) {
+            val pagerState = rememberPagerState { safeProduct.imageUrl.size }
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState())
+                    .fillMaxWidth()
+                    .height(400.dp)
             ) {
-                val pagerState = rememberPagerState(pageCount = { product!!.imageUrl.size })
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(400.dp)
-                ) {
+                if (safeProduct.imageUrl.isNotEmpty()) {
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize()
                     ) { page ->
                         AsyncImage(
-                            model = product!!.imageUrl.getOrNull(page) ?: "",
+                            model = safeProduct.imageUrl[page],
                             contentDescription = "Product image",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
@@ -140,69 +180,80 @@ fun ProductDisplay(productId: String) {
                             error = painterResource(id = R.drawable.rentrimage)
                         )
                     }
+                } else {
+                    Image(
+                        painter = painterResource(id = R.drawable.rentrimage),
+                        contentDescription = "Product image",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.TopStart)
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopStart)
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { activity?.finish() },
+                        modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
                     ) {
-                        IconButton(
-                            onClick = { activity?.finish() },
-                            modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
-                        }
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
+                    }
 
-                        if (!isSeller && !isProductFlagged) {
-                            if (isAlreadyFlagged) {
-                                Card(
-                                    shape = RoundedCornerShape(50),
-                                    colors = CardDefaults.cardColors(containerColor = Field.copy(alpha = 0.5f))
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(Icons.Default.Flag, contentDescription = "Flagged", tint = Color.White)
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Flagged", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                    }
-                                }
-                            } else {
-                                // Active Flag Button
-                                IconButton(
-                                    onClick = {
-                                        showFlagReasonDialog = true
-                                    },
-                                    modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
-                                ) {
-                                    Icon(Icons.Default.Flag, "Flag item", tint = Color.Red)
-                                }
-                            }
-                        }
-
-                        if (isProductFlagged) {
+                    if (!isSeller && !isProductFlagged) {
+                        if (isAlreadyFlagged) {
                             Card(
                                 shape = RoundedCornerShape(50),
-                                colors = CardDefaults.cardColors(containerColor = Color.Yellow.copy(alpha = 0.8f))
+                                colors = CardDefaults.cardColors(containerColor = Field.copy(alpha = 0.5f))
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.Flag, contentDescription = "Reported", tint = Color.Black)
+                                    Icon(Icons.Default.Flag, contentDescription = "Flagged", tint = Color.White)
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("REPORTED", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    Text("Flagged", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 }
+                            }
+                        } else {
+                            IconButton(
+                                onClick = {
+                                    if (currentUserVerified) {
+                                        showFlagReasonDialog = true
+                                    } else {
+                                        Toast.makeText(context, "Please verify your account to flag items.", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
+                            ) {
+                                Icon(Icons.Default.Flag, "Flag item", tint = Color.Red)
+                            }
+                        }
+                    }
+
+                    if (isProductFlagged) {
+                        Card(
+                            shape = RoundedCornerShape(50),
+                            colors = CardDefaults.cardColors(containerColor = Color.Yellow.copy(alpha = 0.8f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Flag, contentDescription = "Reported", tint = Color.Black)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("REPORTED", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                         }
                     }
                 }
+            }
 
-                // Page Indicators
+            if (safeProduct.imageUrl.size > 1) {
                 Row(
                     Modifier
                         .height(20.dp)
@@ -220,228 +271,233 @@ fun ProductDisplay(productId: String) {
                         )
                     }
                 }
+            }
 
-                // Product Details
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(safeProduct.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+
+                    val isAvailable = safeProduct.availability && !safeProduct.outOfStock && !isProductFlagged
+                    Card(
+                        shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = when {
+                                isProductFlagged -> Color.Yellow.copy(alpha = 0.15f)
+                                isAvailable -> Orange.copy(alpha = 0.15f)
+                                else -> Color.Gray.copy(alpha = 0.15f)
+                            }
+                        )
                     ) {
-                        Text(product!!.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        val statusText = when {
+                            isProductFlagged -> "REPORTED"
+                            isAvailable -> "Available"
+                            !safeProduct.availability -> "Unavailable"
+                            else -> "Out of Stock"
+                        }
+                        val statusColor = when {
+                            isProductFlagged -> Color.Yellow
+                            isAvailable -> Orange
+                            else -> Color.Gray
+                        }
+                        Text(
+                            text = statusText,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            color = statusColor,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
 
-                        val isAvailable = product!!.availability && !product!!.outOfStock && !isProductFlagged
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "NPR. ${safeProduct.price}/day",
+                        color = if (isProductFlagged) Color.Yellow else Orange,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Star, null, tint = Orange, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
+                        val ratingText = if (safeProduct.ratingCount > 0) {
+                            String.format("%.1f (%d ratings)", safeProduct.rating, safeProduct.ratingCount)
+                        } else {
+                            "No reviews yet"
+                        }
+                        Text(ratingText, color = Color.Gray, fontSize = 12.sp)
+                    }
+                }
+
+                val canShowDetails = safeProduct.availability &&
+                        !safeProduct.outOfStock &&
+                        !isProductFlagged
+
+                if (canShowDetails) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Divider(color = Field)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Listed By", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(sellerName, color = Color.Gray, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Description", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(safeProduct.description, color = Color.Gray, fontSize = 14.sp)
+
+                    if (!isSeller && currentUserId != null) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Divider(color = Field)
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        val currentUserRating = safeProduct.ratedBy[currentUserId] ?: 0
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            RatingBar(
+                                rating = currentUserRating,
+                                onRatingChange = { newRating ->
+                                    if (!currentUserVerified) {
+                                        Toast.makeText(context, "Please verify your account to rate items.", Toast.LENGTH_SHORT).show()
+                                        return@RatingBar
+                                    }
+
+                                    val newRatedBy = safeProduct.ratedBy.toMutableMap().apply {
+                                        this[currentUserId] = newRating
+                                    }
+                                    val newRatingCount = newRatedBy.size
+                                    val newAverageRating = if (newRatingCount > 0)
+                                        newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
+
+                                    // Optimistic update
+                                    val optimisticallyUpdatedProduct = safeProduct.copy(
+                                        ratedBy = newRatedBy,
+                                        ratingCount = newRatingCount,
+                                        rating = newAverageRating
+                                    )
+                                    productViewModel.product.postValue(optimisticallyUpdatedProduct)
+
+                                    productViewModel.updateRating(productId, currentUserId, newRating) { success, _ ->
+                                        if (success) {
+                                            Toast.makeText(context, "Rating submitted!", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "Failed to submit rating.", Toast.LENGTH_SHORT).show()
+                                            productViewModel.product.postValue(safeProduct)
+                                        }
+                                    }
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            if (currentUserRating > 0) {
+                                TextButton(onClick = {
+                                    if (!currentUserVerified) {
+                                        Toast.makeText(context, "Please verify your account to change your rating.", Toast.LENGTH_SHORT).show()
+                                        return@TextButton
+                                    }
+
+                                    val newRatedBy = safeProduct.ratedBy.toMutableMap().apply {
+                                        remove(currentUserId)
+                                    }
+                                    val newRatingCount = newRatedBy.size
+                                    val newAverageRating = if (newRatingCount > 0)
+                                        newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
+
+                                    // Optimistic update
+                                    val optimisticallyUpdatedProduct = safeProduct.copy(
+                                        ratedBy = newRatedBy,
+                                        ratingCount = newRatingCount,
+                                        rating = newAverageRating
+                                    )
+                                    productViewModel.product.postValue(optimisticallyUpdatedProduct)
+
+                                    productViewModel.updateRating(productId, currentUserId, 0) { success, _ ->
+                                        if (success) {
+                                            Toast.makeText(context, "Rating removed.", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "Failed to remove rating.", Toast.LENGTH_SHORT).show()
+                                            productViewModel.product.postValue(safeProduct)
+                                        }
+                                    }
+                                }) {
+                                    Text("Clear", color = Orange)
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(100.dp))
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 64.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Card(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(
                                 containerColor = when {
-                                    isProductFlagged -> Color.Yellow.copy(alpha = 0.15f)
-                                    isAvailable -> Orange.copy(alpha = 0.15f)
-                                    else -> Color.Gray.copy(alpha = 0.15f)
+                                    isProductFlagged -> Color.Yellow.copy(alpha = 0.8f)
+                                    !safeProduct.availability -> Color.Gray.copy(alpha = 0.8f)
+                                    else -> Color.Red.copy(alpha = 0.8f)
                                 }
                             )
                         ) {
-                            val statusText = when {
-                                isProductFlagged -> "REPORTED"
-                                isAvailable -> "Available"
-                                !product!!.availability -> "Unavailable"
+                            val message = when {
+                                isProductFlagged -> "This product has been reported"
+                                !safeProduct.availability -> "Currently Unavailable"
                                 else -> "Out of Stock"
                             }
-                            val statusColor = when {
-                                isProductFlagged -> Color.Yellow
-                                isAvailable -> Orange
-                                else -> Color.Gray
-                            }
                             Text(
-                                text = statusText,
-                                modifier = Modifier.padding(
-                                    horizontal = 12.dp,
-                                    vertical = 6.dp
-                                ),
-                                color = statusColor,
+                                text = message,
+                                modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp),
+                                color = Color.White,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
+                                fontSize = 16.sp
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            "NPR. ${product!!.price}/day",
-                            color = if (isProductFlagged) Color.Yellow else Orange,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Star, null, tint = Orange, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text(
-                                "${product!!.rating} (${product!!.ratingCount} reviews)",
-                                color = Color.Gray,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-
-                    val canShowDetails = product!!.availability && !product!!.outOfStock && !isProductFlagged
-
-                    if (canShowDetails) {
+                    if (isProductFlagged) {
                         Spacer(modifier = Modifier.height(16.dp))
-                        Divider(color = Field)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("Listed By", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(sellerName, color = Color.Gray, fontSize = 14.sp)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Divider(color = Field)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("Description", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(product!!.description, color = Color.Gray, fontSize = 14.sp)
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        // Rating section
-                        if (!isSeller && currentUserId != null) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Divider(color = Field)
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            val currentUserRating = product!!.ratedBy[currentUserId] ?: 0
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                RatingBar(
-                                    rating = currentUserRating,
-                                    onRatingChange = { newRating ->
-                                        val currentProduct = product ?: return@RatingBar
-                                        val newRatedBy = currentProduct.ratedBy.toMutableMap().apply {
-                                            this[currentUserId] = newRating
-                                        }
-                                        val newRatingCount = newRatedBy.size
-                                        val newAverageRating = if (newRatingCount > 0)
-                                            newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
-
-                                        val optimisticallyUpdatedProduct = currentProduct.copy(
-                                            ratedBy = newRatedBy,
-                                            ratingCount = newRatingCount,
-                                            rating = newAverageRating
-                                        )
-                                        productViewModel.product.postValue(optimisticallyUpdatedProduct)
-
-                                        productViewModel.updateRating(productId, currentUserId, newRating) { success, _ ->
-                                            if (success) {
-                                                Toast.makeText(context, "Rating submitted!", Toast.LENGTH_SHORT).show()
-                                            } else {
-                                                Toast.makeText(context, "Failed to submit rating.", Toast.LENGTH_SHORT).show()
-                                                productViewModel.product.postValue(currentProduct)
-                                            }
-                                        }
-                                    }
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                if (currentUserRating > 0) {
-                                    TextButton(onClick = {
-                                        val currentProduct = product ?: return@TextButton
-                                        val newRatedBy = currentProduct.ratedBy.toMutableMap().apply {
-                                            remove(currentUserId)
-                                        }
-                                        val newRatingCount = newRatedBy.size
-                                        val newAverageRating = if (newRatingCount > 0)
-                                            newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
-
-                                        val optimisticallyUpdatedProduct = currentProduct.copy(
-                                            ratedBy = newRatedBy,
-                                            ratingCount = newRatingCount,
-                                            rating = newAverageRating
-                                        )
-                                        productViewModel.product.postValue(optimisticallyUpdatedProduct)
-
-                                        productViewModel.updateRating(productId, currentUserId, 0) { success, _ ->
-                                            if (success) {
-                                                Toast.makeText(context, "Rating removed.", Toast.LENGTH_SHORT).show()
-                                            } else {
-                                                Toast.makeText(context, "Failed to remove rating.", Toast.LENGTH_SHORT).show()
-                                                productViewModel.product.postValue(currentProduct)
-                                            }
-                                        }
-                                    }) {
-                                        Text("Clear", color = Orange)
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(100.dp))
-                    } else {
-                        Box(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 64.dp),
-                            contentAlignment = Alignment.Center
+                                .background(Color.Yellow.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                                .padding(16.dp)
                         ) {
-                            Card(
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = when {
-                                        isProductFlagged -> Color.Yellow.copy(alpha = 0.8f)
-                                        !product!!.availability -> Color.Gray.copy(alpha = 0.8f)
-                                        else -> Color.Red.copy(alpha = 0.8f)
-                                    }
-                                )
-                            ) {
-                                val message = when {
-                                    isProductFlagged -> "This product has been reported"
-                                    !product!!.availability -> "Currently Unavailable"
-                                    else -> "Out of Stock"
-                                }
-                                Text(
-                                    text = message,
-                                    modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp),
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
-                                )
-                            }
-                        }
-
-                        if (isProductFlagged) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color.Yellow.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
-                                    .padding(16.dp)
-                            ) {
-                                Text(
-                                    "Report Status",
-                                    color = Color.Yellow,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                            Text(
+                                "Report Status",
+                                color = Color.Yellow,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Reason: ${safeProduct.flaggedReason.joinToString(", ")}",
+                                color = Color.Gray,
+                                fontSize = 14.sp
+                            )
+                            if (hasAppeal) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    "Reason: ${product!!.flaggedReason.joinToString(", ")}",
-                                    color = Color.Gray,
-                                    fontSize = 14.sp
+                                    "Seller has submitted an appeal: ${safeProduct.appealReason}",
+                                    color = Color.Cyan,
+                                    fontSize = 12.sp,
+                                    fontStyle = FontStyle.Italic
                                 )
-                                if (hasAppeal) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        "Seller has submitted an appeal: ${product!!.appealReason}",
-                                        color = Color.Cyan,
-                                        fontSize = 12.sp,
-                                        fontStyle = FontStyle.Italic
-                                    )
-                                }
                             }
                         }
                     }
@@ -450,7 +506,7 @@ fun ProductDisplay(productId: String) {
         }
     }
 
-    // Dialogs
+    // Two-step flagging dialogs
     if (showFlagReasonDialog) {
         AlertDialog(
             onDismissRequest = {
@@ -696,7 +752,7 @@ fun RatingBar(
                     imageVector = Icons.Default.Star,
                     contentDescription = "Rate $index",
                     tint = if (index <= rating) Orange else Color.Gray,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(32.dp)
                 )
             }
         }
@@ -704,7 +760,7 @@ fun RatingBar(
 }
 
 @Composable
-fun BottomBar(price: Double, enabled: Boolean) {
+fun BottomBar(price: Double, enabled: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -715,10 +771,10 @@ fun BottomBar(price: Double, enabled: Boolean) {
     ) {
         Column {
             Text("Total price", color = Color.Gray, fontSize = 12.sp)
-            Text("NPR. $price", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(String.format("NPR. %.2f", price), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
         Button(
-            onClick = {},
+            onClick = onClick,
             enabled = enabled,
             colors = ButtonDefaults.buttonColors(
                 containerColor = Orange,
@@ -731,7 +787,7 @@ fun BottomBar(price: Double, enabled: Boolean) {
         ) {
             Icon(Icons.Default.ShoppingCart, null, tint = Color.Black)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Pay to Rent", color = Color.Black, fontWeight = FontWeight.Bold)
+            Text("Pay Now", color = Color.Black, fontWeight = FontWeight.Bold)
         }
     }
 }
