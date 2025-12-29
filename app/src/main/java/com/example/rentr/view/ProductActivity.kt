@@ -1,6 +1,7 @@
 package com.example.rentr.view
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -8,18 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -31,25 +21,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.rentr.R
+import com.example.rentr.model.ProductModel
 import com.example.rentr.repository.ProductRepoImpl
 import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.ui.theme.Field
@@ -147,14 +122,20 @@ fun ProductDisplay(productId: String) {
         )
     }
 
-    val randomPrice = remember { (100..2000).random().toDouble() }
-    val totalPrice = randomPrice
-
     Scaffold(
         containerColor = Color.Black,
         bottomBar = {
             if (!isSeller && product?.availability == true && product?.outOfStock == false) {
-                BottomBar(price = totalPrice)
+                BottomBar(
+                    price = product!!.price,
+                    onPayNowClick = {
+                        val intent = Intent(context, CheckoutActivity::class.java).apply {
+                            putExtra("productTitle", product!!.title)
+                            putExtra("productPrice", product!!.price)
+                        }
+                        context.startActivity(intent)
+                    }
+                )
             }
         }
     ) { padding ->
@@ -306,7 +287,6 @@ fun ProductDisplay(productId: String) {
                                 onRatingChange = { newRating ->
                                     val currentProduct = product ?: return@RatingBar
 
-                                    // Optimistic UI Update
                                     val newRatedBy = currentProduct.ratedBy.toMutableMap().apply { this[currentUserId] = newRating }
                                     val newRatingCount = newRatedBy.size
                                     val newAverageRating = if (newRatingCount > 0) newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
@@ -317,7 +297,6 @@ fun ProductDisplay(productId: String) {
                                     )
                                     productViewModel.product.postValue(optimisticallyUpdatedProduct)
 
-                                    // Update database in background
                                     productViewModel.updateRating(productId, currentUserId, newRating) { success, _ ->
                                         if (success) {
                                             Toast.makeText(context, "Rating submitted!", Toast.LENGTH_SHORT).show()
@@ -333,7 +312,6 @@ fun ProductDisplay(productId: String) {
                                 TextButton(onClick = {
                                     val currentProduct = product ?: return@TextButton
 
-                                    // Optimistic UI Update for clear
                                     val newRatedBy = currentProduct.ratedBy.toMutableMap().apply { remove(currentUserId) }
                                     val newRatingCount = newRatedBy.size
                                     val newAverageRating = if (newRatingCount > 0) newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
@@ -344,7 +322,6 @@ fun ProductDisplay(productId: String) {
                                     )
                                     productViewModel.product.postValue(optimisticallyUpdatedProduct)
 
-                                    // Update database in background
                                     productViewModel.updateRating(productId, currentUserId, 0) { success, _ -> // 0 means remove rating
                                         if (success) {
                                             Toast.makeText(context, "Rating removed.", Toast.LENGTH_SHORT).show()
@@ -386,9 +363,8 @@ fun RatingBar(
     }
 }
 
-
 @Composable
-fun BottomBar(price: Double) {
+fun BottomBar(price: Double, onPayNowClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -402,14 +378,14 @@ fun BottomBar(price: Double) {
             Text("NPR. ${price}", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
         Button(
-            onClick = {},
+            onClick = onPayNowClick,
             colors = ButtonDefaults.buttonColors(containerColor = Orange),
             shape = RoundedCornerShape(16.dp),
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp)
         ) {
             Icon(Icons.Default.ShoppingCart, null, tint = Color.Black)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Pay to Rent", color = Color.Black, fontWeight = FontWeight.Bold)
+            Text("Pay Now", color = Color.Black, fontWeight = FontWeight.Bold)
         }
     }
 }
