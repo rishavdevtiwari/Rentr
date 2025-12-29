@@ -78,6 +78,8 @@ fun ReviewScreenContent(
     LaunchedEffect(Unit) {
         productViewModel.getAllProducts { _, _, _ -> }
         userViewModel.getAllUsers { _, _, _ -> }
+
+        productViewModel.getFlaggedProducts { _, _, _ -> }
     }
 
     val usersList = remember(usersMap) {
@@ -88,19 +90,17 @@ fun ReviewScreenContent(
         usersList.filter { it.flagCount > 0 }.sortedByDescending { it.flagCount }
     }
 
-    val filteredProducts = remember(products, selectedCategory) {
+    val filteredProducts = remember(productViewModel.flaggedProducts.value, selectedCategory) {
+        val allFlaggedProducts = productViewModel.flaggedProducts.value ?: emptyList()
+
         when (selectedCategory) {
-            FlagCategory.ALL -> products.filter {
-                it.flagged && it.flaggedBy.isNotEmpty()
+            FlagCategory.ALL -> allFlaggedProducts
+            FlagCategory.RESOLVED -> products.filter { !it.flagged }
+            FlagCategory.MARKED -> allFlaggedProducts.filter {
+                !it.availability && it.appealReason.isEmpty()
             }
-            FlagCategory.RESOLVED -> products.filter {
-                !it.flagged
-            }
-            FlagCategory.MARKED -> products.filter {
-                it.flagged && it.flaggedBy.isNotEmpty() && !it.availability && it.appealReason.isEmpty()
-            }
-            FlagCategory.APPEALED -> products.filter {
-                it.flagged && it.flaggedBy.isNotEmpty() && !it.availability && it.appealReason.isNotEmpty()
+            FlagCategory.APPEALED -> allFlaggedProducts.filter {
+                !it.availability && it.appealReason.isNotEmpty()
             }
             FlagCategory.FLAGGED_USERS -> emptyList()
         }
@@ -560,11 +560,7 @@ fun FlaggedProductCardReal(
             Spacer(modifier = Modifier.height(4.dp))
 
             if (product.flaggedReason.isNotEmpty()) {
-                val flagReasonText = if (product.flaggedReason is List<*>) {
-                    product.flaggedReason.joinToString(", ")
-                } else {
-                    product.flaggedReason.toString()
-                }
+                val flagReasonText =product.flaggedReason.joinToString(", ")
                 Text(
                     text = "Flag Reason: ${flagReasonText.take(50)}${if (flagReasonText.length > 50) "..." else ""}",
                     color = Color.LightGray,
@@ -580,13 +576,8 @@ fun FlaggedProductCardReal(
                         color = Color.Cyan,
                         fontSize = 14.sp
                     )
-                    val appealReasonText = if (product.appealReason is List<*>) {
-                        product.appealReason.joinToString(", ")
-                    } else {
-                        product.appealReason.toString()
-                    }
                     Text(
-                        text = "Appeal: ${appealReasonText.take(50)}${if (appealReasonText.length > 50) "..." else ""}",
+                        text = "Appeal: ${product.appealReason.take(50)}${if (product.appealReason.length > 50) "..." else ""}",
                         color = Color.Cyan.copy(alpha = 0.8f),
                         fontSize = 14.sp,
                         fontStyle = FontStyle.Italic,
