@@ -339,170 +339,99 @@ fun ProductDisplay(productId: String) {
                     }
                 }
 
-                val canShowDetails = safeProduct.availability &&
-                        !safeProduct.outOfStock &&
-                        !isProductFlagged
+                Spacer(modifier = Modifier.height(16.dp))
+                Divider(color = Field)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Listed By", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(sellerName, color = Color.Gray, fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Description", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(safeProduct.description, color = Color.Gray, fontSize = 14.sp)
 
-                if (canShowDetails) {
+                if (!isSeller && currentUserId != null) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Divider(color = Field)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Listed By", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(sellerName, color = Color.Gray, fontSize = 14.sp)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Description", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(safeProduct.description, color = Color.Gray, fontSize = 14.sp)
 
-                    if (!isSeller && currentUserId != null) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Divider(color = Field)
-                        Spacer(modifier = Modifier.height(16.dp))
+                    val currentUserRating = safeProduct.ratedBy[currentUserId] ?: 0
 
-                        val currentUserRating = safeProduct.ratedBy[currentUserId] ?: 0
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            RatingBar(
-                                rating = currentUserRating,
-                                onRatingChange = { newRating ->
-                                    if (!currentUserVerified) {
-                                        Toast.makeText(context, "Please verify your account to rate items.", Toast.LENGTH_SHORT).show()
-                                        return@RatingBar
-                                    }
-
-                                    val newRatedBy = safeProduct.ratedBy.toMutableMap().apply {
-                                        this[currentUserId] = newRating
-                                    }
-                                    val newRatingCount = newRatedBy.size
-                                    val newAverageRating = if (newRatingCount > 0)
-                                        newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
-
-                                    // Optimistic update
-                                    val optimisticallyUpdatedProduct = safeProduct.copy(
-                                        ratedBy = newRatedBy,
-                                        ratingCount = newRatingCount,
-                                        rating = newAverageRating
-                                    )
-                                    productViewModel.product.postValue(optimisticallyUpdatedProduct)
-
-                                    productViewModel.updateRating(productId, currentUserId, newRating) { success, _ ->
-                                        if (success) {
-                                            Toast.makeText(context, "Rating submitted!", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(context, "Failed to submit rating.", Toast.LENGTH_SHORT).show()
-                                            productViewModel.product.postValue(safeProduct)
-                                        }
-                                    }
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            if (currentUserRating > 0) {
-                                TextButton(onClick = {
-                                    if (!currentUserVerified) {
-                                        Toast.makeText(context, "Please verify your account to change your rating.", Toast.LENGTH_SHORT).show()
-                                        return@TextButton
-                                    }
-
-                                    val newRatedBy = safeProduct.ratedBy.toMutableMap().apply {
-                                        remove(currentUserId)
-                                    }
-                                    val newRatingCount = newRatedBy.size
-                                    val newAverageRating = if (newRatingCount > 0)
-                                        newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
-
-                                    // Optimistic update
-                                    val optimisticallyUpdatedProduct = safeProduct.copy(
-                                        ratedBy = newRatedBy,
-                                        ratingCount = newRatingCount,
-                                        rating = newAverageRating
-                                    )
-                                    productViewModel.product.postValue(optimisticallyUpdatedProduct)
-
-                                    productViewModel.updateRating(productId, currentUserId, 0) { success, _ ->
-                                        if (success) {
-                                            Toast.makeText(context, "Rating removed.", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(context, "Failed to remove rating.", Toast.LENGTH_SHORT).show()
-                                            productViewModel.product.postValue(safeProduct)
-                                        }
-                                    }
-                                }) {
-                                    Text("Clear", color = Orange)
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(100.dp))
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 64.dp),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
                     ) {
-                        Card(
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = when {
-                                    isProductFlagged -> Color.Yellow.copy(alpha = 0.8f)
-                                    !safeProduct.availability -> Color.Gray.copy(alpha = 0.8f)
-                                    else -> Color.Red.copy(alpha = 0.8f)
+                        RatingBar(
+                            rating = currentUserRating,
+                            onRatingChange = { newRating ->
+                                if (!currentUserVerified) {
+                                    Toast.makeText(context, "Please verify your account to rate items.", Toast.LENGTH_SHORT).show()
+                                    return@RatingBar
                                 }
-                            )
-                        ) {
-                            val message = when {
-                                isProductFlagged -> "This product has been reported"
-                                !safeProduct.availability -> "Currently Unavailable"
-                                else -> "Out of Stock"
-                            }
-                            Text(
-                                text = message,
-                                modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp),
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
-                        }
-                    }
 
-                    if (isProductFlagged) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color.Yellow.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
-                                .padding(16.dp)
-                        ) {
-                            Text(
-                                "Report Status",
-                                color = Color.Yellow,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                "Reason: ${safeProduct.flaggedReason.joinToString(", ")}",
-                                color = Color.Gray,
-                                fontSize = 14.sp
-                            )
-                            if (hasAppeal) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    "Seller has submitted an appeal: ${safeProduct.appealReason}",
-                                    color = Color.Cyan,
-                                    fontSize = 12.sp,
-                                    fontStyle = FontStyle.Italic
+                                val newRatedBy = safeProduct.ratedBy.toMutableMap().apply {
+                                    this[currentUserId] = newRating
+                                }
+                                val newRatingCount = newRatedBy.size
+                                val newAverageRating = if (newRatingCount > 0)
+                                    newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
+
+                                val optimisticallyUpdatedProduct = safeProduct.copy(
+                                    ratedBy = newRatedBy,
+                                    ratingCount = newRatingCount,
+                                    rating = newAverageRating
                                 )
+                                productViewModel.product.postValue(optimisticallyUpdatedProduct)
+
+                                productViewModel.updateRating(productId, currentUserId, newRating) { success, _ ->
+                                    if (success) {
+                                        Toast.makeText(context, "Rating submitted!", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Failed to submit rating.", Toast.LENGTH_SHORT).show()
+                                        productViewModel.product.postValue(safeProduct)
+                                    }
+                                }
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        if (currentUserRating > 0) {
+                            TextButton(onClick = {
+                                if (!currentUserVerified) {
+                                    Toast.makeText(context, "Please verify your account to change your rating.", Toast.LENGTH_SHORT).show()
+                                    return@TextButton
+                                }
+
+                                val newRatedBy = safeProduct.ratedBy.toMutableMap().apply {
+                                    remove(currentUserId)
+                                }
+                                val newRatingCount = newRatedBy.size
+                                val newAverageRating = if (newRatingCount > 0)
+                                    newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
+
+                                val optimisticallyUpdatedProduct = safeProduct.copy(
+                                    ratedBy = newRatedBy,
+                                    ratingCount = newRatingCount,
+                                    rating = newAverageRating
+                                )
+                                productViewModel.product.postValue(optimisticallyUpdatedProduct)
+
+                                productViewModel.updateRating(productId, currentUserId, 0) { success, _ ->
+                                    if (success) {
+                                        Toast.makeText(context, "Rating removed.", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Failed to remove rating.", Toast.LENGTH_SHORT).show()
+                                        productViewModel.product.postValue(safeProduct)
+                                    }
+                                }
+                            }) {
+                                Text("Clear", color = Orange)
                             }
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(100.dp))
             }
         }
     }
@@ -695,23 +624,21 @@ fun ProductDisplay(productId: String) {
                                 ) { success, message ->
                                     if (success) {
                                         val sellerId = currentProduct.listedBy
-                                        userViewModel.getUserById(sellerId) { sellerSuccess, _, seller ->
-                                            if (sellerSuccess && seller != null) {
-                                                val updatedSeller = seller.copy(
-                                                    flagCount = seller.flagCount + 1
-                                                )
-                                                userViewModel.updateProfile(
-                                                    sellerId,
-                                                    updatedSeller
-                                                ) { _, _ ->
-                                                    productViewModel.getProductById(productId) { _, _, _ -> }
-
-                                                    Toast.makeText(
-                                                        context,
-                                                        "Product reported successfully!",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-                                                }
+                                        // Use the new increment function - cleaner and safer
+                                        userViewModel.incrementFlagCount(sellerId) { incrementSuccess, _ ->
+                                            if (incrementSuccess) {
+                                                productViewModel.getProductById(productId) { _, _, _ -> }
+                                                Toast.makeText(
+                                                    context,
+                                                    "Product reported successfully!",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            } else {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Product reported (flag count not updated)",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
                                             }
                                         }
                                     } else {

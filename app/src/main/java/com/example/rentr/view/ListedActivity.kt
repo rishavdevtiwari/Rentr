@@ -136,7 +136,11 @@ fun ListedScreen() {
                 Column {
                     Text("Appeal for: ${productToAppeal?.title}", color = Color.Gray)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Reason for flagging: ${productToAppeal?.flaggedReason}", color = Color.LightGray, fontSize = 12.sp)
+                    Text(
+                        "Reason for flagging: ${productToAppeal?.flaggedReason?.joinToString(", ")}",
+                        color = Color.LightGray,
+                        fontSize = 12.sp
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
                     TextField(
                         value = appealReason,
@@ -165,8 +169,12 @@ fun ListedScreen() {
                             val updatedProduct = product.copy(appealReason = appealReason)
                             productViewModel.updateProduct(product.productId, updatedProduct) { success, _ ->
                                 if (success) {
-                                    uId?.let { productViewModel.getAllProductsByUser(userId = it) { _, _, _ -> } }
-                                    Toast.makeText(context, "Appeal submitted", Toast.LENGTH_SHORT).show()
+                                    uId?.let {
+                                        productViewModel.getAllProductsByUser(userId = it) { _, _, _ -> }
+                                    }
+                                    Toast.makeText(context, "Appeal submitted for admin review", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Failed to submit appeal", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }

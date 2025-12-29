@@ -44,6 +44,9 @@ interface UserRepo {
         callback: (Boolean, String?) -> Unit
     )
 
+    fun incrementFlagCount(userId: String, callback: (Boolean, String) -> Unit)
+    fun decrementFlagCount(userId: String, callback: (Boolean, String) -> Unit)
+
 
 }
 

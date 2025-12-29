@@ -716,13 +716,14 @@ fun FlagReviewScreen(productId: String) {
                                 )
                                 productViewModel.updateProduct(currentProduct.productId, updatedProduct) { success, _ ->
                                     if (success) {
-                                        sellerInfo?.let { seller ->
-                                            val newFlagCount = if (seller.flagCount > 0) seller.flagCount - 1 else 0
-                                            val updatedSeller = seller.copy(flagCount = newFlagCount)
-                                            userViewModel.updateProfile(seller.email, updatedSeller) { _, _ ->
-                                                Toast.makeText(context, "Flag resolved", Toast.LENGTH_SHORT).show()
-                                                activity?.finish()
+                                        val sellerId = currentProduct.listedBy
+                                        userViewModel.decrementFlagCount(sellerId) { flagSuccess, _ ->
+                                            if (flagSuccess) {
+                                                Toast.makeText(context, "Flag resolved and flag count updated", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, "Flag resolved (but couldn't update flag count)", Toast.LENGTH_SHORT).show()
                                             }
+                                            activity?.finish()
                                         }
                                     }
                                 }
