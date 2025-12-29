@@ -72,6 +72,7 @@ fun ProductDisplay(productId: String) {
     val product by productViewModel.product.observeAsState()
     var sellerName by remember { mutableStateOf("") }
 
+    // Flag dialog states
     var showFlagReasonDialog by remember { mutableStateOf(false) }
     var showFlagConfirmationDialog by remember { mutableStateOf(false) }
     var flagReason by remember { mutableStateOf("") }
