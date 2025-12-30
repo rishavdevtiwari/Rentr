@@ -111,6 +111,10 @@ fun CheckoutScreen(
             return
         }
 
+        val startTimeMillis = System.currentTimeMillis()
+        val rentalDurationMillis = days * 24L * 60 * 60 * 1000 // Use Long for calculation
+        val endTimeMillis = startTimeMillis + rentalDurationMillis
+
         val transaction = TransactionModel(
             transactionId = UUID.randomUUID().toString(),
             productId = productId,
@@ -121,7 +125,8 @@ fun CheckoutScreen(
             days = days,
             paymentOption = selectedPayment,
             pickupLocation = location,
-            startTime = System.currentTimeMillis().toString()
+            startTime = startTimeMillis.toString(),
+            endTime = endTimeMillis.toString() // Set the calculated end time
         )
 
 
