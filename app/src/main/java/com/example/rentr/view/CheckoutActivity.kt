@@ -44,7 +44,8 @@ class CheckoutActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val productTitle = intent.getStringExtra("productTitle") ?: "Product"
-        val productPrice = intent.getDoubleExtra("productPrice", 0.0)
+        val rentalPrice = intent.getDoubleExtra("rentalPrice", 0.0)
+        val days = intent.getIntExtra("days", 1)
         val productId = intent.getStringExtra("productId") ?: ""
         val sellerId = intent.getStringExtra("sellerId") ?: ""
 
@@ -52,7 +53,8 @@ class CheckoutActivity : ComponentActivity() {
             RentrTheme {
                 CheckoutScreen(
                     productTitle = productTitle,
-                    productPrice = productPrice,
+                    rentalPrice = rentalPrice,
+                    days = days,
                     productId = productId,
                     sellerId = sellerId,
                     viewModel = transactionViewModel
@@ -66,7 +68,8 @@ class CheckoutActivity : ComponentActivity() {
 @Composable
 fun CheckoutScreen(
     productTitle: String,
-    productPrice: Double,
+    rentalPrice: Double,
+    days: Int,
     productId: String,
     sellerId: String,
     viewModel: TransactionViewModel
@@ -95,6 +98,32 @@ fun CheckoutScreen(
         }
     }
 
+    fun confirmOrder() {
+        if (location.isBlank()) {
+            Toast.makeText(context, "Please enter a delivery location", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (currentUser == null) {
+            Toast.makeText(context, "You must be logged in to place an order", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val transaction = TransactionModel(
+            transactionId = UUID.randomUUID().toString(),
+            productId = productId,
+            renterId = currentUser.uid,
+            sellerId = sellerId,
+            rentalPrice = rentalPrice,
+            days = days,
+            paymentOption = selectedPayment,
+            pickupLocation = location,
+            startTime = System.currentTimeMillis().toString()
+        )
+
+
+        viewModel.addTransaction(transaction)
+    }
+
     Scaffold(
         containerColor = Color.Black,
         topBar = {
@@ -110,28 +139,7 @@ fun CheckoutScreen(
         },
         bottomBar = {
             Button(
-                onClick = {
-                    if (location.isBlank()) {
-                        Toast.makeText(context, "Please enter a delivery location", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
-                    if (currentUser == null) {
-                        Toast.makeText(context, "You must be logged in to place an order", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
-
-                    val transaction = TransactionModel(
-                        transactionId = UUID.randomUUID().toString(),
-                        productId = productId,
-                        renterId = currentUser.uid,
-                        sellerId = sellerId,
-                        basePrice = productPrice,
-                        paymentOption = selectedPayment,
-                        pickupLocation = location,
-                        startTime = System.currentTimeMillis().toString() // Add start time
-                    )
-                    viewModel.addTransaction(transaction)
-                },
+                onClick = { confirmOrder() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
@@ -158,8 +166,8 @@ fun CheckoutScreen(
             Text("Item", color = Color.Gray)
             Text(productTitle, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Price", color = Color.Gray)
-            Text("NPR. $productPrice", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text("Total Price for $days day(s)", color = Color.Gray)
+            Text(String.format("NPR. %.2f", rentalPrice), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
 
             Divider(modifier = Modifier.padding(vertical = 24.dp), color = Color.Gray.copy(alpha = 0.5f))
 
