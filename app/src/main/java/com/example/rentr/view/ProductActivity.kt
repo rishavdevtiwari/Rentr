@@ -47,6 +47,9 @@ import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.RentrTheme
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 class ProductActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -135,9 +138,9 @@ fun ProductDisplay(productId: String) {
                     onPayNowClick = {
                         val intent = Intent(context, CheckoutActivity::class.java).apply {
                             putExtra("productTitle", safeProduct.title)
-                            putExtra("basePrice", safeProduct.price) // Pass base price
-                            putExtra("rentalPrice", totalPrice) // Pass total price
-                            putExtra("days", rentalDays) // Pass rental days
+                            putExtra("basePrice", safeProduct.price)
+                            putExtra("rentalPrice", totalPrice)
+                            putExtra("days", rentalDays)
                             putExtra("productId", safeProduct.productId)
                             putExtra("sellerId", safeProduct.listedBy)
                         }
@@ -284,11 +287,28 @@ fun ProductDisplay(productId: String) {
                     Text(ratingText, color = Color.Gray, fontSize = 14.sp)
                 }
 
+                if (safeProduct.availableUntil > 0) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Available until: ${SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(safeProduct.availableUntil)}",
+                        color = Color.Gray,
+                        fontSize = 14.sp
+                    )
+                }
+
                 // Day Selector
                 if (!isSeller) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Divider(color = Field)
                     Spacer(modifier = Modifier.height(16.dp))
+
+                    val maxRentalDate = Calendar.getInstance().apply {
+                        timeInMillis = safeProduct.availableUntil
+                    }
+                    val currentRentalDate = Calendar.getInstance().apply {
+                        add(Calendar.DAY_OF_YEAR, rentalDays)
+                    }
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -310,10 +330,11 @@ fun ProductDisplay(productId: String) {
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
                             IconButton(
-                                onClick = { rentalDays++ },
-                                modifier = Modifier.border(1.dp, Color.Gray, CircleShape)
+                                onClick = { if (currentRentalDate.before(maxRentalDate)) rentalDays++ },
+                                enabled = currentRentalDate.before(maxRentalDate),
+                                modifier = Modifier.border(1.dp, if (currentRentalDate.before(maxRentalDate)) Color.Gray else Color.DarkGray, CircleShape)
                             ) {
-                                Icon(Icons.Default.Add, contentDescription = "Increase days", tint = Color.White)
+                                Icon(Icons.Default.Add, contentDescription = "Increase days", tint = if (currentRentalDate.before(maxRentalDate)) Color.White else Color.DarkGray)
                             }
                         }
                     }

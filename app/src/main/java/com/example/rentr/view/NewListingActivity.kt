@@ -1,6 +1,7 @@
 package com.example.rentr.view
 
 import android.app.Activity
+import android.app.DatePickerDialog
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
@@ -48,6 +49,9 @@ import com.example.rentr.ui.theme.RentrTheme
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -90,6 +94,7 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
     var isAvailable by remember { mutableStateOf(true) }
     var selectedImageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var selectedCategory by remember { mutableStateOf("") }
+    var availableUntil by remember { mutableStateOf<Long?>(null) }
     val context = LocalContext.current
     val activity = context as Activity
     val coroutineScope = rememberCoroutineScope()
@@ -128,6 +133,20 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
 
     val categories = listOf("Vehicles", "Household", "Electronics", "Accessories", "Furniture", "Sports & Adventure", "Baby Items")
     var categoryExpanded by remember { mutableStateOf(false) }
+
+    val calendar = Calendar.getInstance()
+    val datePickerDialog = DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            calendar.set(year, month, dayOfMonth)
+            availableUntil = calendar.timeInMillis
+        },
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH),
+        calendar.get(Calendar.DAY_OF_MONTH)
+    ).apply {
+        datePicker.minDate = System.currentTimeMillis() // Can't select past dates
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -260,6 +279,21 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                 )
             }
 
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Available Until", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                Button(
+                    onClick = { datePickerDialog.show() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Field)
+                ) {
+                    Text(
+                        text = availableUntil?.let { SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(it) } ?: "Select End Date",
+                        color = Color.White
+                    )
+                }
+            }
+
             ExposedDropdownMenuBox(
                 expanded = categoryExpanded,
                 onExpandedChange = { categoryExpanded = !categoryExpanded },
@@ -317,6 +351,10 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                         Toast.makeText(context, "Please enter a valid price.", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
+                    if (availableUntil == null) {
+                        Toast.makeText(context, "Please select an availability end date.", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
                     val userId = userViewModel.getCurrentUser()?.uid
                     if (userId == null) {
                         Toast.makeText(context, "You must be logged in to list an item.", Toast.LENGTH_SHORT).show()
@@ -337,6 +375,7 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                             title = productName,
                             description = description,
                             availability = isAvailable,
+                            availableUntil = availableUntil!!,
                             category = selectedCategory,
                             listedBy = userId,
                             imageUrl = uploadedUrls,
