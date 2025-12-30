@@ -17,8 +17,8 @@ data class ProductModel(
     val verified: Boolean = false,
     val flaggedBy: List<String> = emptyList(), // this will resolve the flagCount and the button greyed logic
     val flagged: Boolean = false,
-    val flaggedReason:List<String> = emptyList(),// Reason given by user who flagged
-    val appealReason:String=""  // Appeal reason given by seller
+    val flaggedReason:List<String> = emptyList(),
+    val appealReason:String=""
 
 ){
     fun toMap() : Map < String, Any?> {
@@ -36,7 +36,7 @@ data class ProductModel(
             "ratedBy" to ratedBy,
             "imageUrl" to imageUrl,
             "verified" to verified,
-            "flaggedBy" to flaggedBy, // this will resolve the flagCount and the button greyed logic
+            "flaggedBy" to flaggedBy,
             "flagged" to flagged,
             "flaggedReason" to flaggedReason,
             "appealReason" to appealReason
