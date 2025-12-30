@@ -44,6 +44,7 @@ class CheckoutActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val productTitle = intent.getStringExtra("productTitle") ?: "Product"
+        val basePrice = intent.getDoubleExtra("basePrice", 0.0) // Get base price
         val rentalPrice = intent.getDoubleExtra("rentalPrice", 0.0)
         val days = intent.getIntExtra("days", 1)
         val productId = intent.getStringExtra("productId") ?: ""
@@ -53,6 +54,7 @@ class CheckoutActivity : ComponentActivity() {
             RentrTheme {
                 CheckoutScreen(
                     productTitle = productTitle,
+                    basePrice = basePrice, // Pass base price
                     rentalPrice = rentalPrice,
                     days = days,
                     productId = productId,
@@ -68,6 +70,7 @@ class CheckoutActivity : ComponentActivity() {
 @Composable
 fun CheckoutScreen(
     productTitle: String,
+    basePrice: Double, // Receive base price
     rentalPrice: Double,
     days: Int,
     productId: String,
@@ -107,8 +110,6 @@ fun CheckoutScreen(
             Toast.makeText(context, "You must be logged in to place an order", Toast.LENGTH_SHORT).show()
             return
         }
-
-        val basePrice = if (days > 0) rentalPrice / days else 0.0
 
         val transaction = TransactionModel(
             transactionId = UUID.randomUUID().toString(),
