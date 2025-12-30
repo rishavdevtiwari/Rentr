@@ -5,8 +5,10 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -85,6 +87,28 @@ fun ListedScreen() {
             }
         }
     }
+
+    //Adding launcher so that edit/listing the items will reflect on this activity live
+    val newListingLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            uId?.let {
+                productViewModel.getAllProductsByUser(userId = it) { _, _, _ -> }
+            }
+        }
+    }
+
+    val editListingLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            uId?.let {
+                productViewModel.getAllProductsByUser(userId = it) { _, _, _ -> }
+            }
+        }
+    }
+
 
     val filteredList = when (selectedTabIndex) {
         0 -> products.filter { !it.outOfStock && !(it.flagged && it.flaggedBy.isNotEmpty()) }
@@ -214,7 +238,7 @@ fun ListedScreen() {
                             ).show()
                         } else {
                             val intent = Intent(context, NewListingActivity::class.java)
-                            (context as Activity).startActivityForResult(intent, 1)
+                            newListingLauncher.launch(intent) //live reflections
                         }
                     },
                     containerColor = Orange,
@@ -273,7 +297,7 @@ fun ListedScreen() {
                             if (!isProductFlagged && !isRented) {
                                 val intent = Intent(context, EditListedActivity::class.java)
                                 intent.putExtra("productId", product.productId)
-                                (context as Activity).startActivityForResult(intent, 2)
+                                editListingLauncher.launch(intent) //live reflections
                             } else {
                                 val message = if (isProductFlagged)
                                     "Cannot edit flagged products. Submit an appeal first."
