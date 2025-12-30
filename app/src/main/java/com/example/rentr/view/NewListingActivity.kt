@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -31,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -83,6 +85,7 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
     val userViewModel = remember { UserViewModel(UserRepoImp1()) }
 
     var productName by remember { mutableStateOf("") }
+    var price by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var isAvailable by remember { mutableStateOf(true) }
     var selectedImageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
@@ -196,6 +199,28 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Price (NPR)", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                OutlinedTextField(
+                    value = price,
+                    onValueChange = { price = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Field,
+                        focusedBorderColor = Orange,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = Orange
+                    ),
+                    placeholder = { Text("Enter price per day", color = Color.Gray) },
+                    singleLine = true
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Description", style = MaterialTheme.typography.titleMedium, color = Color.White)
                 OutlinedTextField(
                     value = description,
@@ -287,6 +312,11 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                         Toast.makeText(context, "Please add at least $minImages photo(s).", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
+                    val priceDouble = price.toDoubleOrNull()
+                    if (priceDouble == null || priceDouble <= 0) {
+                        Toast.makeText(context, "Please enter a valid price.", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
                     val userId = userViewModel.getCurrentUser()?.uid
                     if (userId == null) {
                         Toast.makeText(context, "You must be logged in to list an item.", Toast.LENGTH_SHORT).show()
@@ -309,7 +339,8 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                             availability = isAvailable,
                             category = selectedCategory,
                             listedBy = userId,
-                            imageUrl = uploadedUrls
+                            imageUrl = uploadedUrls,
+                            price = priceDouble
                         )
 
                         productViewModel.addProduct(model) { success, msg, productId ->
