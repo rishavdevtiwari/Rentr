@@ -108,11 +108,14 @@ fun CheckoutScreen(
             return
         }
 
+        val basePrice = if (days > 0) rentalPrice / days else 0.0
+
         val transaction = TransactionModel(
             transactionId = UUID.randomUUID().toString(),
             productId = productId,
             renterId = currentUser.uid,
             sellerId = sellerId,
+            basePrice = basePrice, // Set the base price here
             rentalPrice = rentalPrice,
             days = days,
             paymentOption = selectedPayment,

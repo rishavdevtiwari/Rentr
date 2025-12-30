@@ -135,6 +135,7 @@ fun ProductDisplay(productId: String) {
                     onPayNowClick = {
                         val intent = Intent(context, CheckoutActivity::class.java).apply {
                             putExtra("productTitle", safeProduct.title)
+                            putExtra("basePrice", safeProduct.price) // Pass base price
                             putExtra("rentalPrice", totalPrice) // Pass total price
                             putExtra("days", rentalDays) // Pass rental days
                             putExtra("productId", safeProduct.productId)
