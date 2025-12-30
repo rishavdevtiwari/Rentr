@@ -10,7 +10,6 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -30,27 +30,153 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.example.rentr.R
 import com.example.rentr.repository.ProductRepoImpl
 import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
+import com.example.rentr.ui.theme.RentrTheme
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
+
+// --- NAVIGATION ITEMS ---
+sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
+    object Home : BottomNavItem("home", "Home", Icons.Default.Home)
+    object KYC : BottomNavItem("kyc", "KYC", Icons.Default.VerifiedUser)
+    object Product : BottomNavItem("product", "Product", Icons.Default.ShoppingCart)
+    object Review : BottomNavItem("review", "Review", Icons.Default.RateReview)
+    object Settings : BottomNavItem("settings", "Settings", Icons.Default.Settings)
+}
 
 class AdminDashboardActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             RentrTheme {
-                AdminDashboardScreen()
+                // We call the Parent Wrapper here, not the Dashboard directly
+                AdminMainParent()
             }
         }
     }
 }
 
-// Data classes for admin dashboard
+// --- MAIN PARENT WRAPPER (Handles Navigation) ---
+@Composable
+fun AdminMainParent() {
+    val navController = rememberNavController()
+
+    Scaffold(
+        bottomBar = { AdminBottomNavBar(navController = navController) },
+        containerColor = Color.Black
+    ) { innerPadding ->
+        // We wrap the content in a Box to apply the padding from the bottom bar
+        Box(modifier = Modifier.padding(innerPadding)) {
+            NavHost(navController = navController, startDestination = BottomNavItem.Home.route) {
+
+                // 1. HOME TAB: Your Original Dashboard
+                composable(BottomNavItem.Home.route) {
+                    AdminDashboardScreen()
+                }
+
+                // 2. KYC TAB
+                composable(BottomNavItem.KYC.route) {
+                    PlaceholdersScreen("KYC Management")
+                }
+
+                // 3. PRODUCT TAB
+                composable(BottomNavItem.Product.route) {
+                    PlaceholdersScreen("Product Management")
+                }
+
+                //5. REVIEW TAB
+                composable(BottomNavItem.Review.route) {
+                    PlaceholdersScreen("Review")
+                }
+
+
+                // 4. SETTINGS TAB
+                composable(BottomNavItem.Settings.route) {
+                    PlaceholdersScreen("Settings")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AdminBottomNavBar(navController: NavController) {
+    val items = listOf(
+        BottomNavItem.Home,
+        BottomNavItem.KYC,
+        BottomNavItem.Product,
+        BottomNavItem.Review,
+        BottomNavItem.Settings
+    )
+
+    Surface(
+        color = Color.Black,
+        contentColor = Orange,
+        tonalElevation = 8.dp
+    ) {
+        NavigationBar(
+            containerColor = Color.Black,
+            contentColor = Orange
+        ) {
+            val navBackStackEntry by navController.currentBackStackEntryAsState()
+            val currentRoute = navBackStackEntry?.destination?.route
+
+            items.forEach { item ->
+                NavigationBarItem(
+                    icon = { Icon(item.icon, contentDescription = item.title) },
+                    label = { Text(text = item.title) },
+                    selected = currentRoute == item.route,
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = Color.Black,
+                        selectedTextColor = Orange,
+                        indicatorColor = Orange,
+                        unselectedIconColor = Color.Gray,
+                        unselectedTextColor = Color.Gray
+                    ),
+                    onClick = {
+                        navController.navigate(item.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PlaceholdersScreen(title: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = title,
+            color = Orange,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+// --- YOUR ORIGINAL DATA CLASSES ---
 data class AdminProduct(
     val id: String,
     val name: String,
@@ -89,6 +215,7 @@ enum class FlagType(val color: Color, val text: String) {
     OUTDATED(Color.Gray, "Outdated")
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminDashboardScreen(
@@ -110,7 +237,6 @@ fun AdminDashboardScreen(
     )
 ) {
     val context = LocalContext.current
-    val activity = context as? Activity
     val products by productViewModel.allProducts.observeAsState(initial = emptyList())
     val usersMap by userViewModel.allUsersMap.observeAsState(initial = emptyMap())
 
@@ -125,7 +251,7 @@ fun AdminDashboardScreen(
             AdminProduct(
                 id = product.productId,
                 name = product.title,
-                listedBy = sellerName, // Use full name instead of ID
+                listedBy = sellerName,
                 price = product.price.toInt(),
                 imageRes = product.imageUrl.firstOrNull() ?: "",
                 verificationStatus = if (product.verified) VerificationStatus.VERIFIED else VerificationStatus.PENDING
@@ -133,7 +259,6 @@ fun AdminDashboardScreen(
         }
     }
 
-    // Get users with pending KYC
     val pendingKYCUsers = remember(usersMap) {
         usersMap.filter { (_, user) ->
             user.kycUrl.isNotEmpty() && !user.verified
@@ -147,7 +272,6 @@ fun AdminDashboardScreen(
         }
     }
 
-    // Demo flagged products
     val flaggedProducts = remember {
         (1..5).map { index ->
             FlaggedProduct(
@@ -170,76 +294,73 @@ fun AdminDashboardScreen(
         }
     }
 
-    Scaffold(
-        topBar = { AdminTopBar() },
-        containerColor = Color.Black
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                // Section 1: Products Management
-                SectionHeader(
-                    title = "Product Management",
-                    subtitle = "Manage all listed products",
-                    icon = Icons.Default.Info,
-                    onViewAllClick = {
-                        val intent = Intent(context, AdminProductManagementActivity::class.java)
-                        context.startActivity(intent)
+    // NOTE: Removed Scaffold here because it's now handled in AdminMainParent.
+    // We just keep the column content.
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        AdminTopBar() // Kept Top Bar here
+
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Section 1: Products Management
+            SectionHeader(
+                title = "Product Management",
+                subtitle = "Manage all listed products",
+                icon = Icons.Default.Info,
+                onViewAllClick = {
+                    val intent = Intent(context, AdminProductManagementActivity::class.java)
+                    context.startActivity(intent)
+                }
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            ProductListSection(
+                products = adminProducts.take(3),
+                onProductClick = { product ->
+                    val intent = Intent(context, AdminProductVerificationActivity::class.java).apply {
+                        putExtra("productId", product.id)
+                        putExtra("productName", product.name)
+                        putExtra("listedBy", product.listedBy)
+                        putExtra("price", product.price)
+                        putExtra("imageUrl", product.imageRes)
+                        putExtra("verificationStatus", product.verificationStatus.name)
                     }
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+                    context.startActivity(intent)
+                }
+            )
 
-                ProductListSection(
-                    products = adminProducts.take(3),
-                    onProductClick = { product ->
-                        // Navigate to Product Verification Activity
-                        val intent = Intent(context, AdminProductVerificationActivity::class.java).apply {
-                            putExtra("productId", product.id)
-                            putExtra("productName", product.name)
-                            putExtra("listedBy", product.listedBy)
-                            putExtra("price", product.price)
-                            putExtra("imageUrl", product.imageRes)
-                            putExtra("verificationStatus", product.verificationStatus.name)
-                        }
-                        context.startActivity(intent)
-                    }
-                )
+            Spacer(modifier = Modifier.height(24.dp))
 
-                Spacer(modifier = Modifier.height(24.dp))
+            // Section 2: KYC Verification
+            SectionHeader(
+                title = "KYC Verification",
+                subtitle = "${pendingKYCUsers.size} pending requests",
+                icon = Icons.Default.Person,
+                onViewAllClick = {
+                    val intent = Intent(context, AdminKYCManagementActivity::class.java)
+                    context.startActivity(intent)
+                }
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            KYCListSection(users = pendingKYCUsers)
 
-                // Section 2: KYC Verification
-                SectionHeader(
-                    title = "KYC Verification",
-                    subtitle = "${pendingKYCUsers.size} pending requests",
-                    icon = Icons.Default.Person,
-                    onViewAllClick = {
-                        val intent = Intent(context, AdminKYCManagementActivity::class.java)
-                        context.startActivity(intent)
-                    }
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                KYCListSection(users = pendingKYCUsers)
+            Spacer(modifier = Modifier.height(24.dp))
 
-                Spacer(modifier = Modifier.height(24.dp))
+            // Section 3: Flagged Products
+            SectionHeader(
+                title = "Flagged Items",
+                subtitle = "Review flagged products",
+                icon = Icons.Default.Warning,
+                onViewAllClick = {
+                    Toast.makeText(context, "Flagged Items Management not added", Toast.LENGTH_SHORT).show()
+                }
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            FlaggedProductsSection(products = flaggedProducts)
 
-                // Section 3: Flagged Products
-                SectionHeader(
-                    title = "Flagged Items",
-                    subtitle = "Review flagged products",
-                    icon = Icons.Default.Warning,
-                    onViewAllClick = {
-                        Toast.makeText(context, "Flagged Items Management not added", Toast.LENGTH_SHORT).show()
-                    }
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                FlaggedProductsSection(products = flaggedProducts)
-
-                Spacer(modifier = Modifier.height(100.dp))
-            }
+            Spacer(modifier = Modifier.height(100.dp))
         }
     }
 }
@@ -278,7 +399,7 @@ fun AdminTopBar() {
 fun SectionHeader(
     title: String,
     subtitle: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     onViewAllClick: () -> Unit
 ) {
     Row(
@@ -353,6 +474,7 @@ fun ProductListSection(
         }
     }
 }
+
 @Composable
 fun AdminProductCard(
     product: AdminProduct,
@@ -380,7 +502,6 @@ fun AdminProductCard(
                         .clip(RoundedCornerShape(12.dp)),
                     contentScale = ContentScale.Crop
                 )
-                // Verification Status Badge
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -392,7 +513,6 @@ fun AdminProductCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Product Info
             Text(
                 product.name,
                 color = Color.White,
@@ -518,12 +638,10 @@ fun KYCUserCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // User Profile Image with Status
             Box(
                 modifier = Modifier.size(80.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Profile Image
                 AsyncImage(
                     model = user.imageRes,
                     contentDescription = user.name,
@@ -535,7 +653,6 @@ fun KYCUserCard(
                     contentScale = ContentScale.Crop
                 )
 
-                // Status indicator (small ring)
                 Box(
                     modifier = Modifier
                         .size(84.dp)
@@ -549,7 +666,6 @@ fun KYCUserCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // User Name (centered)
             Text(
                 text = user.name,
                 color = Color.White,
@@ -562,7 +678,6 @@ fun KYCUserCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Status Badge (centered)
             Box(
                 modifier = Modifier
                     .background(
@@ -621,7 +736,6 @@ fun FlaggedProductCard(product: FlaggedProduct) {
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            // Product Image with Flag Indicator
             Box(modifier = Modifier.fillMaxWidth()) {
                 Image(
                     painter = painterResource(id = product.productImageRes),
@@ -632,7 +746,6 @@ fun FlaggedProductCard(product: FlaggedProduct) {
                         .clip(RoundedCornerShape(12.dp)),
                     contentScale = ContentScale.Crop
                 )
-                // Flag Type Badge
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -651,7 +764,6 @@ fun FlaggedProductCard(product: FlaggedProduct) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Product Info
             Text(
                 product.productName,
                 color = Color.White,
@@ -685,7 +797,6 @@ fun FlaggedProductCard(product: FlaggedProduct) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Resolved Status
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
@@ -704,7 +815,6 @@ fun FlaggedProductCard(product: FlaggedProduct) {
                     )
                 }
 
-                // Action Button
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
@@ -757,6 +867,6 @@ fun VerificationBadge(status: VerificationStatus) {
 @Composable
 fun AdminDashboardPreview() {
     RentrTheme {
-        AdminDashboardScreen()
+        AdminMainParent()
     }
 }
