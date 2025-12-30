@@ -615,7 +615,9 @@ fun FlaggedProductsSection(
     val context = LocalContext.current
 
     val flaggedProducts = remember(products) {
-        products.filter { it.flagged && it.flaggedBy.isNotEmpty() }.take(5)
+        products.filter {
+            it.flagged && it.flaggedBy.isNotEmpty()
+        }.take(5)
     }
 
     if (flaggedProducts.isEmpty()) {

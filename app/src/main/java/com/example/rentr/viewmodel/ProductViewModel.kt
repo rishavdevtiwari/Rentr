@@ -19,6 +19,9 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
     val loading: MutableLiveData<Boolean>
         get() = _loading
 
+    private val _flaggedProducts = MutableLiveData<List<ProductModel>>(emptyList())
+    val flaggedProducts: MutableLiveData<List<ProductModel>> = _flaggedProducts
+
     fun addProduct(product: ProductModel, callback: (Boolean, String,String?) -> Unit) {
         repo.addProduct(product, callback)
     }
@@ -129,6 +132,84 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
     fun clearProducts() {
         _allProducts.postValue(emptyList())
     }
+
+    fun getFlaggedProducts(callback: (Boolean, String, List<ProductModel>) -> Unit) {
+        _loading.postValue(true)
+        repo.getFlaggedProducts { success, message, products ->
+            if (success) {
+                _flaggedProducts.postValue(products)
+            } else {
+                _flaggedProducts.postValue(emptyList())
+            }
+            _loading.postValue(false)
+            callback(success, message, products)
+        }
+    }
+
+    fun updateProductFlags(productId: String, product: ProductModel, callback: (Boolean, String) -> Unit) {
+        _loading.postValue(true)
+        repo.updateProductFlags(productId, product) { success, message ->
+            if (success) {
+                // Update the specific product in the list
+                val updatedList = _flaggedProducts.value?.toMutableList() ?: mutableListOf()
+                val index = updatedList.indexOfFirst { it.productId == productId }
+                if (index != -1) {
+                    updatedList[index] = product
+                    _flaggedProducts.postValue(updatedList)
+                }
+            }
+            _loading.postValue(false)
+            callback(success, message)
+        }
+    }
+
+    fun clearProductFlags(productId: String, callback: (Boolean, String) -> Unit) {
+        _loading.postValue(true)
+        repo.clearFlags(productId) { success, message ->
+            if (success) {
+                // Remove from flagged products list
+                val updatedList = _flaggedProducts.value?.filter { it.productId != productId } ?: emptyList()
+                _flaggedProducts.postValue(updatedList)
+            }
+            _loading.postValue(false)
+            callback(success, message)
+        }
+    }
+
+    fun resolveFlaggedProduct(
+        productId: String,
+        callback: (Boolean, String) -> Unit
+    ) {
+        getProductById(productId) { success, message, product ->
+            if (success && product != null) {
+                val updatedProduct = product.copy(
+                    flagged = false,
+                    flaggedBy = emptyList(),
+                    flaggedReason = emptyList(),
+                    appealReason = "",
+                    availability = true
+                )
+                updateProductFlags(productId, updatedProduct, callback)
+            } else {
+                callback(false, "Product not found: $message")
+            }
+        }
+    }
+
+    fun markProductForReview(productId: String, callback: (Boolean, String) -> Unit) {
+        getProductById(productId) { success, message, product ->
+            if (success && product != null) {
+                val updatedProduct = product.copy(
+                    availability = false,
+                    flagged = true
+                )
+                updateProductFlags(productId, updatedProduct, callback)
+            } else {
+                callback(false, "Product not found: $message")
+            }
+        }
+    }
+
 
     class Factory(private val repo: ProductRepo) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")

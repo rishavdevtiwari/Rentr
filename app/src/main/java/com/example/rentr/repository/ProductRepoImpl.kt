@@ -216,4 +216,68 @@ class ProductRepoImpl : ProductRepo {
             }
         })
     }
+
+    override fun getFlaggedProducts(callback: (Boolean, String, List<ProductModel>) -> Unit) {
+        ref.orderByChild("flagged").equalTo(true)
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val products = mutableListOf<ProductModel>()
+                    for (data in snapshot.children) {
+                        data.getValue(ProductModel::class.java)?.let { product ->
+                            if (product.flagged) {
+                                products.add(product)
+                            }
+                        }
+                    }
+                    callback(true, "Flagged products fetched", products)
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    callback(false, error.message, emptyList())
+                }
+            })
+    }
+
+    override fun updateProductFlags(productId: String, product: ProductModel, callback: (Boolean, String) -> Unit) {
+        ref.child(productId).updateChildren(product.toMap()).addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                callback(true, "Product flags updated")
+            } else {
+                callback(false, task.exception?.message ?: "Failed to update product flags")
+            }
+        }
+    }
+
+    override fun clearFlags(productId: String, callback: (Boolean, String) -> Unit) {
+        ref.child(productId).child("flagged").setValue(false)
+            .addOnCompleteListener { flagTask ->
+                if (flagTask.isSuccessful) {
+                    ref.child(productId).child("flaggedBy").setValue(emptyList<String>())
+                        .addOnCompleteListener { listTask ->
+                            if (listTask.isSuccessful) {
+                                ref.child(productId).child("flaggedReason").setValue(emptyList<String>())
+                                    .addOnCompleteListener { reasonTask ->
+                                        if (reasonTask.isSuccessful) {
+                                            ref.child(productId).child("appealReason").setValue("")
+                                                .addOnCompleteListener { appealTask ->
+                                                    if (appealTask.isSuccessful) {
+                                                        callback(true, "All flags cleared")
+                                                    } else {
+                                                        callback(false, "Failed to clear appeal reason")
+                                                    }
+                                                }
+                                        } else {
+                                            callback(false, "Failed to clear flag reasons")
+                                        }
+                                    }
+                            } else {
+                                callback(false, "Failed to clear flaggedBy list")
+                            }
+                        }
+                } else {
+                    callback(false, "Failed to update flagged status")
+                }
+            }
+    }
 }
+
