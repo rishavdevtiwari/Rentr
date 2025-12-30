@@ -8,6 +8,7 @@ data class ProductModel(
     val price: Double = 0.0,
     val productId: String = "", // primary key
     val availability: Boolean = true,
+    val availableUntil: Long = 0L, // New field for availability end date
     val outOfStock: Boolean = false,
     val rating: Double = 0.0,
     val ratingCount: Int = 0,
@@ -28,6 +29,7 @@ data class ProductModel(
             "price" to price,
             "productId" to productId,
             "availability" to availability,
+            "availableUntil" to availableUntil,
             "outOfStock" to outOfStock,
             "rating" to rating,
             "ratingCount" to ratingCount,

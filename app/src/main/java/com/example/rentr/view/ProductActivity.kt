@@ -10,6 +10,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -19,7 +20,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
@@ -32,7 +35,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,6 +47,9 @@ import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.RentrTheme
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 class ProductActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,32 +76,11 @@ fun ProductDisplay(productId: String) {
 
     val product by productViewModel.product.observeAsState()
     var sellerName by remember { mutableStateOf("") }
-
-    // Flag dialog states
-    var showFlagReasonDialog by remember { mutableStateOf(false) }
-    var showFlagConfirmationDialog by remember { mutableStateOf(false) }
-    var flagReason by remember { mutableStateOf("") }
+    var showFlagDialog by remember { mutableStateOf(false) }
+    var rentalDays by remember { mutableStateOf(1) }
 
     val currentUserId = userViewModel.getCurrentUser()?.uid
     val isSeller = product?.listedBy == currentUserId
-    val isAlreadyFlagged = product?.flaggedBy?.contains(currentUserId) == true
-    val isProductFlagged = product?.flagged == true && product?.flaggedBy?.isNotEmpty() == true
-    val hasAppeal = product?.appealReason?.isNotEmpty() == true
-
-    // User verification check
-    var currentUserVerified by remember { mutableStateOf(false) }
-
-    LaunchedEffect(currentUserId) {
-        currentUserId?.let {
-            userViewModel.getUserById(it) { success, _, user ->
-                if (success) {
-                    user?.let { fetchedUser ->
-                        currentUserVerified = fetchedUser.verified
-                    }
-                }
-            }
-        }
-    }
 
     LaunchedEffect(productId) {
         if (productId.isNotEmpty()) {
@@ -113,36 +97,55 @@ fun ProductDisplay(productId: String) {
         }
     }
 
-    // Checkout function
-    val onCheckoutClick = {
-        if (currentUserVerified) {
-            val safeProduct = product
-            if (safeProduct != null) {
-                val intent = Intent(context, CheckoutActivity::class.java).apply {
-                    putExtra("productTitle", safeProduct.title)
-                    putExtra("productPrice", safeProduct.price)
-                    putExtra("productId", safeProduct.productId)
-                    putExtra("sellerId", safeProduct.listedBy)
-                }
-                context.startActivity(intent)
+    if (showFlagDialog) {
+        AlertDialog(
+            onDismissRequest = { showFlagDialog = false },
+            title = { Text("Confirm Flag") },
+            text = { Text("Are you sure you want to flag this item?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val currentProduct = product ?: return@Button
+                        val uid = currentUserId ?: return@Button
+
+                        val updatedFlaggedBy = currentProduct.flaggedBy.toMutableList().apply {
+                            if (!contains(uid)) add(uid)
+                        }
+                        productViewModel.updateProduct(currentProduct.productId, currentProduct.copy(flaggedBy = updatedFlaggedBy)) { success, _ ->
+                            if (success) {
+                                productViewModel.getProductById(productId) { _, _, _ -> }
+                            }
+                        }
+                        showFlagDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) { Text("Yes, Flag") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFlagDialog = false }) { Text("Cancel") }
             }
-        } else {
-            Toast.makeText(context, "Please complete KYC to rent items.", Toast.LENGTH_LONG).show()
-        }
+        )
     }
 
     Scaffold(
         containerColor = Color.Black,
         bottomBar = {
             val safeProduct = product
-            val isAvailable = safeProduct?.availability == true &&
-                    safeProduct?.outOfStock == false &&
-                    !isProductFlagged
-            if (!isSeller && isAvailable) {
+            if (!isSeller && safeProduct?.availability == true && safeProduct.outOfStock == false) {
+                val totalPrice = safeProduct.price * rentalDays
                 BottomBar(
-                    price = safeProduct?.price ?: 0.0,
-                    enabled = true,
-                    onClick = onCheckoutClick
+                    price = totalPrice,
+                    onPayNowClick = {
+                        val intent = Intent(context, CheckoutActivity::class.java).apply {
+                            putExtra("productTitle", safeProduct.title)
+                            putExtra("basePrice", safeProduct.price)
+                            putExtra("rentalPrice", totalPrice)
+                            putExtra("days", rentalDays)
+                            putExtra("productId", safeProduct.productId)
+                            putExtra("sellerId", safeProduct.listedBy)
+                        }
+                        context.startActivity(intent)
+                    }
                 )
             }
         }
@@ -154,6 +157,8 @@ fun ProductDisplay(productId: String) {
             }
             return@Scaffold
         }
+
+        val isAlreadyFlagged = safeProduct.flaggedBy.contains(currentUserId)
 
         Column(
             modifier = Modifier
@@ -189,7 +194,6 @@ fun ProductDisplay(productId: String) {
                         contentScale = ContentScale.Crop
                     )
                 }
-
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -204,8 +208,7 @@ fun ProductDisplay(productId: String) {
                     ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
                     }
-
-                    if (!isSeller && !isProductFlagged) {
+                    if (!isSeller) {
                         if (isAlreadyFlagged) {
                             Card(
                                 shape = RoundedCornerShape(50),
@@ -222,38 +225,15 @@ fun ProductDisplay(productId: String) {
                             }
                         } else {
                             IconButton(
-                                onClick = {
-                                    if (currentUserVerified) {
-                                        showFlagReasonDialog = true
-                                    } else {
-                                        Toast.makeText(context, "Please verify your account to flag items.", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
+                                onClick = { showFlagDialog = true },
                                 modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
                             ) {
                                 Icon(Icons.Default.Flag, "Flag item", tint = Color.Red)
                             }
                         }
                     }
-
-                    if (isProductFlagged) {
-                        Card(
-                            shape = RoundedCornerShape(50),
-                            colors = CardDefaults.cardColors(containerColor = Color.Yellow.copy(alpha = 0.8f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Flag, contentDescription = "Reported", tint = Color.Black)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("REPORTED", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            }
-                        }
-                    }
                 }
             }
-
             if (safeProduct.imageUrl.size > 1) {
                 Row(
                     Modifier
@@ -273,7 +253,6 @@ fun ProductDisplay(productId: String) {
                     }
                 }
             }
-
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -281,61 +260,83 @@ fun ProductDisplay(productId: String) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(safeProduct.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-
-                    val isAvailable = safeProduct.availability && !safeProduct.outOfStock && !isProductFlagged
-                    Card(
-                        shape = RoundedCornerShape(8.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = when {
-                                isProductFlagged -> Color.Yellow.copy(alpha = 0.15f)
-                                isAvailable -> Orange.copy(alpha = 0.15f)
-                                else -> Color.Gray.copy(alpha = 0.15f)
-                            }
-                        )
-                    ) {
-                        val statusText = when {
-                            isProductFlagged -> "REPORTED"
-                            isAvailable -> "Available"
-                            !safeProduct.availability -> "Unavailable"
-                            else -> "Out of Stock"
+                    if (safeProduct.availability && !safeProduct.outOfStock) {
+                        Card(
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(containerColor = Orange.copy(alpha = 0.15f))
+                        ) {
+                            Text(
+                                text = "Available",
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                color = Orange,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
                         }
-                        val statusColor = when {
-                            isProductFlagged -> Color.Yellow
-                            isAvailable -> Orange
-                            else -> Color.Gray
-                        }
-                        Text(
-                            text = statusText,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            color = statusColor,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
-                        )
                     }
                 }
-
                 Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Star, null, tint = Orange, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    val ratingText = if (safeProduct.ratingCount > 0) {
+                        String.format("%.1f (%d ratings)", safeProduct.rating, safeProduct.ratingCount)
+                    } else {
+                        "No reviews yet"
+                    }
+                    Text(ratingText, color = Color.Gray, fontSize = 14.sp)
+                }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                if (safeProduct.availableUntil > 0) {
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "NPR. ${safeProduct.price}/day",
-                        color = if (isProductFlagged) Color.Yellow else Orange,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        text = "Available until: ${SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(safeProduct.availableUntil)}",
+                        color = Color.Gray,
+                        fontSize = 14.sp
                     )
+                }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Star, null, tint = Orange, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(2.dp))
-                        val ratingText = if (safeProduct.ratingCount > 0) {
-                            String.format("%.1f (%d ratings)", safeProduct.rating, safeProduct.ratingCount)
-                        } else {
-                            "No reviews yet"
+                // Day Selector
+                if (!isSeller) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Divider(color = Field)
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    val maxRentalDate = Calendar.getInstance().apply {
+                        timeInMillis = safeProduct.availableUntil
+                    }
+                    val currentRentalDate = Calendar.getInstance().apply {
+                        add(Calendar.DAY_OF_YEAR, rentalDays)
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Rental Days", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = { if (rentalDays > 1) rentalDays-- },
+                                modifier = Modifier.border(1.dp, Color.Gray, CircleShape)
+                            ) {
+                                Icon(Icons.Default.Remove, contentDescription = "Decrease days", tint = Color.White)
+                            }
+                            Text(
+                                "$rentalDays",
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                            IconButton(
+                                onClick = { if (currentRentalDate.before(maxRentalDate)) rentalDays++ },
+                                enabled = currentRentalDate.before(maxRentalDate),
+                                modifier = Modifier.border(1.dp, if (currentRentalDate.before(maxRentalDate)) Color.Gray else Color.DarkGray, CircleShape)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = "Increase days", tint = if (currentRentalDate.before(maxRentalDate)) Color.White else Color.DarkGray)
+                            }
                         }
-                        Text(ratingText, color = Color.Gray, fontSize = 12.sp)
                     }
                 }
 
@@ -365,64 +366,26 @@ fun ProductDisplay(productId: String) {
                         RatingBar(
                             rating = currentUserRating,
                             onRatingChange = { newRating ->
-                                if (!currentUserVerified) {
-                                    Toast.makeText(context, "Please verify your account to rate items.", Toast.LENGTH_SHORT).show()
-                                    return@RatingBar
-                                }
-
-                                val newRatedBy = safeProduct.ratedBy.toMutableMap().apply {
-                                    this[currentUserId] = newRating
-                                }
-                                val newRatingCount = newRatedBy.size
-                                val newAverageRating = if (newRatingCount > 0)
-                                    newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
-
-                                val optimisticallyUpdatedProduct = safeProduct.copy(
-                                    ratedBy = newRatedBy,
-                                    ratingCount = newRatingCount,
-                                    rating = newAverageRating
-                                )
-                                productViewModel.product.postValue(optimisticallyUpdatedProduct)
-
                                 productViewModel.updateRating(productId, currentUserId, newRating) { success, _ ->
                                     if (success) {
                                         Toast.makeText(context, "Rating submitted!", Toast.LENGTH_SHORT).show()
                                     } else {
                                         Toast.makeText(context, "Failed to submit rating.", Toast.LENGTH_SHORT).show()
-                                        productViewModel.product.postValue(safeProduct)
                                     }
+                                    productViewModel.getProductById(productId) { _, _, _ -> }
                                 }
                             }
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         if (currentUserRating > 0) {
                             TextButton(onClick = {
-                                if (!currentUserVerified) {
-                                    Toast.makeText(context, "Please verify your account to change your rating.", Toast.LENGTH_SHORT).show()
-                                    return@TextButton
-                                }
-
-                                val newRatedBy = safeProduct.ratedBy.toMutableMap().apply {
-                                    remove(currentUserId)
-                                }
-                                val newRatingCount = newRatedBy.size
-                                val newAverageRating = if (newRatingCount > 0)
-                                    newRatedBy.values.sum().toDouble() / newRatingCount else 0.0
-
-                                val optimisticallyUpdatedProduct = safeProduct.copy(
-                                    ratedBy = newRatedBy,
-                                    ratingCount = newRatingCount,
-                                    rating = newAverageRating
-                                )
-                                productViewModel.product.postValue(optimisticallyUpdatedProduct)
-
-                                productViewModel.updateRating(productId, currentUserId, 0) { success, _ ->
+                                productViewModel.updateRating(productId, currentUserId, 0) { success, _ -> // 0 means remove rating
                                     if (success) {
                                         Toast.makeText(context, "Rating removed.", Toast.LENGTH_SHORT).show()
                                     } else {
                                         Toast.makeText(context, "Failed to remove rating.", Toast.LENGTH_SHORT).show()
-                                        productViewModel.product.postValue(safeProduct)
                                     }
+                                    productViewModel.getProductById(productId) { _, _, _ -> }
                                 }
                             }) {
                                 Text("Clear", color = Orange)
@@ -431,239 +394,9 @@ fun ProductDisplay(productId: String) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(100.dp))
+                Spacer(modifier = Modifier.height(100.dp)) // Padding at the bottom
             }
         }
-    }
-
-    // Two-step flagging dialogs
-    if (showFlagReasonDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showFlagReasonDialog = false
-                flagReason = ""
-            },
-            title = {
-                Text(
-                    "Report Product",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Column {
-                    Text(
-                        "Please tell us why you're flagging this product:",
-                        color = Color.Gray,
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    TextField(
-                        value = flagReason,
-                        onValueChange = { flagReason = it },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp),
-                        placeholder = {
-                            Text(
-                                "Enter your reason here...",
-                                color = Color.Gray.copy(alpha = 0.7f),
-                                fontSize = 12.sp
-                            )
-                        },
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Field,
-                            unfocusedContainerColor = Field,
-                            focusedIndicatorColor = Orange,
-                            unfocusedIndicatorColor = Color.Gray,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedPlaceholderColor = Color.Gray,
-                            unfocusedPlaceholderColor = Color.Gray
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        singleLine = false,
-                        maxLines = 5,
-                        minLines = 3
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Your report will be reviewed by our admin team.",
-                        color = Color.Gray,
-                        fontSize = 12.sp
-                    )
-                }
-            },
-            confirmButton = {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            showFlagReasonDialog = false
-                            flagReason = ""
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Field
-                        ),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Cancel", color = Color.White)
-                    }
-                    Button(
-                        onClick = {
-                            if (flagReason.trim().isNotEmpty()) {
-                                showFlagReasonDialog = false
-                                showFlagConfirmationDialog = true
-                            } else {
-                                Toast.makeText(context, "Please enter a reason", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Orange
-                        ),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Continue", color = Color.White)
-                    }
-                }
-            },
-            containerColor = Color.Black
-        )
-    }
-
-    if (showFlagConfirmationDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showFlagConfirmationDialog = false
-                flagReason = ""
-            },
-            title = {
-                Text(
-                    "Confirm Report",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Column {
-                    Text(
-                        "Are you sure you want to report this product?",
-                        color = Color.Gray,
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Field.copy(alpha = 0.5f)
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                "Your Report Reason:",
-                                color = Color.Gray,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                flagReason,
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                fontStyle = FontStyle.Italic
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        "The seller will be notified and admin will review your report.",
-                        color = Color.Gray,
-                        fontSize = 12.sp
-                    )
-                }
-            },
-            confirmButton = {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            showFlagConfirmationDialog = false
-                            flagReason = ""
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Field
-                        ),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Cancel", color = Color.White)
-                    }
-                    Button(
-                        onClick = {
-                            val currentProduct = product
-                            if (currentUserId != null && currentProduct != null) {
-                                val updatedFlaggedBy = currentProduct.flaggedBy.toMutableList().apply {
-                                    if (!contains(currentUserId)) add(currentUserId)
-                                }
-
-                                val updatedFlagReason = currentProduct.flaggedReason.toMutableList().apply {
-                                    add(flagReason)
-                                }
-
-                                val updatedProduct = currentProduct.copy(
-                                    flaggedBy = updatedFlaggedBy,
-                                    flagged = updatedFlaggedBy.isNotEmpty(),
-                                    flaggedReason = updatedFlagReason
-                                )
-
-                                productViewModel.updateProduct(
-                                    currentProduct.productId,
-                                    updatedProduct
-                                ) { success, message ->
-                                    if (success) {
-                                        val sellerId = currentProduct.listedBy
-                                        // Use the new increment function - cleaner and safer
-                                        userViewModel.incrementFlagCount(sellerId) { incrementSuccess, _ ->
-                                            if (incrementSuccess) {
-                                                productViewModel.getProductById(productId) { _, _, _ -> }
-                                                Toast.makeText(
-                                                    context,
-                                                    "Product reported successfully!",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            } else {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Product reported (flag count not updated)",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-                                        }
-                                    } else {
-                                        Toast.makeText(
-                                            context,
-                                            "Failed to report product: $message",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                }
-                            }
-                            showFlagConfirmationDialog = false
-                            flagReason = ""
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Red
-                        ),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Yes, Report", color = Color.White)
-                    }
-                }
-            },
-            containerColor = Color.Black
-        )
     }
 }
 
@@ -688,7 +421,7 @@ fun RatingBar(
 }
 
 @Composable
-fun BottomBar(price: Double, enabled: Boolean, onClick: () -> Unit) {
+fun BottomBar(price: Double, onPayNowClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -702,14 +435,8 @@ fun BottomBar(price: Double, enabled: Boolean, onClick: () -> Unit) {
             Text(String.format("NPR. %.2f", price), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
         Button(
-            onClick = onClick,
-            enabled = enabled,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Orange,
-                contentColor = Color.Black,
-                disabledContainerColor = Color.Gray,
-                disabledContentColor = Color.Black.copy(alpha = 0.5f)
-            ),
+            onClick = onPayNowClick,
+            colors = ButtonDefaults.buttonColors(containerColor = Orange),
             shape = RoundedCornerShape(16.dp),
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp)
         ) {
