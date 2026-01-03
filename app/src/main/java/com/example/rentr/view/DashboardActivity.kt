@@ -109,12 +109,12 @@ fun DashboardScreen() {
         }
     }
 
-        val filteredProducts = products?.filter {
-           it.title.contains(searchQuery, ignoreCase = true)
-        } ?: emptyList()
+    val filteredProducts = products?.filter {
+        it.verified && !it.flagged && it.title.contains(searchQuery, ignoreCase = true)
+    } ?: emptyList()
 
-        // Limit to 6 items for the dashboard preview
-        val displayedProducts = filteredProducts.take(6)
+    // Limit to 6 items for the dashboard preview
+    val displayedProducts = filteredProducts.take(6)
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -203,6 +203,7 @@ fun DashboardScreen() {
         }
     }
 }
+
 
 @Composable
 fun TopBar(userName: String?,userViewModel: UserViewModel) {

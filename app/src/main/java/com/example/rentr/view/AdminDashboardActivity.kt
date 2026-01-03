@@ -38,6 +38,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.example.rentr.R
+import com.example.rentr.model.ProductModel
+import com.example.rentr.model.UserModel
 import com.example.rentr.repository.ProductRepoImpl
 import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.ui.theme.Field
@@ -46,12 +48,13 @@ import com.example.rentr.ui.theme.RentrTheme
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
 
-// --- NAVIGATION ITEMS ---
+// --- NAVIGATION CONFIGURATION ---
+
 sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
     object Home : BottomNavItem("home", "Home", Icons.Default.Home)
     object KYC : BottomNavItem("kyc", "KYC", Icons.Default.VerifiedUser)
     object Product : BottomNavItem("product", "Product", Icons.Default.ShoppingCart)
-    object Review : BottomNavItem("review", "Review", Icons.Default.RateReview)
+    object Review : BottomNavItem("review", "Review", Icons.Default.RateReview) // New Review Tab
     object Settings : BottomNavItem("settings", "Settings", Icons.Default.Settings)
 }
 
@@ -60,14 +63,15 @@ class AdminDashboardActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             RentrTheme {
-                // We call the Parent Wrapper here, not the Dashboard directly
+                // Point to the Navigation Parent instead of the Screen directly
                 AdminMainParent()
             }
         }
     }
 }
 
-// --- MAIN PARENT WRAPPER (Handles Navigation) ---
+// --- MAIN PARENT COMPOSABLE (Holds Scaffold & NavHost) ---
+
 @Composable
 fun AdminMainParent() {
     val navController = rememberNavController()
@@ -76,11 +80,11 @@ fun AdminMainParent() {
         bottomBar = { AdminBottomNavBar(navController = navController) },
         containerColor = Color.Black
     ) { innerPadding ->
-        // We wrap the content in a Box to apply the padding from the bottom bar
+        // Apply padding from the bottom bar to the content
         Box(modifier = Modifier.padding(innerPadding)) {
             NavHost(navController = navController, startDestination = BottomNavItem.Home.route) {
 
-                // 1. HOME TAB: Your Original Dashboard
+                // 1. HOME TAB (Your Original Dashboard)
                 composable(BottomNavItem.Home.route) {
                     AdminDashboardScreen()
                 }
@@ -95,13 +99,12 @@ fun AdminMainParent() {
                     PlaceholdersScreen("Product Management")
                 }
 
-                //5. REVIEW TAB
+                // 4. REVIEW TAB (New)
                 composable(BottomNavItem.Review.route) {
-                    PlaceholdersScreen("Review")
+                    PlaceholdersScreen("Flagged Reviews")
                 }
 
-
-                // 4. SETTINGS TAB
+                // 5. SETTINGS TAB
                 composable(BottomNavItem.Settings.route) {
                     PlaceholdersScreen("Settings")
                 }
@@ -116,10 +119,11 @@ fun AdminBottomNavBar(navController: NavController) {
         BottomNavItem.Home,
         BottomNavItem.KYC,
         BottomNavItem.Product,
-        BottomNavItem.Review,
+        BottomNavItem.Review, // Added to list
         BottomNavItem.Settings
     )
 
+    // Surface ensures the background matches the theme
     Surface(
         color = Color.Black,
         contentColor = Orange,
@@ -135,7 +139,7 @@ fun AdminBottomNavBar(navController: NavController) {
             items.forEach { item ->
                 NavigationBarItem(
                     icon = { Icon(item.icon, contentDescription = item.title) },
-                    label = { Text(text = item.title) },
+                    label = { Text(text = item.title, fontSize = 10.sp) },
                     selected = currentRoute == item.route,
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color.Black,
@@ -167,16 +171,24 @@ fun PlaceholdersScreen(title: String) {
             .background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = title,
-            color = Orange,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = title,
+                color = Orange,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Coming Soon",
+                color = Color.Gray,
+                fontSize = 14.sp
+            )
+        }
     }
 }
 
-// --- YOUR ORIGINAL DATA CLASSES ---
+// --- DATA CLASSES ---
+
 data class AdminProduct(
     val id: String,
     val name: String,
@@ -193,15 +205,6 @@ data class UserKYC(
     val verificationStatus: VerificationStatus
 )
 
-data class FlaggedProduct(
-    val id: Int,
-    val productName: String,
-    val productImageRes: Int,
-    val flaggedBy: String,
-    val flagType: FlagType,
-    val isResolved: Boolean
-)
-
 enum class VerificationStatus(val color: Color, val text: String) {
     VERIFIED(Orange, "Verified"),
     PENDING(Color.Yellow, "Pending"),
@@ -215,6 +218,7 @@ enum class FlagType(val color: Color, val text: String) {
     OUTDATED(Color.Gray, "Outdated")
 }
 
+// --- ORIGINAL DASHBOARD LOGIC ---
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -272,36 +276,14 @@ fun AdminDashboardScreen(
         }
     }
 
-    val flaggedProducts = remember {
-        (1..5).map { index ->
-            FlaggedProduct(
-                id = index,
-                productName = "Product $index",
-                productImageRes = when (index % 3) {
-                    0 -> R.drawable.bike
-                    1 -> R.drawable.car
-                    else -> R.drawable.toy
-                },
-                flaggedBy = "User ${index * 3}",
-                flagType = when (index % 4) {
-                    0 -> FlagType.SUSPICIOUS
-                    1 -> FlagType.INAPPROPRIATE
-                    2 -> FlagType.DUPLICATE
-                    else -> FlagType.OUTDATED
-                },
-                isResolved = index % 3 == 0
-            )
-        }
-    }
-
-    // NOTE: Removed Scaffold here because it's now handled in AdminMainParent.
-    // We just keep the column content.
+    // Removed Scaffold here because AdminMainParent now provides the Scaffold/BottomBar.
+    // We only keep the scrollable content column.
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        AdminTopBar() // Kept Top Bar here
+        AdminTopBar() // Kept the top bar inside the scrollable area or it can be moved up if preferred
 
         Column(modifier = Modifier.padding(16.dp)) {
             // Section 1: Products Management
@@ -351,14 +333,19 @@ fun AdminDashboardScreen(
             // Section 3: Flagged Products
             SectionHeader(
                 title = "Flagged Items",
-                subtitle = "Review flagged products",
+                subtitle = "${products.count { it.flagged && it.flaggedBy.isNotEmpty() }} pending review",
                 icon = Icons.Default.Warning,
                 onViewAllClick = {
-                    Toast.makeText(context, "Flagged Items Management not added", Toast.LENGTH_SHORT).show()
+                    val intent = Intent(context, AdminReviewManagementActivity::class.java)
+                    context.startActivity(intent)
                 }
             )
+
             Spacer(modifier = Modifier.height(12.dp))
-            FlaggedProductsSection(products = flaggedProducts)
+            FlaggedProductsSection(
+                products = products,
+                usersMap = usersMap
+            )
 
             Spacer(modifier = Modifier.height(100.dp))
         }
@@ -489,7 +476,6 @@ fun AdminProductCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            // Product Image
             Box(modifier = Modifier.fillMaxWidth()) {
                 AsyncImage(
                     model = product.imageRes,
@@ -510,9 +496,7 @@ fun AdminProductCard(
                     VerificationBadge(status = product.verificationStatus)
                 }
             }
-
             Spacer(modifier = Modifier.height(8.dp))
-
             Text(
                 product.name,
                 color = Color.White,
@@ -520,9 +504,7 @@ fun AdminProductCard(
                 fontWeight = FontWeight.Bold,
                 maxLines = 1
             )
-
             Spacer(modifier = Modifier.height(4.dp))
-
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     Icons.Default.Person,
@@ -538,9 +520,7 @@ fun AdminProductCard(
                     maxLines = 1
                 )
             }
-
             Spacer(modifier = Modifier.height(4.dp))
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -552,7 +532,6 @@ fun AdminProductCard(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
-
                 Text(
                     product.verificationStatus.text,
                     color = product.verificationStatus.color,
@@ -567,7 +546,6 @@ fun AdminProductCard(
 @Composable
 fun KYCListSection(users: List<UserKYC>) {
     val context = LocalContext.current
-
     if (users.isEmpty()) {
         Box(
             modifier = Modifier
@@ -652,7 +630,6 @@ fun KYCUserCard(
                         .clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
-
                 Box(
                     modifier = Modifier
                         .size(84.dp)
@@ -663,9 +640,7 @@ fun KYCUserCard(
                         )
                 )
             }
-
             Spacer(modifier = Modifier.height(12.dp))
-
             Text(
                 text = user.name,
                 color = Color.White,
@@ -675,9 +650,7 @@ fun KYCUserCard(
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
-
             Spacer(modifier = Modifier.height(8.dp))
-
             Box(
                 modifier = Modifier
                     .background(
@@ -714,47 +687,131 @@ fun KYCUserCard(
 }
 
 @Composable
-fun FlaggedProductsSection(products: List<FlaggedProduct>) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(horizontal = 4.dp)
-    ) {
-        items(products) { product ->
-            FlaggedProductCard(product = product)
+fun FlaggedProductsSection(
+    products: List<ProductModel>,
+    usersMap: Map<String, UserModel>
+) {
+    val context = LocalContext.current
+    val flaggedProducts = remember(products) {
+        products.filter {
+            it.flagged && it.flaggedBy.isNotEmpty()
+        }.take(5)
+    }
+
+    if (flaggedProducts.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp)
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "No flagged items",
+                    tint = Color.Green,
+                    modifier = Modifier.size(48.dp)
+                )
+                Text(
+                    "No flagged items",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    "All items are clean and verified",
+                    color = Color.Gray,
+                    fontSize = 14.sp
+                )
+            }
+        }
+    } else {
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(horizontal = 4.dp)
+        ) {
+            items(flaggedProducts) { product ->
+                FlaggedProductCard(
+                    product = product,
+                    sellerName = usersMap[product.listedBy]?.fullName ?: "Unknown",
+                    onClick = {
+                        val intent = Intent(context, AdminFlaggedReviewActivity::class.java)
+                        intent.putExtra("productId", product.productId)
+                        context.startActivity(intent)
+                    }
+                )
+            }
         }
     }
 }
 
 @Composable
-fun FlaggedProductCard(product: FlaggedProduct) {
+fun FlaggedProductCard(
+    product: ProductModel,
+    sellerName: String,
+    onClick: () -> Unit
+) {
+    val flagStatus = when {
+        product.appealReason.isNotEmpty() -> "APPEAL"
+        product.flagged -> "FLAGGED"
+        else -> "RESOLVED"
+    }
+
+    val flagStatusColor = when (flagStatus) {
+        "APPEAL" -> Color.Cyan
+        "FLAGGED" -> Color.Yellow
+        else -> Color.Green
+    }
+
+    val flagReasonText = if (product.flaggedReason.isNotEmpty()) {
+        val firstReason = product.flaggedReason.firstOrNull() ?: ""
+        if (product.flaggedReason.size > 1) {
+            "$firstReason (+${product.flaggedReason.size - 1} more)"
+        } else {
+            firstReason
+        }
+    } else {
+        "No reason provided"
+    }
+
     Card(
         modifier = Modifier
             .width(200.dp)
-            .clickable { /* Handle flagged product click */ },
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Field),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Box(modifier = Modifier.fillMaxWidth()) {
-                Image(
-                    painter = painterResource(id = product.productImageRes),
-                    contentDescription = product.productName,
+                AsyncImage(
+                    model = product.imageUrl.firstOrNull() ?: "",
+                    contentDescription = product.title,
+                    placeholder = painterResource(id = R.drawable.rentrimage),
+                    error = painterResource(id = R.drawable.rentrimage),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(100.dp)
                         .clip(RoundedCornerShape(12.dp)),
                     contentScale = ContentScale.Crop
                 )
+
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
-                        .background(product.flagType.color, RoundedCornerShape(8.dp))
+                        .background(
+                            flagStatusColor,
+                            RoundedCornerShape(8.dp)
+                        )
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        product.flagType.text,
+                        flagStatus,
                         color = Color.Black,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold
@@ -763,72 +820,80 @@ fun FlaggedProductCard(product: FlaggedProduct) {
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-
             Text(
-                product.productName,
+                product.title,
                 color = Color.White,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1
             )
-
             Spacer(modifier = Modifier.height(4.dp))
-
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    Icons.Default.PriorityHigh,
-                    contentDescription = "Flagged by",
-                    tint = Color.Red.copy(alpha = 0.7f),
+                    Icons.Default.Person,
+                    contentDescription = "Listed by",
+                    tint = Color.Gray,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    "By: ${product.flaggedBy}",
+                    sellerName,
                     color = Color.Gray,
                     fontSize = 12.sp,
                     maxLines = 1
                 )
             }
-
+            if (product.flaggedReason.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    flagReasonText.take(30) + if (flagReasonText.length > 30) "..." else "",
+                    color = Color.LightGray,
+                    fontSize = 11.sp,
+                    maxLines = 1
+                )
+            }
             Spacer(modifier = Modifier.height(8.dp))
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .background(
-                                color = if (product.isResolved) Color.Green else Color.Red,
-                                shape = CircleShape
-                            )
+                    Icon(
+                        Icons.Default.Flag,
+                        contentDescription = "Flag count",
+                        tint = Color.Red.copy(alpha = 0.7f),
+                        modifier = Modifier.size(12.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        if (product.isResolved) "Resolved" else "Pending",
-                        color = if (product.isResolved) Color.Green else Color.Red,
+                        "${product.flaggedBy.size}",
+                        color = Color.Red,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
                     )
                 }
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (product.isResolved) Color.Gray.copy(alpha = 0.3f) else Orange)
-                        .clickable(enabled = !product.isResolved) { /* Handle action */ }
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        if (product.isResolved) "View" else "Review",
-                        color = if (product.isResolved) Color.Gray else Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Text(
+                    "NPR. ${product.price.toInt()}",
+                    color = Orange,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = onClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Orange),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    "Review",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
@@ -867,6 +932,6 @@ fun VerificationBadge(status: VerificationStatus) {
 @Composable
 fun AdminDashboardPreview() {
     RentrTheme {
-        AdminMainParent()
+        AdminDashboardScreen()
     }
 }

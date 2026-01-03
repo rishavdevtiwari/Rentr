@@ -1,6 +1,7 @@
 package com.example.rentr.view
 
 import android.app.Activity
+import android.app.DatePickerDialog
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
@@ -18,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -31,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -46,7 +49,9 @@ import com.example.rentr.ui.theme.RentrTheme
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
-import kotlin.coroutines.EmptyCoroutineContext.get
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -84,17 +89,36 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
     val userViewModel = remember { UserViewModel(UserRepoImp1()) }
 
     var productName by remember { mutableStateOf("") }
+    var price by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var isAvailable by remember { mutableStateOf(true) }
     var selectedImageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var selectedCategory by remember { mutableStateOf("") }
+    var availableUntil by remember { mutableStateOf<Long?>(null) }
     val context = LocalContext.current
     val activity = context as Activity
     val coroutineScope = rememberCoroutineScope()
     var isLoading by remember { mutableStateOf(false) }
+    var isUserVerified by remember { mutableStateOf(false) }
 
     val minImages = 4
     val maxImages = 7
+
+    LaunchedEffect(Unit) {
+        val userId = userViewModel.getCurrentUser()?.uid
+        if (userId != null) {
+            userViewModel.getUserById(userId) { success, msg, user ->
+                if (success) {
+                    user?.let { fetchedUser ->
+                        isUserVerified = fetchedUser.verified
+                        if (!isUserVerified) {
+                            Toast.makeText(context, "This feature is locked for you. You are not verified yet.", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
@@ -107,8 +131,22 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    val categories = listOf("Vehicles", "Household", "Electronics", "Accessories", "Furniture", "Sports & Adventure", "Baby Items") // Fixed typo
+    val categories = listOf("Vehicles", "Household", "Electronics", "Accessories", "Furniture", "Sports & Adventure", "Baby Items")
     var categoryExpanded by remember { mutableStateOf(false) }
+
+    val calendar = Calendar.getInstance()
+    val datePickerDialog = DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            calendar.set(year, month, dayOfMonth)
+            availableUntil = calendar.timeInMillis
+        },
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH),
+        calendar.get(Calendar.DAY_OF_MONTH)
+    ).apply {
+        datePicker.minDate = System.currentTimeMillis() // Can't select past dates
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -158,117 +196,163 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                 }
             }
 
-            // Product Name, Description,  etc. are the same
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Product Name", style = MaterialTheme.typography.titleMedium, color = Color.White)
-            OutlinedTextField(
-                value = productName,
-                onValueChange = { productName = it },
+                Text("Product Name", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                OutlinedTextField(
+                    value = productName,
+                    onValueChange = { productName = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Field,
+                        focusedBorderColor = Orange,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = Orange
+                    ),
+                    placeholder = { Text("Enter product name", color = Color.Gray) },
+                    singleLine = true
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Price (NPR)", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                OutlinedTextField(
+                    value = price,
+                    onValueChange = { price = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Field,
+                        focusedBorderColor = Orange,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = Orange
+                    ),
+                    placeholder = { Text("Enter price per day", color = Color.Gray) },
+                    singleLine = true
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Description", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Field,
+                        focusedBorderColor = Orange,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = Orange
+                    ),
+                    placeholder = { Text("Tell us about your product", color = Color.Gray) }
+                )
+            }
+
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Field,
-                    focusedBorderColor = Orange,
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = Orange
-                ),
-                placeholder = { Text("Enter product name", color = Color.Gray) },
-                singleLine = true
-            )
-        }
-
-        // Description
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Description", style = MaterialTheme.typography.titleMedium, color = Color.White)
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Field,
-                    focusedBorderColor = Orange,
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = Orange
-                ),
-                placeholder = { Text("Tell us about your product", color = Color.Gray) }
-            )
-        }
-
-
-
-        // Availability switch
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text("Availability", fontWeight = FontWeight.Medium, color = Color.White, fontSize = 16.sp)
-            Switch(
-                checked = isAvailable,
-                onCheckedChange = { isAvailable = it },
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.Black,
-                    checkedTrackColor = Orange,
-                    uncheckedThumbColor = Color.Gray,
-                    uncheckedTrackColor = Field
-                )
-            )
-        }
-        
-        ExposedDropdownMenuBox(
-            expanded = categoryExpanded,
-            onExpandedChange = { categoryExpanded = !categoryExpanded },
-        ) {
-            OutlinedTextField(
-                modifier = Modifier.menuAnchor().fillMaxWidth(),
-                value = selectedCategory,
-                onValueChange = {},
-                readOnly = true,
-                placeholder = { Text("Select Category", color = Color.Gray) },
-                trailingIcon = { Icon(if (categoryExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown, null) },
-                shape = RoundedCornerShape(8.dp),
-                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Field,
-                    focusedBorderColor = Orange,
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = Orange
-                )
-            )
-            ExposedDropdownMenu(
-                expanded = categoryExpanded,
-                onDismissRequest = { categoryExpanded = false },
-                modifier = Modifier.background(Field)
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                categories.forEach { category ->
-                    DropdownMenuItem(
-                        text = { Text(category, color = Color.White) },
-                        onClick = {
-                            selectedCategory = category
-                            categoryExpanded = false
-                        }
+                Text("Availability", fontWeight = FontWeight.Medium, color = Color.White, fontSize = 16.sp)
+                Switch(
+                    checked = isAvailable,
+                    onCheckedChange = { isAvailable = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.Black,
+                        checkedTrackColor = Orange,
+                        uncheckedThumbColor = Color.Gray,
+                        uncheckedTrackColor = Field
+                    )
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Available Until", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                Button(
+                    onClick = { datePickerDialog.show() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Field)
+                ) {
+                    Text(
+                        text = availableUntil?.let { SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(it) } ?: "Select End Date",
+                        color = Color.White
                     )
                 }
             }
-        }
+
+            ExposedDropdownMenuBox(
+                expanded = categoryExpanded,
+                onExpandedChange = { categoryExpanded = !categoryExpanded },
+            ) {
+                OutlinedTextField(
+                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                    value = selectedCategory,
+                    onValueChange = {},
+                    readOnly = true,
+                    placeholder = { Text("Select Category", color = Color.Gray) },
+                    trailingIcon = { Icon(if (categoryExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown, null) },
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Field,
+                        focusedBorderColor = Orange,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = Orange
+                    )
+                )
+                ExposedDropdownMenu(
+                    expanded = categoryExpanded,
+                    onDismissRequest = { categoryExpanded = false },
+                    modifier = Modifier.background(Field)
+                ) {
+                    categories.forEach { category ->
+                        DropdownMenuItem(
+                            text = { Text(category, color = Color.White) },
+                            onClick = {
+                                selectedCategory = category
+                                categoryExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.weight(1f))
 
             Button(
                 onClick = {
+                    if (!isUserVerified) {
+                        Toast.makeText(context, "This feature is locked for you. You are not verified yet.", Toast.LENGTH_LONG).show()
+                        return@Button
+                    }
+
                     if (selectedImageUris.size < minImages) {
                         Toast.makeText(context, "Please add at least $minImages photo(s).", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    val priceDouble = price.toDoubleOrNull()
+                    if (priceDouble == null || priceDouble <= 0) {
+                        Toast.makeText(context, "Please enter a valid price.", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    if (availableUntil == null) {
+                        Toast.makeText(context, "Please select an availability end date.", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
                     val userId = userViewModel.getCurrentUser()?.uid
@@ -291,9 +375,11 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                             title = productName,
                             description = description,
                             availability = isAvailable,
+                            availableUntil = availableUntil!!,
                             category = selectedCategory,
                             listedBy = userId,
-                            imageUrl = uploadedUrls
+                            imageUrl = uploadedUrls,
+                            price = priceDouble
                         )
 
                         productViewModel.addProduct(model) { success, msg, productId ->

@@ -35,9 +35,7 @@ class ProductRepoImpl : ProductRepo {
         product: ProductModel,
         callback: (Boolean, String) -> Unit
     ) {
-        ref.child(productId).updateChildren(product.toMap()).addOnCompleteListener { //setValue() affects the whole node unlike updateChildren which only affects
-            // specific attributes. Thus, we use a .toMap() fn in the updateUser because
-            // we usually only update some fields.
+        ref.child(productId).updateChildren(product.toMap()).addOnCompleteListener { 
             if (it.isSuccessful) {
                 callback(true, "Product updated")
             } else {
@@ -166,17 +164,120 @@ class ProductRepoImpl : ProductRepo {
         }
     }
 
-    override fun updateQuantity(
-        productId: String,
-        quantity: Int,
-        callback: (Boolean, String) -> Unit
-    ) {
-        ref.child(productId).child("quantity").setValue(quantity).addOnCompleteListener { 
-            if (it.isSuccessful) {
-                callback(true, "Quantity updated")
+    override fun updateRating(productId: String, userId: String, rating: Int, callback: (Boolean, String) -> Unit) {
+        ref.child(productId).runTransaction(object : Transaction.Handler {
+            override fun doTransaction(currentData: MutableData): Transaction.Result {
+                val product = currentData.getValue(ProductModel::class.java)
+                if (product == null) {
+                    return Transaction.success(currentData)
+                }
+
+                val updatedRatedBy = product.ratedBy.toMutableMap()
+                val alreadyRated = updatedRatedBy.containsKey(userId)
+
+                if (rating > 0) {
+                    // Add or update rating
+                    updatedRatedBy[userId] = rating
+                } else {
+                    // Remove rating
+                    updatedRatedBy.remove(userId)
+                }
+
+                val newRatingCount = updatedRatedBy.size
+                val newTotalRating = updatedRatedBy.values.sum()
+                val newAverageRating = if (newRatingCount > 0) {
+                    newTotalRating.toDouble() / newRatingCount
+                } else {
+                    0.0
+                }
+
+                val updatedProduct = product.copy(
+                    ratedBy = updatedRatedBy,
+                    ratingCount = newRatingCount,
+                    rating = newAverageRating
+                )
+
+                currentData.value = updatedProduct
+                return Transaction.success(currentData)
+            }
+
+            override fun onComplete(
+                error: DatabaseError?,
+                committed: Boolean,
+                currentData: DataSnapshot?
+            ) {
+                if (error != null) {
+                    callback(false, error.message)
+                } else if (!committed) {
+                    callback(false, "Rating update was not committed.")
+                } else {
+                    callback(true, "Rating updated successfully.")
+                }
+            }
+        })
+    }
+
+    override fun getFlaggedProducts(callback: (Boolean, String, List<ProductModel>) -> Unit) {
+        ref.orderByChild("flagged").equalTo(true)
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val products = mutableListOf<ProductModel>()
+                    for (data in snapshot.children) {
+                        data.getValue(ProductModel::class.java)?.let { product ->
+                            if (product.flagged) {
+                                products.add(product)
+                            }
+                        }
+                    }
+                    callback(true, "Flagged products fetched", products)
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    callback(false, error.message, emptyList())
+                }
+            })
+    }
+
+    override fun updateProductFlags(productId: String, product: ProductModel, callback: (Boolean, String) -> Unit) {
+        ref.child(productId).updateChildren(product.toMap()).addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                callback(true, "Product flags updated")
             } else {
-                callback(false, "Failed to update quantity")
+                callback(false, task.exception?.message ?: "Failed to update product flags")
             }
         }
     }
+
+    override fun clearFlags(productId: String, callback: (Boolean, String) -> Unit) {
+        ref.child(productId).child("flagged").setValue(false)
+            .addOnCompleteListener { flagTask ->
+                if (flagTask.isSuccessful) {
+                    ref.child(productId).child("flaggedBy").setValue(emptyList<String>())
+                        .addOnCompleteListener { listTask ->
+                            if (listTask.isSuccessful) {
+                                ref.child(productId).child("flaggedReason").setValue(emptyList<String>())
+                                    .addOnCompleteListener { reasonTask ->
+                                        if (reasonTask.isSuccessful) {
+                                            ref.child(productId).child("appealReason").setValue("")
+                                                .addOnCompleteListener { appealTask ->
+                                                    if (appealTask.isSuccessful) {
+                                                        callback(true, "All flags cleared")
+                                                    } else {
+                                                        callback(false, "Failed to clear appeal reason")
+                                                    }
+                                                }
+                                        } else {
+                                            callback(false, "Failed to clear flag reasons")
+                                        }
+                                    }
+                            } else {
+                                callback(false, "Failed to clear flaggedBy list")
+                            }
+                        }
+                } else {
+                    callback(false, "Failed to update flagged status")
+                }
+            }
+    }
 }
+

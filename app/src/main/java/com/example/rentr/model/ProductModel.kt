@@ -8,13 +8,18 @@ data class ProductModel(
     val price: Double = 0.0,
     val productId: String = "", // primary key
     val availability: Boolean = true,
+    val availableUntil: Long = 0L, // New field for availability end date
     val outOfStock: Boolean = false,
     val rating: Double = 0.0,
     val ratingCount: Int = 0,
-    val category: String = "", //foreign key,
+    val ratedBy : Map <String,Int> = emptyMap(),
+    val category: String = "", //foreign key
     val verified: Boolean = false,
     val flaggedBy: List<String> = emptyList(), // this will resolve the flagCount and the button greyed logic
-    val flagged: Boolean = false
+    val flagged: Boolean = false,
+    val flaggedReason:List<String> = emptyList(),
+    val appealReason:String=""
+
 ){
     fun toMap() : Map < String, Any?> {
         return mapOf(
@@ -22,15 +27,19 @@ data class ProductModel(
             "listedBy" to listedBy,
             "description" to description,
             "price" to price,
-            "productId" to productId,   
+            "productId" to productId,
             "availability" to availability,
+            "availableUntil" to availableUntil,
             "outOfStock" to outOfStock,
             "rating" to rating,
             "ratingCount" to ratingCount,
+            "ratedBy" to ratedBy,
             "imageUrl" to imageUrl,
             "verified" to verified,
-            "flaggedBy" to flaggedBy, // this will resolve the flagCount and the button greyed logic
-            "flagged" to flagged
+            "flaggedBy" to flaggedBy,
+            "flagged" to flagged,
+            "flaggedReason" to flaggedReason,
+            "appealReason" to appealReason
         )
     }
 }
