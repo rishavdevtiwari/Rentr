@@ -1,6 +1,7 @@
 package com.example.rentr.view
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -201,6 +202,11 @@ fun LoginBody(){
                 onClick = {
                     userViewModelLogin.login(email, password) { success, msg ->
                         if(success){
+                            val sharedPreferences = context.getSharedPreferences("rentr_prefs", Context.MODE_PRIVATE)
+                            with(sharedPreferences.edit()) {
+                                putBoolean("remember_me", rememberMe)
+                                apply()
+                            }
                             Toast.makeText(context, "Logged In.", Toast.LENGTH_SHORT).show()
                             val intent = Intent(context, DashboardActivity::class.java)
                             context.startActivity(intent)
