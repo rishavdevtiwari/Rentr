@@ -43,7 +43,7 @@ fun SplashScreen() {
     val activity = context as Activity
     val userViewModel = remember { UserViewModel(UserRepoImp1()) }
 
-    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.rocket))
+    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.splash_loop))
     val progress by animateLottieCompositionAsState(
         composition,
         iterations = 1
