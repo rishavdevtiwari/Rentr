@@ -1,6 +1,7 @@
 package com.example.rentr.view
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -39,6 +40,7 @@ import coil.compose.AsyncImage
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
+import com.example.rentr.model.UserModel
 import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
@@ -156,7 +158,7 @@ fun ProfileScreen(userViewModel: UserViewModel) {
 }
 
 @Composable
-private fun ProfileCard(user: com.example.rentr.model.UserModel?, isLoading: Boolean, onAvatarClick: () -> Unit) {
+private fun ProfileCard(user: UserModel?, isLoading: Boolean, onAvatarClick: () -> Unit) {
     val context = LocalContext.current
     val activity = context as? Activity
 
@@ -386,7 +388,18 @@ private fun SettingsList(onEditProfile: () -> Unit, userViewModel : UserViewMode
             }
         }
         Spacer(modifier = Modifier.height(20.dp))
-        TextButton(onClick = { /*TODO*/ }) {
+        TextButton(onClick = {
+            val sharedPreferences = context.getSharedPreferences("rentr_prefs", Context.MODE_PRIVATE)
+            with(sharedPreferences.edit()) {
+                putBoolean("remember_me", false)
+                apply()
+            }
+            userViewModel.logout()
+            val intent = Intent(context, LoginActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            context.startActivity(intent)
+            activity?.finish()
+        }) {
             Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Logout", tint = Color.Red)
             Spacer(modifier = Modifier.size(8.dp))
             Text("Logout", color = Color.Red, fontSize = 16.sp, fontWeight = FontWeight.Medium)
@@ -436,7 +449,7 @@ fun SettingItem(icon: ImageVector, title: String, onClick: () -> Unit) {
 
 private suspend fun uploadProfileImage(uri: Uri): String? {
     return suspendCoroutine { continuation ->
-        MediaManager.get().upload(uri)
+        get().upload(uri)
             .callback(object : UploadCallback {
                 override fun onStart(requestId: String?) {}
                 override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {}
