@@ -229,11 +229,13 @@ fun ListedScreen() {
                 containerColor = Color.Black,
                 contentColor = Color.White,
                 indicator = { tabPositions ->
-                    TabRowDefaults.Indicator(
-                        Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                        height = 3.dp,
-                        color = Orange
-                    )
+                    if (selectedTabIndex < tabPositions.size) {
+                        TabRowDefaults.Indicator(
+                            Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                            height = 3.dp,
+                            color = Orange
+                        )
+                    }
                 }
             ) {
                 tabs.forEachIndexed { index, title ->
