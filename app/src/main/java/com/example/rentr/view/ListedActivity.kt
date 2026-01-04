@@ -409,7 +409,7 @@ fun ListedItemCardCompact(
 
             Column(
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.Center,
                 modifier = Modifier.fillMaxHeight()
             ) {
                 if (isFlaggedTab) {
@@ -431,12 +431,21 @@ fun ListedItemCardCompact(
                     }
                 } else if (isOngoingTab) {
                     if (isPending) {
-                        Row {
-                            Button(onClick = onAcceptClicked, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)), modifier = Modifier.height(35.dp)) { Text("Accept", fontSize = 10.sp) }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Button(onClick = onRejectClicked, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336)), modifier = Modifier.height(35.dp)) { Text("Reject", fontSize = 10.sp) }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            IconButton(
+                                onClick = onRejectClicked,
+                                modifier = Modifier.size(32.dp).background(Color.Red.copy(alpha = 0.2f), CircleShape)
+                            ) {
+                                Icon(Icons.Default.Close, "Reject", tint = Color.Red)
+                            }
+                            IconButton(
+                                onClick = onAcceptClicked,
+                                modifier = Modifier.size(32.dp).background(Color(0xFF4CAF50).copy(alpha = 0.2f), CircleShape)
+                            ) {
+                                Icon(Icons.Default.Check, "Accept", tint = Color(0xFF4CAF50))
+                            }
                         }
-                    } // No actions for seller if waiting for payment
+                    }
                 } else {
                     Row {
                         IconButton(onClick = onEditClicked, modifier = Modifier.size(20.dp), enabled = !isRented && !isUnavailable) {
