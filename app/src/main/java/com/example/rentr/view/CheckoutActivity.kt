@@ -108,7 +108,7 @@ fun CheckoutScreen(
             if (success) {
                 productViewModel.getProductById(productId) { productSuccess, _, product ->
                     if (productSuccess && product != null) {
-                        val updatedProduct = product.copy(outOfStock = true)
+                        val updatedProduct = product.copy(outOfStock = true, rentalStatus = "")
                         productViewModel.updateProduct(productId, updatedProduct) { updateSuccess, _ ->
                             if (updateSuccess) {
                                 Toast.makeText(context, "Order for $productTitle confirmed!", Toast.LENGTH_LONG).show()
