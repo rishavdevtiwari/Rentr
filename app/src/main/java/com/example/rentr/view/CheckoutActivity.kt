@@ -21,11 +21,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.rentr.model.ProductModel
 import com.example.rentr.model.TransactionModel
+import com.example.rentr.repository.ProductRepoImpl
 import com.example.rentr.repository.TransactionRepoImpl
 import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.RentrTheme
+import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.TransactionViewModel
 import com.example.rentr.viewmodel.UserViewModel
 import java.util.UUID
@@ -36,6 +39,14 @@ class CheckoutActivity : ComponentActivity() {
         object : androidx.lifecycle.ViewModelProvider.Factory {
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                 return TransactionViewModel(TransactionRepoImpl()) as T
+            }
+        }
+    }
+
+    private val productViewModel: ProductViewModel by viewModels {
+        object : androidx.lifecycle.ViewModelProvider.Factory {
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return ProductViewModel(ProductRepoImpl()) as T
             }
         }
     }
@@ -59,7 +70,8 @@ class CheckoutActivity : ComponentActivity() {
                     days = days,
                     productId = productId,
                     sellerId = sellerId,
-                    viewModel = transactionViewModel
+                    transactionViewModel = transactionViewModel,
+                    productViewModel = productViewModel
                 )
             }
         }
@@ -75,7 +87,8 @@ fun CheckoutScreen(
     days: Int,
     productId: String,
     sellerId: String,
-    viewModel: TransactionViewModel
+    transactionViewModel: TransactionViewModel,
+    productViewModel: ProductViewModel
 ) {
     var location by remember { mutableStateOf("") }
     val paymentOptions = listOf("Cash on Delivery", "Pay Online via Khalti")
@@ -86,15 +99,28 @@ fun CheckoutScreen(
     val userViewModel = remember { UserViewModel(UserRepoImp1()) }
     val currentUser = userViewModel.getCurrentUser()
 
-    val isLoading by viewModel.isLoading.observeAsState(false)
-    val transactionResult by viewModel.transactionResult.observeAsState()
+    val isLoading by transactionViewModel.isLoading.observeAsState(false)
+    val transactionResult by transactionViewModel.transactionResult.observeAsState()
 
     LaunchedEffect(transactionResult) {
         transactionResult?.let {
             val (success, message) = it
             if (success) {
-                Toast.makeText(context, "Order for $productTitle confirmed!", Toast.LENGTH_LONG).show()
-                activity?.finish()
+                productViewModel.getProductById(productId) { productSuccess, _, product ->
+                    if (productSuccess && product != null) {
+                        val updatedProduct = product.copy(outOfStock = true)
+                        productViewModel.updateProduct(productId, updatedProduct) { updateSuccess, _ ->
+                            if (updateSuccess) {
+                                Toast.makeText(context, "Order for $productTitle confirmed!", Toast.LENGTH_LONG).show()
+                                activity?.finish()
+                            } else {
+                                Toast.makeText(context, "Failed to update product status.", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    } else {
+                        Toast.makeText(context, "Failed to fetch product for updating.", Toast.LENGTH_LONG).show()
+                    }
+                }
             } else {
                 Toast.makeText(context, "Order failed: ${message ?: "Unknown error"}", Toast.LENGTH_LONG).show()
             }
@@ -130,7 +156,7 @@ fun CheckoutScreen(
         )
 
 
-        viewModel.addTransaction(transaction)
+        transactionViewModel.addTransaction(transaction)
     }
 
     Scaffold(
