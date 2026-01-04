@@ -1,7 +1,6 @@
 package com.example.rentr.view
 
 import android.app.Activity
-import android.app.DatePickerDialog
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
@@ -9,7 +8,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -49,9 +47,6 @@ import com.example.rentr.ui.theme.RentrTheme
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -94,7 +89,6 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
     var isAvailable by remember { mutableStateOf(true) }
     var selectedImageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var selectedCategory by remember { mutableStateOf("") }
-    var availableUntil by remember { mutableStateOf<Long?>(null) }
     val context = LocalContext.current
     val activity = context as Activity
     val coroutineScope = rememberCoroutineScope()
@@ -133,20 +127,6 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
 
     val categories = listOf("Vehicles", "Household", "Electronics", "Accessories", "Furniture", "Sports & Adventure", "Baby Items")
     var categoryExpanded by remember { mutableStateOf(false) }
-
-    val calendar = Calendar.getInstance()
-    val datePickerDialog = DatePickerDialog(
-        context,
-        { _, year, month, dayOfMonth ->
-            calendar.set(year, month, dayOfMonth)
-            availableUntil = calendar.timeInMillis
-        },
-        calendar.get(Calendar.YEAR),
-        calendar.get(Calendar.MONTH),
-        calendar.get(Calendar.DAY_OF_MONTH)
-    ).apply {
-        datePicker.minDate = System.currentTimeMillis() // Can't select past dates
-    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -279,21 +259,6 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                 )
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Available Until", style = MaterialTheme.typography.titleMedium, color = Color.White)
-                Button(
-                    onClick = { datePickerDialog.show() },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Field)
-                ) {
-                    Text(
-                        text = availableUntil?.let { SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(it) } ?: "Select End Date",
-                        color = Color.White
-                    )
-                }
-            }
-
             ExposedDropdownMenuBox(
                 expanded = categoryExpanded,
                 onExpandedChange = { categoryExpanded = !categoryExpanded },
@@ -351,10 +316,6 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                         Toast.makeText(context, "Please enter a valid price.", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
-                    if (availableUntil == null) {
-                        Toast.makeText(context, "Please select an availability end date.", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
                     val userId = userViewModel.getCurrentUser()?.uid
                     if (userId == null) {
                         Toast.makeText(context, "You must be logged in to list an item.", Toast.LENGTH_SHORT).show()
@@ -375,7 +336,6 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                             title = productName,
                             description = description,
                             availability = isAvailable,
-                            availableUntil = availableUntil!!,
                             category = selectedCategory,
                             listedBy = userId,
                             imageUrl = uploadedUrls,
@@ -389,40 +349,50 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                                         val updatedListings = user.listings?.toMutableList() ?: mutableListOf()
                                         updatedListings.add(productId)
                                         val updatedUser = user.copy(listings = updatedListings)
-
-                                        userViewModel.updateProfile(userId, updatedUser) { updateSuccess, updateMsg ->
-                                            if (updateSuccess) {
+                                        userViewModel.updateProfile(userId, updatedUser) { updateUserSuccess, _ ->
+                                            isLoading = false
+                                            if (updateUserSuccess) {
                                                 Toast.makeText(context, "Product listed successfully!", Toast.LENGTH_SHORT).show()
-                                                activity.setResult(Activity.RESULT_OK)
                                                 activity.finish()
                                             } else {
-                                                Toast.makeText(context, "Error updating profile: $updateMsg", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "Failed to update user listings.", Toast.LENGTH_SHORT).show()
                                             }
-                                            isLoading = false
                                         }
                                     } else {
                                         isLoading = false
-                                        Toast.makeText(context, "Could not fetch user to update listings.", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Failed to retrieve user data.", Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             } else {
-                                Toast.makeText(context, "Failed to list product: $msg", Toast.LENGTH_SHORT).show()
                                 isLoading = false
+                                Toast.makeText(context, "Failed to list product: $msg", Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Orange, contentColor = Color.Black)
+                colors = ButtonDefaults.buttonColors(containerColor = Orange),
+                enabled = !isLoading && isUserVerified
             ) {
-                Text("List My Item")
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = Color.White
+                    )
+                } else {
+                    Text("List Item", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
             }
         }
 
         if (isLoading) {
             Box(
-                modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(color = Orange)
@@ -431,25 +401,37 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
     }
 }
 
-private suspend fun uploadImagesToCloudinary(uris: List<Uri>): List<String> {
-    val urls = mutableListOf<String>()
-    for (uri in uris) {
-        val url = suspendCoroutine<String?> { continuation ->
-            MediaManager.get().upload(uri)
-                .callback(object : UploadCallback {
-                    override fun onStart(requestId: String?) {}
-                    override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {}
-                    override fun onSuccess(requestId: String?, resultData: Map<*, *>?) {
-                        continuation.resume(resultData?.get("secure_url")?.toString())
-                    }
-                    override fun onError(requestId: String?, error: ErrorInfo?) {
-                        continuation.resume(null)
-                    }
-                    override fun onReschedule(requestId: String?, error: ErrorInfo?) {}
-                })
-                .dispatch()
+private suspend fun uploadImagesToCloudinary(uris: List<Uri>): List<String> = suspendCoroutine { continuation ->
+    val uploadedUrls = mutableListOf<String>()
+    val uploadCounter = object {
+        var count = 0
+        fun increment() {
+            count++
+            if (count == uris.size) {
+                continuation.resume(uploadedUrls)
+            }
         }
-        url?.let { urls.add(it) }
     }
-    return urls
+
+    if (uris.isEmpty()) {
+        continuation.resume(emptyList())
+        return@suspendCoroutine
+    }
+
+    for (uri in uris) {
+        MediaManager.get().upload(uri)
+            .callback(object : UploadCallback {
+                override fun onStart(requestId: String) {}
+                override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}
+                override fun onSuccess(requestId: String, resultData: Map<*, *>) {
+                    uploadedUrls.add(resultData["url"].toString())
+                    uploadCounter.increment()
+                }
+                override fun onError(requestId: String, error: ErrorInfo) {
+                    uploadCounter.increment() // Also increment on error to not block forever
+                }
+                override fun onReschedule(requestId: String, error: ErrorInfo) {}
+            })
+            .dispatch()
+    }
 }
