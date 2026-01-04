@@ -1,8 +1,10 @@
 package com.example.rentr.view
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
@@ -163,7 +165,11 @@ private fun ProfileCard(user: com.example.rentr.model.UserModel?, isLoading: Boo
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(elevation = 8.dp, spotColor = Color(0x22000000), shape = RoundedCornerShape(20.dp)),
+            .shadow(
+                elevation = 8.dp,
+                spotColor = Color(0x22000000),
+                shape = RoundedCornerShape(20.dp)
+            ),
         shape = RoundedCornerShape(20.dp),
     ) {
 
@@ -386,7 +392,24 @@ private fun SettingsList(onEditProfile: () -> Unit, userViewModel : UserViewMode
             }
         }
         Spacer(modifier = Modifier.height(20.dp))
-        TextButton(onClick = { /*TODO*/ }) {
+        TextButton(onClick = {
+                val sharedPreferences = context.getSharedPreferences("rentr_prefs", Context.MODE_PRIVATE)
+                with(sharedPreferences.edit()) {
+                    putBoolean("remember_me", false)
+                    apply()
+                }
+                userViewModel.logout { success,message ->
+                    if(success){
+                        Toast.makeText(context, "Logged Out!", Toast.LENGTH_SHORT).show()
+                    }else{
+                        Toast.makeText(context,"Unsuccessful logout!",Toast.LENGTH_SHORT).show()
+                    }
+                }
+                val intent = Intent(context, LoginActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                context.startActivity(intent)
+                activity?.finish()
+        }) {
             Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Logout", tint = Color.Red)
             Spacer(modifier = Modifier.size(8.dp))
             Text("Logout", color = Color.Red, fontSize = 16.sp, fontWeight = FontWeight.Medium)
