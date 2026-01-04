@@ -104,8 +104,8 @@ fun ListedScreen() {
     }
 
     val filteredList = when (selectedTabIndex) {
-        0 -> products.filter { it.verified && it.rentalStatus != "pending" && !it.outOfStock && !(it.flagged && it.flaggedBy.isNotEmpty()) }
-        1 -> products.filter { it.rentalStatus == "pending" && !it.outOfStock }
+        0 -> products.filter { it.verified && it.rentalStatus == "" && !it.outOfStock && !(it.flagged && it.flaggedBy.isNotEmpty()) }
+        1 -> products.filter { (it.rentalStatus == "pending" || it.rentalStatus == "approved") && !it.outOfStock }
         2 -> products.filter { it.outOfStock }
         3 -> products.filter { it.flagged && it.flaggedBy.isNotEmpty() }
         else -> emptyList()
@@ -273,7 +273,6 @@ fun ListedScreen() {
                         onAcceptClicked = {
                             val updatedProduct = product.copy(
                                 rentalStatus = "approved",
-                                outOfStock = true,
                                 rentalStartDate = System.currentTimeMillis()
                             )
                             productViewModel.updateProduct(product.productId, updatedProduct) { success, _ ->
@@ -324,6 +323,7 @@ fun ListedItemCardCompact(
     }
 
     val status = when {
+        product.rentalStatus == "approved" -> "Waiting for Payment"
         product.rentalStatus == "pending" -> "Pending Request"
         product.flagged && product.flaggedBy.isNotEmpty() -> "FLAGGED"
         product.outOfStock -> "Rented Out"
@@ -335,6 +335,7 @@ fun ListedItemCardCompact(
     val isUnavailable = status == "Unavailable"
     val isFlagged = status == "FLAGGED"
     val isPending = status == "Pending Request"
+    val isWaitingForPayment = status == "Waiting for Payment"
     val imageUrl = product.imageUrl.firstOrNull()
     val hasAppeal = product.appealReason.isNotEmpty()
 
@@ -346,7 +347,7 @@ fun ListedItemCardCompact(
                 isFlagged -> Color.Yellow.copy(alpha = 0.1f)
                 isRented -> Field.copy(alpha = 0.6f)
                 isUnavailable -> Color.Gray.copy(alpha = 0.4f)
-                isPending -> Color.Blue.copy(alpha = 0.2f)
+                isPending || isWaitingForPayment -> Color.Blue.copy(alpha = 0.2f)
                 else -> Field
             }
         ),
@@ -379,7 +380,7 @@ fun ListedItemCardCompact(
                             isFlagged -> Color.Yellow.copy(alpha = 0.2f)
                             isRented -> Color.Red.copy(alpha = 0.6f)
                             isUnavailable -> Color.Gray.copy(alpha = 0.4f)
-                            isPending -> Color.Blue.copy(alpha = 0.3f)
+                            isPending || isWaitingForPayment -> Color.Blue.copy(alpha = 0.3f)
                             else -> Orange.copy(alpha = 0.2f)
                         },
                         RoundedCornerShape(6.dp)
@@ -391,7 +392,7 @@ fun ListedItemCardCompact(
                             isFlagged -> Color.Yellow
                             isRented -> Color.White
                             isUnavailable -> Color.LightGray
-                            isPending -> Color.White
+                            isPending || isWaitingForPayment -> Color.White
                             else -> Orange
                         },
                         fontSize = 10.sp,
@@ -408,7 +409,7 @@ fun ListedItemCardCompact(
 
             Column(
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.Center,
                 modifier = Modifier.fillMaxHeight()
             ) {
                 if (isFlaggedTab) {
@@ -429,10 +430,21 @@ fun ListedItemCardCompact(
                         }
                     }
                 } else if (isOngoingTab) {
-                    Row {
-                        Button(onClick = onAcceptClicked, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)), modifier = Modifier.height(35.dp)) { Text("Accept", fontSize = 10.sp) }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(onClick = onRejectClicked, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336)), modifier = Modifier.height(35.dp)) { Text("Reject", fontSize = 10.sp) }
+                    if (isPending) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            IconButton(
+                                onClick = onRejectClicked,
+                                modifier = Modifier.size(32.dp).background(Color.Red.copy(alpha = 0.2f), CircleShape)
+                            ) {
+                                Icon(Icons.Default.Close, "Reject", tint = Color.Red)
+                            }
+                            IconButton(
+                                onClick = onAcceptClicked,
+                                modifier = Modifier.size(32.dp).background(Color(0xFF4CAF50).copy(alpha = 0.2f), CircleShape)
+                            ) {
+                                Icon(Icons.Default.Check, "Accept", tint = Color(0xFF4CAF50))
+                            }
+                        }
                     }
                 } else {
                     Row {
