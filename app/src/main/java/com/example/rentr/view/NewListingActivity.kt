@@ -424,7 +424,9 @@ private suspend fun uploadImagesToCloudinary(uris: List<Uri>): List<String> = su
                 override fun onStart(requestId: String) {}
                 override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}
                 override fun onSuccess(requestId: String, resultData: Map<*, *>) {
-                    uploadedUrls.add(resultData["url"].toString())
+                    resultData["secure_url"]?.toString()?.let { 
+                        uploadedUrls.add(it) 
+                    }
                     uploadCounter.increment()
                 }
                 override fun onError(requestId: String, error: ErrorInfo) {

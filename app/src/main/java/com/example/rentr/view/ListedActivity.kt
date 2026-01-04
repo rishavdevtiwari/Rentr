@@ -104,7 +104,7 @@ fun ListedScreen() {
     }
 
     val filteredList = when (selectedTabIndex) {
-        0 -> products.filter { it.rentalStatus != "pending" && !it.outOfStock && !(it.flagged && it.flaggedBy.isNotEmpty()) }
+        0 -> products.filter { it.verified && it.rentalStatus != "pending" && !it.outOfStock && !(it.flagged && it.flaggedBy.isNotEmpty()) }
         1 -> products.filter { it.rentalStatus == "pending" && !it.outOfStock }
         2 -> products.filter { it.outOfStock }
         3 -> products.filter { it.flagged && it.flaggedBy.isNotEmpty() }
