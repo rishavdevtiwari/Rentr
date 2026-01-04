@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.example.rentr.view
 
 import android.app.Activity
@@ -61,7 +63,7 @@ fun ListedScreen() {
     val productViewModel = remember { ProductViewModel(ProductRepoImpl()) }
     val products by productViewModel.allProducts.observeAsState(emptyList())
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Available / Unavailable", "Rented Out", "Flagged")
+    val tabs = listOf("Available / Unavailable", "Ongoing", "Rented Out", "Flagged")
 
     val userViewModel = remember { UserViewModel(UserRepoImp1()) }
     val uId = userViewModel.getCurrentUser()?.uid
@@ -112,8 +114,9 @@ fun ListedScreen() {
 
     val filteredList = when (selectedTabIndex) {
         0 -> products.filter { !it.outOfStock && !(it.flagged && it.flaggedBy.isNotEmpty()) }
-        1 -> products.filter { it.outOfStock && !(it.flagged && it.flaggedBy.isNotEmpty()) }
-        2 -> products.filter { it.flagged && it.flaggedBy.isNotEmpty() }
+        1 -> emptyList() // Ongoing tab is empty for now
+        2 -> products.filter { it.outOfStock && !(it.flagged && it.flaggedBy.isNotEmpty()) }
+        3 -> products.filter { it.flagged && it.flaggedBy.isNotEmpty() }
         else -> emptyList()
     }
 
@@ -227,7 +230,7 @@ fun ListedScreen() {
         containerColor = Color.Black,
         topBar = { ListedTopAppBar() },
         floatingActionButton = {
-            if (selectedTabIndex != 2) {
+            if (selectedTabIndex != 3) { // Updated index for Flagged tab
                 FloatingActionButton(
                     onClick = {
                         if (!isUserVerified) {
@@ -289,7 +292,7 @@ fun ListedScreen() {
                 items(filteredList) { product ->
                     ListedItemCardCompact(
                         product = product,
-                        isFlaggedTab = selectedTabIndex == 2,
+                        isFlaggedTab = selectedTabIndex == 3, // Updated index for Flagged tab
                         onEditClicked = {
                             val isProductFlagged = product.flagged && product.flaggedBy.isNotEmpty()
                             val isRented = product.outOfStock
@@ -432,66 +435,42 @@ fun ListedItemCardCompact(
                 Text(
                     text = "NPR. ${product.price}/day",
                     color = if (isUnavailable) Color.LightGray else Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontSize = 12.sp
                 )
-
-                if (isFlagged && product.flaggedReason.isNotEmpty()) {
-                    Text(
-                        text = "Flagged: ${product.flaggedReason.joinToString(", ").take(30)}...",
-                        color = Color.LightGray,
-                        fontSize = 11.sp
-                    )
-                }
-
-                if (isFlagged && hasAppeal) {
-                    Box(
-                        modifier = Modifier
-                            .background(Color.Cyan.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "APPEAL SUBMITTED",
-                            color = Color.Cyan,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
             }
 
-            if (isFlagged) {
-                IconButton(
-                    onClick = onAppealClicked,
-                    enabled = !hasAppeal
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Gavel,
-                        contentDescription = "Appeal",
-                        tint = if (hasAppeal) Color.Gray else Color.Cyan
-                    )
-                }
-            } else {
-                Row {
-                    IconButton(
-                        onClick = onEditClicked,
-                        enabled = !isRented
+            // Action buttons
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxHeight()
+            ) {
+                if (isFlaggedTab) {
+                    Button(
+                        onClick = onAppealClicked,
+                        enabled = !hasAppeal,
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (hasAppeal) Color.Gray else Orange,
+                            contentColor = Color.Black
+                        ),
+                        modifier = Modifier.height(35.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit Item",
-                            tint = if (isRented) Color.Gray else Orange
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Gavel, contentDescription = "Appeal", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(if (hasAppeal) "Pending" else "Appeal", fontSize = 10.sp)
+                        }
                     }
-                    IconButton(
-                        onClick = onDeleteClicked,
-                        enabled = !isRented
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Delete Item",
-                            tint = if (isRented) Color.Gray else Color.Red.copy(alpha = 0.8f)
-                        )
+                } else {
+                    Row {
+                        IconButton(onClick = onEditClicked, modifier = Modifier.size(20.dp)) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.LightGray)
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(onClick = onDeleteClicked, modifier = Modifier.size(20.dp)) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                        }
                     }
                 }
             }
@@ -501,21 +480,8 @@ fun ListedItemCardCompact(
 
 @Composable
 fun ListedTopAppBar() {
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 20.dp, start = 16.dp, end = 16.dp, bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "My Listed Items",
-                color = Color.White,
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-        Spacer(modifier = Modifier.height(12.dp))
-    }
+    TopAppBar(
+        title = { Text("My Listings", color = Color.White, fontWeight = FontWeight.Bold) },
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Black),
+    )
 }
