@@ -17,8 +17,11 @@ data class ProductModel(
     val flaggedBy: List<String> = emptyList(), // this will resolve the flagCount and the button greyed logic
     val flagged: Boolean = false,
     val flaggedReason:List<String> = emptyList(),
-    val appealReason:String=""
-
+    val appealReason:String="",
+    val rentalRequesterId: String = "",
+    val rentalStatus: String = "",
+    val rentalDays: Int = 1,
+    val rentalStartDate: Long = 0L
 ){
     fun toMap() : Map < String, Any?> {
         return mapOf(
@@ -37,7 +40,11 @@ data class ProductModel(
             "flaggedBy" to flaggedBy,
             "flagged" to flagged,
             "flaggedReason" to flaggedReason,
-            "appealReason" to appealReason
+            "appealReason" to appealReason,
+            "rentalRequesterId" to rentalRequesterId,
+            "rentalStatus" to rentalStatus,
+            "rentalDays" to rentalDays,
+            "rentalStartDate" to rentalStartDate
         )
     }
 }

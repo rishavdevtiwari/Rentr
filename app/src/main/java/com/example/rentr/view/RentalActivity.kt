@@ -1,9 +1,10 @@
 package com.example.rentr.view
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
+import android.content.Intent
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,58 +17,63 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.rentr.R
+import com.example.rentr.model.ProductModel
+import com.example.rentr.repository.ProductRepoImpl
+import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
+import com.example.rentr.viewmodel.ProductViewModel
+import com.example.rentr.viewmodel.UserViewModel
 
-data class Rental(val id: Int, val name: String, val imageRes: Int, val price: Double, val returnDate: String)
-data class PastRental(val id: Int, val name: String, val imageRes: Int, val price: Double, val rentalDate: String)
+class RentalActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            RentalScreen()
+        }
+    }
+}
 
-val ongoingRentals = listOf(
-    Rental(1, "Mountain Bike", R.drawable.bicycle, 55.0, "July 28, 2024"),
-    Rental(2, "DSLR Camera", R.drawable.camera, 80.0, "August 5, 2024")
-)
-
-val pastRentals = listOf(
-    PastRental(1, "Gaming Laptop", R.drawable.camera, 120.0, "June 15, 2024"),
-    PastRental(2, "Old Camera", R.drawable.camera, 30.0, "May 22, 2024")
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RentalScreen() {
+    val productViewModel = remember { ProductViewModel(ProductRepoImpl()) }
+    val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+    val userId = userViewModel.getCurrentUser()?.uid
+
+    val products by productViewModel.allProducts.observeAsState(emptyList())
+
+    LaunchedEffect(userId) {
+        userId?.let {
+            productViewModel.getAllProducts { _, _, _ -> }
+        }
+    }
+
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Ongoing Rents", "Past Rentals", "Rental Shipping")
+    val tabs = listOf("Pending", "Ongoing Rents", "Past Rentals")
+
+    val pendingRentals = products.filter { it.rentalRequesterId == userId && it.rentalStatus == "pending" }
+    val ongoingRentals = products.filter { it.rentalRequesterId == userId && it.rentalStatus == "approved" && !it.outOfStock }
+    val pastRentals = products.filter { it.rentalRequesterId == userId && it.outOfStock }
 
     Scaffold(
         containerColor = Color.Black,
-        topBar = {
-            RentalTopAppBar()
-        }
+        topBar = { RentalTopAppBar() }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -79,32 +85,28 @@ fun RentalScreen() {
                 containerColor = Color.Black,
                 contentColor = Color.White,
                 indicator = { tabPositions ->
-                    TabRowDefaults.Indicator(
-                        Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                        height = 3.dp,
-                        color = Orange
-                    )
+                    if (selectedTabIndex < tabPositions.size) {
+                        TabRowDefaults.Indicator(
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                            height = 3.dp,
+                            color = Orange
+                        )
+                    }
                 }
             ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
                         selected = selectedTabIndex == index,
                         onClick = { selectedTabIndex = index },
-                        text = {
-                            Text(
-                                text = title,
-                                fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selectedTabIndex == index) Color.White else Color.Gray
-                            )
-                        }
+                        text = { Text(title, fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal, color = if (selectedTabIndex == index) Color.White else Color.Gray) }
                     )
                 }
             }
 
             when (selectedTabIndex) {
-                0 -> OngoingRentalsList(rentals = ongoingRentals)
-                1 -> PastRentalsList(rentals = pastRentals)
-                2 -> RentalShippingScreen()
+                0 -> RentalsList(rentals = pendingRentals, isPending = true)
+                1 -> RentalsList(rentals = ongoingRentals, isOngoing = true)
+                2 -> RentalsList(rentals = pastRentals)
             }
         }
     }
@@ -119,30 +121,26 @@ fun RentalTopAppBar() {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        Text(
-            text = "My Rentals",
-            color = Color.White,
-            fontSize = 30.sp,
-            fontWeight = FontWeight.Bold
-        )
+        Text("My Rentals", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
     }
     Spacer(modifier = Modifier.height(20.dp))
 }
 
 @Composable
-fun OngoingRentalsList(rentals: List<Rental>) {
+fun RentalsList(rentals: List<ProductModel>, isPending: Boolean = false, isOngoing: Boolean = false) {
     LazyColumn(
         modifier = Modifier.padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         items(rentals) { rental ->
-            OngoingRentalCard(rental = rental)
+            RentalCard(rental = rental, isPending = isPending, isOngoing = isOngoing)
         }
     }
 }
 
 @Composable
-fun OngoingRentalCard(rental: Rental) {
+fun RentalCard(rental: ProductModel, isPending: Boolean, isOngoing: Boolean) {
+    val context = LocalContext.current
     Card(
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier.height(150.dp),
@@ -154,83 +152,44 @@ fun OngoingRentalCard(rental: Rental) {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Image(
-                painter = painterResource(id = rental.imageRes),
-                contentDescription = rental.name,
-                modifier = Modifier
-                    .size(110.dp)
-                    .clip(RoundedCornerShape(12.dp)),
-                contentScale = ContentScale.Crop
+            AsyncImage(
+                model = rental.imageUrl.firstOrNull(),
+                contentDescription = rental.title,
+                modifier = Modifier.size(110.dp).clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = R.drawable.rentrimage),
+                error = painterResource(id = R.drawable.rentrimage)
             )
             Spacer(modifier = Modifier.width(16.dp))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(rental.name, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text("Return by: ${rental.returnDate}", color = Color.Gray, fontSize = 14.sp)
+                Text(rental.title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+
+                when {
+                    isPending -> {
+                        Text("Request Pending", color = Color.Gray, fontSize = 14.sp)
+                    }
+                    isOngoing -> {
+                        Button(onClick = {
+                            val intent = Intent(context, CheckoutActivity::class.java).apply {
+                                putExtra("productTitle", rental.title)
+                                putExtra("basePrice", rental.price)
+                                putExtra("rentalPrice", rental.price * rental.rentalDays)
+                                putExtra("days", rental.rentalDays)
+                                putExtra("productId", rental.productId)
+                                putExtra("sellerId", rental.listedBy)
+                            }
+                            context.startActivity(intent)
+                        }) {
+                            Text("Pay Now")
+                        }
+                    }
+                    else -> {
+                        Text("Rented", color = Color.Gray, fontSize = 14.sp)
+                    }
+                }
+
                 Text("NPR. ${rental.price}/day", color = Orange, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
-}
-
-@Composable
-fun PastRentalsList(rentals: List<PastRental>) {
-    LazyColumn(
-        modifier = Modifier.padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        items(rentals) { rental ->
-            PastRentalCard(rental = rental)
-        }
-    }
-}
-
-@Composable
-fun PastRentalCard(rental: PastRental) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier
-            .height(150.dp)
-            .clickable { /* TODO: Show receipt details */ },
-        colors = CardDefaults.cardColors(containerColor = Field)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Image(
-                painter = painterResource(id = rental.imageRes),
-                contentDescription = rental.name,
-                modifier = Modifier
-                    .size(110.dp)
-                    .clip(RoundedCornerShape(12.dp)),
-                contentScale = ContentScale.Crop
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(rental.name, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text("Rented on: ${rental.rentalDate}", color = Color.Gray, fontSize = 14.sp)
-                Text("Total: NPR. ${rental.price}", color = Orange, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-            }
-        }
-    }
-}
-
-@Composable
-fun RentalShippingScreen() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text("Rental Shipping Information", color = Color.White, fontSize = 20.sp)
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF000000)
-@Composable
-fun RentalScreenPreview() {
-    RentalScreen()
 }
