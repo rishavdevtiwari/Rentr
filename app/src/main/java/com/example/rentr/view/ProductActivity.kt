@@ -1,7 +1,6 @@
 package com.example.rentr.view
 
 import android.app.Activity
-import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -40,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.rentr.R
+import com.example.rentr.model.ProductModel
 import com.example.rentr.repository.ProductRepoImpl
 import com.example.rentr.repository.UserRepoImp1
 import com.example.rentr.ui.theme.Field
@@ -129,19 +129,25 @@ fun ProductDisplay(productId: String) {
         bottomBar = {
             val safeProduct = product
             if (!isSeller && safeProduct?.availability == true && safeProduct.outOfStock == false) {
-                val totalPrice = safeProduct.price * rentalDays
                 BottomBar(
-                    price = totalPrice,
-                    onPayNowClick = {
-                        val intent = Intent(context, CheckoutActivity::class.java).apply {
-                            putExtra("productTitle", safeProduct.title)
-                            putExtra("basePrice", safeProduct.price)
-                            putExtra("rentalPrice", totalPrice)
-                            putExtra("days", rentalDays)
-                            putExtra("productId", safeProduct.productId)
-                            putExtra("sellerId", safeProduct.listedBy)
+                    product = safeProduct,
+                    rentalDays = rentalDays,
+                    onRentNowClick = {
+                        if (currentUserId != null) {
+                            val updatedProduct = safeProduct.copy(
+                                rentalStatus = "pending",
+                                rentalRequesterId = currentUserId,
+                                rentalDays = rentalDays
+                            )
+                            productViewModel.updateProduct(safeProduct.productId, updatedProduct) { success, _ ->
+                                if (success) {
+                                    Toast.makeText(context, "Rental request sent!", Toast.LENGTH_SHORT).show()
+                                    activity?.finish()
+                                } else {
+                                    Toast.makeText(context, "Failed to send rental request.", Toast.LENGTH_SHORT).show()
+                                }
+                            }
                         }
-                        context.startActivity(intent)
                     }
                 )
             }
@@ -402,7 +408,8 @@ fun RatingBar(
 }
 
 @Composable
-fun BottomBar(price: Double, onPayNowClick: () -> Unit) {
+fun BottomBar(product: ProductModel, rentalDays: Int, onRentNowClick: () -> Unit) {
+    val rentalPrice = product.price * rentalDays
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -413,17 +420,18 @@ fun BottomBar(price: Double, onPayNowClick: () -> Unit) {
     ) {
         Column {
             Text("Total price", color = Color.Gray, fontSize = 12.sp)
-            Text(String.format("NPR. %.2f", price), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(String.format("NPR. %.2f", rentalPrice), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
         Button(
-            onClick = onPayNowClick,
-            colors = ButtonDefaults.buttonColors(containerColor = Orange),
+            onClick = onRentNowClick,
+            colors = ButtonDefaults.buttonColors(containerColor = if (product.rentalStatus == "pending") Color.Gray else Orange),
             shape = RoundedCornerShape(16.dp),
+            enabled = product.rentalStatus != "pending",
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp)
         ) {
             Icon(Icons.Default.ShoppingCart, null, tint = Color.Black)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Pay Now", color = Color.Black, fontWeight = FontWeight.Bold)
+            Text(if (product.rentalStatus == "pending") "Request Sent" else "Request to Rent", color = Color.Black, fontWeight = FontWeight.Bold)
         }
     }
 }
