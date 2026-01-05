@@ -52,7 +52,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.rentr.R
-import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.ui.theme.BG40
 import com.example.rentr.ui.theme.Button
 import com.example.rentr.ui.theme.Field
@@ -71,7 +71,7 @@ class LoginActivity : ComponentActivity() {
 @Composable
 fun LoginBody(){
 
-    var userViewModelLogin = remember { UserViewModel(UserRepoImp1()) }
+    var userViewModelLogin = remember { UserViewModel(UserRepoImpl()) }
 
     var email by remember { mutableStateOf("")}
     var password by remember { mutableStateOf("")}

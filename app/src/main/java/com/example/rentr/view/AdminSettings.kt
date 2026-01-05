@@ -1,6 +1,8 @@
 package com.example.rentr.view
 
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -11,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -73,11 +77,12 @@ fun AdminSettingsScreen() {
                 name = "Alex Doe",
                 age = 34,
                 qualification = "Head of Operations",
-                profileImage = R.drawable.ic_launcher_background // Replace with your actual admin image
+                profileImage = R.drawable.ic_launcher_background
             )
         )
     }
     var showEditDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     if (showEditDialog) {
         EditProfileDialog(
@@ -86,6 +91,7 @@ fun AdminSettingsScreen() {
             onSave = {
                 admin = it
                 showEditDialog = false
+                Toast.makeText(context, "Profile updated successfully", Toast.LENGTH_SHORT).show()
             }
         )
     }
@@ -97,7 +103,16 @@ fun AdminSettingsScreen() {
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = splash,
                     titleContentColor = Color.White
-                )
+                ),
+                navigationIcon = {
+                    IconButton(onClick = { (context as? ComponentActivity)?.finish() }) {
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+                }
             )
         },
         containerColor = splash
@@ -110,7 +125,13 @@ fun AdminSettingsScreen() {
         ) {
             AdminProfileCard(admin = admin)
             Spacer(modifier = Modifier.height(32.dp))
-            SettingsMenuList(onProfileUpdateClick = { showEditDialog = true })
+            SettingsMenuList(
+                onProfileUpdateClick = {
+                    // Navigate to UpdateProfile activity
+                    val intent = Intent(context, AdminUpdateProfile::class.java)
+                    context.startActivity(intent)
+                }
+            )
         }
     }
 }
@@ -149,14 +170,38 @@ fun AdminProfileCard(admin: Admin) {
 
 @Composable
 fun SettingsMenuList(onProfileUpdateClick: () -> Unit) {
+    val context = LocalContext.current
+
     Column {
-        SettingsMenuItem(icon = Icons.Outlined.Person, title = "Profile Update", onClick = onProfileUpdateClick)
+        SettingsMenuItem(
+            icon = Icons.Outlined.Person,
+            title = "Profile Update",
+            onClick = onProfileUpdateClick
+        )
         Divider(color = Color.Gray)
-        SettingsMenuItem(icon = Icons.Outlined.Notifications, title = "Notifications")
+        SettingsMenuItem(
+            icon = Icons.Outlined.Notifications,
+            title = "Notifications",
+            onClick = { Toast.makeText(context, "Notifications settings", Toast.LENGTH_SHORT).show() }
+        )
         Divider(color = Color.Gray)
-        SettingsMenuItem(icon = Icons.Outlined.Lock, title = "Privacy Policy")
+        SettingsMenuItem(
+            icon = Icons.Outlined.Lock,
+            title = "Privacy Policy",
+            onClick = { Toast.makeText(context, "Privacy Policy", Toast.LENGTH_SHORT).show() }
+        )
         Divider(color = Color.Gray)
-        SettingsMenuItem(icon = Icons.AutoMirrored.Filled.Logout, title = "Logout", isDestructive = true)
+        SettingsMenuItem(
+            icon = Icons.AutoMirrored.Filled.Logout,
+            title = "Logout",
+            isDestructive = true,
+            onClick = {
+                // Handle logout logic here
+                Toast.makeText(context, "Logged out successfully", Toast.LENGTH_SHORT).show()
+                // Navigate to login screen
+                (context as? ComponentActivity)?.finish()
+            }
+        )
     }
 }
 

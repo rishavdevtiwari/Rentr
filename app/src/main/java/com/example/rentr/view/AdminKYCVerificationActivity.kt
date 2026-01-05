@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.SubcomposeAsyncImage
 import com.example.rentr.model.UserModel
-import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.viewmodel.UserViewModel
 
 class AdminKYCVerificationActivity : ComponentActivity() {
@@ -67,7 +67,7 @@ fun KYCVerificationScreen(userId: String) {
         factory = object : androidx.lifecycle.ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                return UserViewModel(UserRepoImp1()) as T
+                return UserViewModel(UserRepoImpl()) as T
             }
         }
     )

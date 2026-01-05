@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material3.TextFieldDefaults.colors
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
@@ -38,7 +39,7 @@ import coil.compose.AsyncImage
 import com.example.rentr.R
 import com.example.rentr.model.ProductModel
 import com.example.rentr.repository.ProductRepoImpl
-import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.viewmodel.ProductViewModel
@@ -62,7 +63,7 @@ fun ListedScreen() {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Available / Unavailable", "Ongoing", "Rented Out", "Flagged")
 
-    val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+    val userViewModel = remember { UserViewModel(UserRepoImpl()) }
     val uId = userViewModel.getCurrentUser()?.uid
     var isUserVerified by remember { mutableStateOf(false) }
 
@@ -104,7 +105,7 @@ fun ListedScreen() {
     }
 
     val filteredList = when (selectedTabIndex) {
-        0 -> products.filter { it.verified && it.rentalStatus == "" && !it.outOfStock && !(it.flagged && it.flaggedBy.isNotEmpty()) }
+        0 -> products.filter { it.verified && it.rentalStatus == "" && !it.outOfStock }
         1 -> products.filter { (it.rentalStatus == "pending" || it.rentalStatus == "approved") && !it.outOfStock }
         2 -> products.filter { it.outOfStock }
         3 -> products.filter { it.flagged && it.flaggedBy.isNotEmpty() }
@@ -114,15 +115,30 @@ fun ListedScreen() {
     if (showDeleteDialog && productToDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Confirm Deletion") },
-            text = { Text("Are you sure you want to delete '${productToDelete?.title}'?") },
+            title = { Text("Confirm Deletion", color = Color.White) },
+            text = {
+                Column {
+                    Text("Are you sure you want to delete '${productToDelete?.title}'?", color = Color.LightGray)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (productToDelete?.flagged == true) {
+                        Text(
+                            "⚠️ This product is flagged. Deleting it will NOT reduce your flag count.",
+                            color = Color.Yellow,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            },
             confirmButton = {
                 Button(
                     onClick = {
                         productToDelete?.let { product ->
-                            productViewModel.deleteProduct(product.productId) { success, _ ->
+                            productViewModel.deleteProduct(product.productId) { success, msg ->
                                 if (success) {
+                                    Toast.makeText(context, "Product deleted", Toast.LENGTH_SHORT).show()
                                     uId?.let { productViewModel.getAllProductsByUser(userId = it) { _, _, _ -> } }
+                                } else {
+                                    Toast.makeText(context, "Failed to delete: $msg", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
@@ -132,7 +148,15 @@ fun ListedScreen() {
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
                 ) { Text("Yes, Delete") }
             },
-            dismissButton = { Button(onClick = { showDeleteDialog = false }) { Text("Cancel") } }
+            dismissButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    productToDelete = null
+                }) {
+                    Text("Cancel", color = Color.Gray)
+                }
+            },
+            containerColor = Color(0xFF1E1E1E)
         )
     }
 
@@ -143,46 +167,83 @@ fun ListedScreen() {
                 appealReason = ""
                 productToAppeal = null
             },
-            title = { Text("Submit Appeal") },
+            title = { Text("Submit Appeal", color = Color.White) },
             text = {
                 Column {
-                    Text("Appeal for: ${productToAppeal?.title}", color = Color.Gray)
+                    Text("Appeal for: ${productToAppeal?.title}", color = Color.LightGray)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Reason for flagging: ${productToAppeal?.flaggedReason?.joinToString(", ")}",
-                        color = Color.LightGray,
-                        fontSize = 12.sp
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    TextField(
+
+                    // Show flag reasons
+                    val flaggedReasons = productToAppeal?.flaggedReason?.joinToString(", ")
+                    if (!flaggedReasons.isNullOrEmpty()) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color.Red.copy(alpha = 0.1f)),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(8.dp)) {
+                                Text("Flagged Reasons:", color = Color.Red, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(flaggedReasons, color = Color.Red.copy(alpha = 0.8f), fontSize = 11.sp)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    Text("Explain why this flag should be removed:", color = Color.LightGray, fontSize = 14.sp)
+
+                    OutlinedTextField(
                         value = appealReason,
                         onValueChange = { appealReason = it },
-                        modifier = Modifier.fillMaxWidth().height(120.dp),
-                        placeholder = { Text("Enter your appeal reason...") },
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Field,
-                            unfocusedContainerColor = Field,
-                            focusedIndicatorColor = Orange,
-                            unfocusedIndicatorColor = Color.Gray,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp),
+                        placeholder = { Text("Enter your appeal reason...", color = Color.Gray) },
+                        colors = OutlinedTextFieldDefaults.run {
+                            colors(
+                                                focusedContainerColor = Field,
+                                                unfocusedContainerColor = Field,
+                                                focusedIndicatorColor = Orange,
+                                                unfocusedIndicatorColor = Color.Gray,
+                                                focusedTextColor = Color.White,
+                                                unfocusedTextColor = Color.White,
+                                                focusedPlaceholderColor = Color.Gray,
+                                                unfocusedPlaceholderColor = Color.Gray
+                                            )
+                        },
+                        shape = RoundedCornerShape(8.dp),
                         singleLine = false,
                         maxLines = 4
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "⚠️ Appeal will be reviewed by admin. Product remains hidden until review.",
+                        color = Color.Yellow,
+                        fontSize = 11.sp
                     )
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
+                        if (appealReason.trim().isEmpty()) {
+                            Toast.makeText(context, "Please enter appeal reason", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+
                         productToAppeal?.let { product ->
-                            val updatedProduct = product.copy(appealReason = appealReason)
-                            productViewModel.updateProduct(product.productId, updatedProduct) { success, _ ->
+                            val updatedProduct = product.copy(
+                                appealReason = appealReason.trim(),
+                                // Product stays flagged and hidden during appeal
+                                flagged = true,
+                                availability = false
+                            )
+
+                            productViewModel.updateProduct(product.productId, updatedProduct) { success, msg ->
                                 if (success) {
                                     uId?.let { productViewModel.getAllProductsByUser(userId = it) { _, _, _ -> } }
                                     Toast.makeText(context, "Appeal submitted for admin review", Toast.LENGTH_SHORT).show()
                                 } else {
-                                    Toast.makeText(context, "Failed to submit appeal", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Failed to submit appeal: $msg", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
@@ -190,16 +251,20 @@ fun ListedScreen() {
                         appealReason = ""
                         productToAppeal = null
                     },
+                    enabled = appealReason.trim().isNotEmpty(),
                     colors = ButtonDefaults.buttonColors(containerColor = Orange)
                 ) { Text("Submit Appeal") }
             },
             dismissButton = {
-                Button(onClick = {
-                    showAppealDialog = false
-                    appealReason = ""
-                    productToAppeal = null
-                }) { Text("Cancel") }
-            }
+                TextButton(
+                    onClick = {
+                        showAppealDialog = false
+                        appealReason = ""
+                        productToAppeal = null
+                    }
+                ) { Text("Cancel", color = Color.Gray) }
+            },
+            containerColor = Color(0xFF1E1E1E)
         )
     }
 
@@ -207,7 +272,7 @@ fun ListedScreen() {
         containerColor = Color.Black,
         topBar = { ListedTopAppBar() },
         floatingActionButton = {
-            if (selectedTabIndex != 3) {
+            if (selectedTabIndex != 3) { // Don't show FAB on Flagged tab
                 FloatingActionButton(
                     onClick = {
                         if (!isUserVerified) {
@@ -219,7 +284,9 @@ fun ListedScreen() {
                     },
                     containerColor = Orange,
                     shape = CircleShape
-                ) { Icon(Icons.Default.Add, null, tint = Color.Black) }
+                ) {
+                    Icon(Icons.Default.Add, null, tint = Color.Black)
+                }
             }
         }
     ) { paddingValues ->
@@ -242,11 +309,19 @@ fun ListedScreen() {
                     Tab(
                         selected = selectedTabIndex == index,
                         onClick = { selectedTabIndex = index },
-                        text = { Text(title, fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal, color = if (selectedTabIndex == index) Color.White else Color.Gray) }
+                        text = {
+                            Text(
+                                title,
+                                fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selectedTabIndex == index) Color.White else Color.Gray
+                            )
+                        }
                     )
                 }
             }
+
             Spacer(modifier = Modifier.padding(top = 20.dp))
+
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -258,13 +333,23 @@ fun ListedScreen() {
                         isFlaggedTab = selectedTabIndex == 3,
                         isOngoingTab = selectedTabIndex == 1,
                         onEditClicked = {
-                            val intent = Intent(context, EditListedActivity::class.java)
-                            intent.putExtra("productId", product.productId)
-                            editListingLauncher.launch(intent)
+                            // Only allow edit if NOT flagged
+                            if (product.flagged && product.flaggedBy.isNotEmpty()) {
+                                Toast.makeText(context, "Cannot edit flagged item. Submit appeal first.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                val intent = Intent(context, EditListedActivity::class.java)
+                                intent.putExtra("productId", product.productId)
+                                editListingLauncher.launch(intent)
+                            }
                         },
                         onDeleteClicked = {
-                            productToDelete = product
-                            showDeleteDialog = true
+                            // Only allow delete if NOT flagged
+                            if (product.flagged && product.flaggedBy.isNotEmpty()) {
+                                Toast.makeText(context, "Cannot delete flagged item. Submit appeal first.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                productToDelete = product
+                                showDeleteDialog = true
+                            }
                         },
                         onAppealClicked = {
                             productToAppeal = product
@@ -275,23 +360,71 @@ fun ListedScreen() {
                                 rentalStatus = "approved",
                                 rentalStartDate = System.currentTimeMillis()
                             )
-                            productViewModel.updateProduct(product.productId, updatedProduct) { success, _ ->
+                            productViewModel.updateProduct(product.productId, updatedProduct) { success, msg ->
                                 if (success) {
                                     uId?.let { productViewModel.getAllProductsByUser(it) { _, _, _ -> } }
                                     Toast.makeText(context, "Rental accepted", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Failed to accept: $msg", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         },
                         onRejectClicked = {
-                            val updatedProduct = product.copy(rentalStatus = "", rentalRequesterId = "")
-                            productViewModel.updateProduct(product.productId, updatedProduct) { success, _ ->
+                            val updatedProduct = product.copy(
+                                rentalStatus = "",
+                                rentalRequesterId = "",
+                                rentalDays = 1
+                            )
+                            productViewModel.updateProduct(product.productId, updatedProduct) { success, msg ->
                                 if (success) {
                                     uId?.let { productViewModel.getAllProductsByUser(it) { _, _, _ -> } }
                                     Toast.makeText(context, "Rental rejected", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Failed to reject: $msg", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
                     )
+                }
+
+                if (filteredList.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(300.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Icon(
+                                    imageVector = when (selectedTabIndex) {
+                                        0 -> Icons.Default.Inventory
+                                        1 -> Icons.Default.Schedule
+                                        2 -> Icons.Default.ShoppingBag
+                                        3 -> Icons.Default.Flag
+                                        else -> Icons.Default.Inventory
+                                    },
+                                    contentDescription = "Empty",
+                                    tint = Color.Gray,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Text(
+                                    text = when (selectedTabIndex) {
+                                        0 -> "No available/unavailable items"
+                                        1 -> "No ongoing rentals"
+                                        2 -> "No rented out items"
+                                        3 -> "No flagged items"
+                                        else -> "No items"
+                                    },
+                                    color = Color.Gray,
+                                    fontSize = 16.sp
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -309,8 +442,12 @@ fun ListedItemCardCompact(
     onAcceptClicked: () -> Unit,
     onRejectClicked: () -> Unit
 ) {
-    val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+    val userViewModel = remember { UserViewModel(UserRepoImpl()) }
     var requesterName by remember { mutableStateOf<String?>(null) }
+
+    // Check if product is flagged
+    val isFlagged = product.flagged && product.flaggedBy.isNotEmpty()
+    val hasAppeal = product.appealReason.isNotEmpty()
 
     LaunchedEffect(product.rentalRequesterId) {
         if (isOngoingTab && product.rentalRequesterId.isNotEmpty()) {
@@ -325,7 +462,7 @@ fun ListedItemCardCompact(
     val status = when {
         product.rentalStatus == "approved" -> "Waiting for Payment"
         product.rentalStatus == "pending" -> "Pending Request"
-        product.flagged && product.flaggedBy.isNotEmpty() -> "FLAGGED"
+        isFlagged -> "FLAGGED"
         product.outOfStock -> "Rented Out"
         !product.availability -> "Unavailable"
         else -> "Available"
@@ -333,78 +470,120 @@ fun ListedItemCardCompact(
 
     val isRented = status == "Rented Out"
     val isUnavailable = status == "Unavailable"
-    val isFlagged = status == "FLAGGED"
     val isPending = status == "Pending Request"
     val isWaitingForPayment = status == "Waiting for Payment"
     val imageUrl = product.imageUrl.firstOrNull()
-    val hasAppeal = product.appealReason.isNotEmpty()
 
     Card(
         shape = RoundedCornerShape(14.dp),
-        modifier = Modifier.height(if (isFlaggedTab || isOngoingTab) 120.dp else 100.dp).width(320.dp),
+        modifier = Modifier
+            .height(if (isFlaggedTab || isOngoingTab) 130.dp else 110.dp)
+            .width(320.dp),
         colors = CardDefaults.cardColors(
             containerColor = when {
-                isFlagged -> Color.Yellow.copy(alpha = 0.1f)
+                isFlagged -> Color.Red.copy(alpha = 0.1f)
                 isRented -> Field.copy(alpha = 0.6f)
                 isUnavailable -> Color.Gray.copy(alpha = 0.4f)
                 isPending || isWaitingForPayment -> Color.Blue.copy(alpha = 0.2f)
                 else -> Field
             }
         ),
-        border = if (isFlagged) BorderStroke(1.dp, Color.Yellow.copy(alpha = 0.3f)) else null
+        border = when {
+            isFlagged -> BorderStroke(1.dp, Color.Red.copy(alpha = 0.3f))
+            hasAppeal -> BorderStroke(1.dp, Color.Cyan.copy(alpha = 0.3f))
+            else -> null
+        }
     ) {
         Row(
-            modifier = Modifier.fillMaxSize().padding(10.dp),
+            modifier = Modifier.fillMaxSize().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
                 model = imageUrl,
                 placeholder = painterResource(R.drawable.rentrimage),
-                error = painterResource(R.drawable.p1),
+                error = painterResource(R.drawable.rentrimage),
                 contentDescription = product.title,
-                modifier = Modifier.size(if (isFlaggedTab || isOngoingTab) 80.dp else 70.dp).clip(RoundedCornerShape(10.dp)),
+                modifier = Modifier
+                    .size(if (isFlaggedTab || isOngoingTab) 90.dp else 80.dp)
+                    .clip(RoundedCornerShape(10.dp)),
                 contentScale = ContentScale.Crop
             )
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(product.title, color = if (isUnavailable) Color.LightGray else Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    product.title,
+                    color = if (isUnavailable) Color.LightGray else Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
 
                 Box(
-                    modifier = Modifier.background(
-                        when {
-                            isFlagged -> Color.Yellow.copy(alpha = 0.2f)
-                            isRented -> Color.Red.copy(alpha = 0.6f)
-                            isUnavailable -> Color.Gray.copy(alpha = 0.4f)
-                            isPending || isWaitingForPayment -> Color.Blue.copy(alpha = 0.3f)
-                            else -> Orange.copy(alpha = 0.2f)
-                        },
-                        RoundedCornerShape(6.dp)
-                    ).padding(horizontal = 6.dp, vertical = 2.dp)
+                    modifier = Modifier
+                        .background(
+                            when {
+                                isFlagged -> Color.Red.copy(alpha = 0.2f)
+                                isRented -> Color.Red.copy(alpha = 0.6f)
+                                isUnavailable -> Color.Gray.copy(alpha = 0.4f)
+                                isPending || isWaitingForPayment -> Color.Blue.copy(alpha = 0.3f)
+                                else -> Orange.copy(alpha = 0.2f)
+                            },
+                            RoundedCornerShape(6.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
-                        text = status,
+                        text = if (hasAppeal && isFlagged) "APPEAL PENDING" else status,
                         color = when {
-                            isFlagged -> Color.Yellow
+                            isFlagged && !hasAppeal -> Color.Red
+                            hasAppeal && isFlagged -> Color.Cyan
                             isRented -> Color.White
                             isUnavailable -> Color.LightGray
                             isPending || isWaitingForPayment -> Color.White
                             else -> Orange
                         },
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
                     )
                 }
 
                 if (isOngoingTab && requesterName != null) {
-                    Text("Requested by: $requesterName", color = Color.LightGray, fontSize = 11.sp)
+                    Text(
+                        "Requested by: $requesterName",
+                        color = Color.LightGray,
+                        fontSize = 12.sp,
+                        maxLines = 1
+                    )
                 }
 
-                Text("NPR. ${product.price}/day", color = if (isUnavailable) Color.LightGray else Color.White, fontSize = 12.sp)
+                // Show flag count if flagged
+                if (isFlagged && !isFlaggedTab) {
+                    Text(
+                        "Flagged by ${product.flaggedBy.size} user(s)",
+                        color = Color.Red.copy(alpha = 0.8f),
+                        fontSize = 10.sp
+                    )
+                }
+
+                // Show appeal status if appealed
+                if (hasAppeal) {
+                    Text(
+                        "✓ Appeal submitted",
+                        color = Color.Cyan,
+                        fontSize = 10.sp
+                    )
+                }
+
+                Text(
+                    "NPR. ${String.format("%.2f", product.price)}/day",
+                    color = if (isUnavailable) Color.LightGray else Color.White,
+                    fontSize = 13.sp
+                )
             }
 
             Column(
@@ -413,9 +592,10 @@ fun ListedItemCardCompact(
                 modifier = Modifier.fillMaxHeight()
             ) {
                 if (isFlaggedTab) {
+                    // On Flagged tab: Show only appeal button
                     Button(
                         onClick = onAppealClicked,
-                        enabled = !hasAppeal,
+                        enabled = !hasAppeal, // Disable if appeal already submitted
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (hasAppeal) Color.Gray else Orange,
@@ -426,34 +606,76 @@ fun ListedItemCardCompact(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Gavel, "Appeal", Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (hasAppeal) "Pending" else "Appeal", fontSize = 10.sp)
+                            Text(if (hasAppeal) "Appealed" else "Appeal", fontSize = 10.sp)
                         }
                     }
                 } else if (isOngoingTab) {
+                    // On Ongoing tab: Show accept/reject buttons for pending requests
                     if (isPending) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             IconButton(
                                 onClick = onRejectClicked,
-                                modifier = Modifier.size(32.dp).background(Color.Red.copy(alpha = 0.2f), CircleShape)
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(Color.Red.copy(alpha = 0.2f), CircleShape)
                             ) {
                                 Icon(Icons.Default.Close, "Reject", tint = Color.Red)
                             }
                             IconButton(
                                 onClick = onAcceptClicked,
-                                modifier = Modifier.size(32.dp).background(Color(0xFF4CAF50).copy(alpha = 0.2f), CircleShape)
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(Color(0xFF4CAF50).copy(alpha = 0.2f), CircleShape)
                             ) {
                                 Icon(Icons.Default.Check, "Accept", tint = Color(0xFF4CAF50))
                             }
                         }
+                    } else {
+                        // For approved requests waiting payment, show no action buttons
+                        Spacer(modifier = Modifier.height(32.dp))
                     }
                 } else {
-                    Row {
-                        IconButton(onClick = onEditClicked, modifier = Modifier.size(20.dp), enabled = !isRented && !isUnavailable) {
-                            Icon(Icons.Default.Edit, "Edit", tint = if (isRented || isUnavailable) Color.DarkGray else Color.LightGray)
+                    // On Available/Rented tabs: Show edit/delete only if NOT flagged
+                    if (isFlagged) {
+                        // If flagged, show appeal button
+                        Button(
+                            onClick = onAppealClicked,
+                            enabled = !hasAppeal,
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (hasAppeal) Color.Gray else Orange,
+                                contentColor = Color.Black
+                            ),
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Text(if (hasAppeal) "Appealed" else "Appeal", fontSize = 10.sp)
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        IconButton(onClick = onDeleteClicked, modifier = Modifier.size(20.dp), enabled = !isRented && !isUnavailable) {
-                            Icon(Icons.Default.Delete, "Delete", tint = if (isRented || isUnavailable) Color.DarkGray else Color.Red)
+                    } else {
+                        // If not flagged, show edit/delete buttons
+                        Row {
+                            IconButton(
+                                onClick = onEditClicked,
+                                modifier = Modifier.size(24.dp),
+                                enabled = !isRented && !isUnavailable
+                            ) {
+                                Icon(
+                                    Icons.Default.Edit,
+                                    "Edit",
+                                    tint = if (isRented || isUnavailable) Color.DarkGray else Color.LightGray
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            IconButton(
+                                onClick = onDeleteClicked,
+                                modifier = Modifier.size(24.dp),
+                                enabled = !isRented && !isUnavailable
+                            ) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    "Delete",
+                                    tint = if (isRented || isUnavailable) Color.DarkGray else Color.Red
+                                )
+                            }
                         }
                     }
                 }

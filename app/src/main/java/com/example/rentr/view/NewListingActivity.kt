@@ -40,7 +40,7 @@ import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
 import com.example.rentr.model.ProductModel
 import com.example.rentr.repository.ProductRepoImpl
-import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.RentrTheme
@@ -81,7 +81,7 @@ class NewListingActivity : ComponentActivity() {
 @Composable
 fun NewListingScreen(modifier: Modifier = Modifier) {
     val productViewModel = remember { ProductViewModel(ProductRepoImpl()) }
-    val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+    val userViewModel = remember { UserViewModel(UserRepoImpl()) }
 
     var productName by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }

@@ -248,6 +248,65 @@ class ProductRepoImpl : ProductRepo {
         }
     }
 
+    override fun flagProduct(
+        productId: String,
+        userId: String,
+        reason: String,
+        callback: (Boolean, String) -> Unit
+    ) {
+        ref.child(productId).runTransaction(object : Transaction.Handler {
+            override fun doTransaction(currentData: MutableData): Transaction.Result {
+                val product = currentData.getValue(ProductModel::class.java)
+                if (product == null) {
+                    return Transaction.success(currentData)
+                }
+
+                // Check if user already flagged
+                if (product.flaggedBy.contains(userId)) {
+                    return Transaction.success(currentData) // User already flagged
+                }
+
+                // Add user to flaggedBy list
+                val updatedFlaggedBy = product.flaggedBy.toMutableList().apply {
+                    add(userId)
+                }
+
+                // Add reason to flaggedReason list (avoid duplicates)
+                val updatedFlaggedReason = product.flaggedReason.toMutableList().apply {
+                    if (!contains(reason)) {
+                        add(reason)
+                    }
+                }
+
+                // Update product
+                val updatedProduct = product.copy(
+                    flaggedBy = updatedFlaggedBy,
+                    flaggedReason = updatedFlaggedReason,
+                    flagged = true
+                )
+
+                currentData.value = updatedProduct
+                return Transaction.success(currentData)
+            }
+
+            override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
+                if (error != null) {
+                    callback(false, error.message)
+                } else if (committed) {
+                    // Check if user was actually added
+                    val product = currentData?.getValue(ProductModel::class.java)
+                    if (product?.flaggedBy?.contains(userId) == true) {
+                        callback(true, "Product flagged successfully")
+                    } else {
+                        callback(false, "User already flagged this product or transaction failed")
+                    }
+                } else {
+                    callback(false, "Transaction not committed")
+                }
+            }
+        })
+    }
+
     override fun clearFlags(productId: String, callback: (Boolean, String) -> Unit) {
         ref.child(productId).child("flagged").setValue(false)
             .addOnCompleteListener { flagTask ->

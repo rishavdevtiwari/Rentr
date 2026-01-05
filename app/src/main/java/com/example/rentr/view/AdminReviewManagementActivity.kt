@@ -34,7 +34,7 @@ import coil.compose.AsyncImage
 import com.example.rentr.model.ProductModel
 import com.example.rentr.model.UserModel
 import com.example.rentr.repository.ProductRepoImpl
-import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
 
@@ -66,7 +66,7 @@ fun ReviewScreenContent(
         factory = ProductViewModel.Factory(ProductRepoImpl())
     ),
     userViewModel: UserViewModel = viewModel(
-        factory = UserViewModel.Factory(UserRepoImp1())
+        factory = UserViewModel.Factory(UserRepoImpl())
     )
 ) {
     val context = LocalContext.current

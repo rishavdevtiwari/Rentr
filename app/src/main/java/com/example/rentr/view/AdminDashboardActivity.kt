@@ -1,4 +1,3 @@
-
 package com.example.rentr.view
 
 import android.content.Intent
@@ -25,22 +24,18 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.example.rentr.R
-import com.example.rentr.model.ProductModel
-import com.example.rentr.model.UserModel
 import com.example.rentr.repository.ProductRepoImpl
-import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.RentrTheme
@@ -73,6 +68,7 @@ class AdminDashboardActivity : ComponentActivity() {
 @Composable
 fun AdminMainParent() {
     val navController = rememberNavController()
+    val context = LocalContext.current
 
     Scaffold(
         bottomBar = { AdminBottomNavBar(navController = navController) },
@@ -84,49 +80,37 @@ fun AdminMainParent() {
                 // 1. HOME TAB
                 composable(BottomNavItem.Home.route) {
                     AdminDashboardScreen(
-                        // Pass navigation callbacks to switch tabs instead of starting Activities
                         onNavigateToProduct = {
-                            navController.navigate(BottomNavItem.Product.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
+                            val intent = Intent(context, AdminProductManagementActivity::class.java)
+                            context.startActivity(intent)
                         },
                         onNavigateToKYC = {
-                            navController.navigate(BottomNavItem.KYC.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
+                            val intent = Intent(context, AdminKYCManagementActivity::class.java)
+                            context.startActivity(intent)
                         },
                         onNavigateToReview = {
-                            navController.navigate(BottomNavItem.Review.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
+                            val intent = Intent(context, AdminReviewManagementActivity::class.java)
+                            context.startActivity(intent)
                         }
                     )
                 }
 
-                // 2. KYC TAB
-                composable(BottomNavItem.KYC.route) {
-                    PlaceholdersScreen("KYC Management")
-                }
-
-                // 3. PRODUCT TAB
-                composable(BottomNavItem.Product.route) {
-                    PlaceholdersScreen("Product Management")
-                }
-
-                // 4. REVIEW TAB
-                composable(BottomNavItem.Review.route) {
-                    PlaceholdersScreen("Flagged Reviews")
-                }
-
-                // 5. SETTINGS TAB
+                // 2. SETTINGS TAB - Show Settings screen directly
                 composable(BottomNavItem.Settings.route) {
-                    PlaceholdersScreen("Settings")
+                    // Launch Settings Activity
+                    LaunchedEffect(Unit) {
+                        val intent = Intent(context, AdminSettings::class.java)
+                        context.startActivity(intent)
+                    }
+                    // Show loading or empty screen while launching
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = Orange)
+                    }
                 }
             }
         }
@@ -135,9 +119,7 @@ fun AdminMainParent() {
 
 @Composable
 fun AdminBottomNavBar(navController: NavController) {
-    // 1. Get Context for Intents
     val context = LocalContext.current
-
     val items = listOf(
         BottomNavItem.Home,
         BottomNavItem.KYC,
@@ -164,20 +146,18 @@ fun AdminBottomNavBar(navController: NavController) {
                     label = { Text(text = item.title, fontSize = 10.sp) },
                     selected = currentRoute == item.route,
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color.Black,
+                        selectedIconColor = Orange,
                         selectedTextColor = Orange,
-                        indicatorColor = Orange,
+                        indicatorColor = Orange.copy(alpha = 0.2f),
                         unselectedIconColor = Color.Gray,
                         unselectedTextColor = Color.Gray
                     ),
                     onClick = {
-                        // 2. Logic to switch screens
                         when (item) {
                             BottomNavItem.Home -> {
                                 navController.navigate(item.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    popUpTo(0) { saveState = true }
                                     launchSingleTop = true
-                                    restoreState = true
                                 }
                             }
                             BottomNavItem.KYC -> {
@@ -193,10 +173,10 @@ fun AdminBottomNavBar(navController: NavController) {
                                 context.startActivity(intent)
                             }
                             BottomNavItem.Settings -> {
+                                // Navigate within NavHost to show Settings
                                 navController.navigate(item.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    popUpTo(0) { saveState = true }
                                     launchSingleTop = true
-                                    restoreState = true
                                 }
                             }
                         }
@@ -252,7 +232,9 @@ data class UserKYC(
 enum class VerificationStatus(val color: Color, val text: String) {
     VERIFIED(Orange, "Verified"),
     PENDING(Color.Yellow, "Pending"),
-    REJECTED(Color.Red, "Rejected")
+    REJECTED(Color.Red, "Rejected"),
+
+    FLAGGED(Color.Red, "Flagged")
 }
 
 @Composable
@@ -319,11 +301,10 @@ fun AdminDashboardScreen(
         factory = object : androidx.lifecycle.ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                return UserViewModel(UserRepoImp1()) as T
+                return UserViewModel(UserRepoImpl()) as T
             }
         }
     ),
-    // Added callbacks for navigation
     onNavigateToProduct: () -> Unit,
     onNavigateToKYC: () -> Unit,
     onNavigateToReview: () -> Unit
@@ -331,10 +312,12 @@ fun AdminDashboardScreen(
     val context = LocalContext.current
     val products by productViewModel.allProducts.observeAsState(initial = emptyList())
     val usersMap by userViewModel.allUsersMap.observeAsState(initial = emptyMap())
+    val flaggedProducts by productViewModel.flaggedProducts.observeAsState(initial = emptyList())
 
     LaunchedEffect(Unit) {
         productViewModel.getAllProducts { _, _, _ -> }
         userViewModel.getAllUsers { _, _, _ -> }
+        productViewModel.getFlaggedProducts { _, _, _ -> }
     }
 
     val adminProducts = remember(products, usersMap) {
@@ -364,6 +347,21 @@ fun AdminDashboardScreen(
         }
     }
 
+    // Create flagged products list
+    val flaggedProductItems = remember(flaggedProducts, usersMap) {
+        flaggedProducts.map { product ->
+            val sellerName = usersMap[product.listedBy]?.fullName ?: "Unknown"
+            AdminProduct(
+                id = product.productId,
+                name = product.title,
+                listedBy = sellerName,
+                price = product.price.toInt(),
+                imageRes = product.imageUrl.firstOrNull() ?: "",
+                verificationStatus = VerificationStatus.REJECTED // Flagged products should show as rejected/flagged status
+            )
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -377,21 +375,22 @@ fun AdminDashboardScreen(
                 title = "Product Management",
                 subtitle = "Manage all listed products",
                 icon = Icons.Default.Info,
-                onViewAllClick = onNavigateToProduct // Use callback
+                onViewAllClick = onNavigateToProduct
             )
             Spacer(modifier = Modifier.height(12.dp))
 
             ProductListSection(
                 products = adminProducts.take(3),
                 onProductClick = { product ->
-                    val intent = Intent(context, AdminProductVerificationActivity::class.java).apply {
-                        putExtra("productId", product.id)
-                        putExtra("productName", product.name)
-                        putExtra("listedBy", product.listedBy)
-                        putExtra("price", product.price)
-                        putExtra("imageUrl", product.imageRes)
-                        putExtra("verificationStatus", product.verificationStatus.name)
-                    }
+                    val intent =
+                        Intent(context, AdminProductVerificationActivity::class.java).apply {
+                            putExtra("productId", product.id)
+                            putExtra("productName", product.name)
+                            putExtra("listedBy", product.listedBy)
+                            putExtra("price", product.price)
+                            putExtra("imageUrl", product.imageRes)
+                            putExtra("verificationStatus", product.verificationStatus.name)
+                        }
                     context.startActivity(intent)
                 }
             )
@@ -411,7 +410,11 @@ fun AdminDashboardScreen(
                 UserKycListSection(
                     users = pendingKYCUsers.take(3),
                     onUserClick = { user ->
-                        // TODO: Navigate to user KYC detail screen
+                        val intent =
+                            Intent(context, AdminKYCVerificationActivity::class.java).apply {
+                                putExtra("userId", user.userId)
+                            }
+                        context.startActivity(intent)
                     }
                 )
             } else {
@@ -423,15 +426,46 @@ fun AdminDashboardScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            // Section 3: Flagged Reviews
+
+            // Section 3: Flagged Reviews - FIXED VERSION
             SectionHeader(
                 title = "Flagged Reviews",
-                subtitle = "Moderate user-submitted reviews",
+                subtitle = "Moderate flagged products",
                 icon = Icons.Default.Flag,
-                onViewAllClick = onNavigateToReview // Use callback
+                onViewAllClick = onNavigateToReview
             )
-            // TODO: Add content for Flagged Reviews
+            Spacer(modifier = Modifier.height(12.dp))
 
+            if (flaggedProductItems.isNotEmpty()) {
+                FlaggedProductsListSection(
+                    products = flaggedProductItems.take(3),
+                    onProductClick = { product ->
+                        val intent = Intent(context, AdminFlaggedReviewActivity::class.java).apply {
+                            putExtra("productId", product.id)
+                            putExtra("productName", product.name)
+                            putExtra("listedBy", product.listedBy)
+                            putExtra("price", product.price)
+                            putExtra("imageUrl", product.imageRes)
+                            putExtra("verificationStatus", product.verificationStatus.name)
+                            putExtra(
+                                "isFlagged",
+                                true
+                            ) // Add flag to indicate it's a flagged product
+                        }
+                        context.startActivity(intent)
+                    }
+                )
+            } else {
+
+                Text(
+                    "No flagged products at the moment",
+                    color = Color.Gray,
+                    modifier = Modifier.padding(start = 16.dp, top = 8.dp)
+                )
+
+
+
+            }
         }
     }
 }
@@ -450,7 +484,7 @@ fun AdminTopBar() {
             Text("Admin", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         }
         Image(
-            painter = painterResource(id = R.drawable.ic_launcher_background), // Replace with actual admin image
+            painter = painterResource(id = R.drawable.ic_launcher_background),
             contentDescription = "Admin Profile",
             modifier = Modifier
                 .size(50.dp)
@@ -497,7 +531,6 @@ fun UserKycListSection(
         }
     }
 }
-
 
 @Composable
 fun AdminProductItem(product: AdminProduct, onClick: () -> Unit) {
@@ -584,3 +617,122 @@ fun AdminUserKycItem(user: UserKYC, onClick: () -> Unit) {
     }
 }
 
+@Composable
+fun FlaggedProductsListSection(
+    products: List<AdminProduct>,
+    onProductClick: (AdminProduct) -> Unit
+) {
+    if (products.isEmpty()) {
+        Text(
+            "No flagged products to display.",
+            color = Color.Gray,
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp)
+        )
+    } else {
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(products) { product ->
+                FlaggedProductItem(product, onClick = { onProductClick(product) })
+            }
+        }
+    }
+}
+
+@Composable
+fun FlaggedProductItem(product: AdminProduct, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .width(220.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Red.copy(alpha = 0.1f))
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .height(140.dp)
+                    .fillMaxWidth()
+            ) {
+                AsyncImage(
+                    model = product.imageRes,
+                    contentDescription = product.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                ) {
+                    FlaggedBadge()
+                }
+            }
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        product.name,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = "Flagged",
+                        tint = Color.Red,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("by ${product.listedBy}", fontSize = 12.sp, color = Color.Gray, maxLines = 1)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("₹${product.price}/day", color = Orange, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "REVIEW NEEDED",
+                        color = Color.Red,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FlaggedBadge() {
+    Box(
+        modifier = Modifier
+            .background(Color.Red.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.Flag,
+                contentDescription = "Flagged",
+                tint = Color.Red,
+                modifier = Modifier.size(12.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = "FLAGGED",
+                color = Color.Red,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}

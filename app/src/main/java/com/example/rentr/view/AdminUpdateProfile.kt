@@ -1,11 +1,14 @@
 package com.example.rentr.view
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -44,15 +48,14 @@ class AdminUpdateProfile : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UpdateAdminProfileScreen() {
-    // In a real app, you\'d receive the current admin profile, e.g., via Intent.
-    // For now, we\'ll use a sample profile.
+    val context = LocalContext.current
     val currentProfile = remember {
         mutableStateOf(
             AdminProfile(
                 name = "Alex Doe",
                 age = 34,
                 qualification = "Head of Operations",
-                profileImage = R.drawable.ic_launcher_background // Replace with your image
+                profileImage = R.drawable.ic_launcher_background
             )
         )
     }
@@ -68,7 +71,16 @@ fun UpdateAdminProfileScreen() {
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = splash,
                     titleContentColor = Color.White
-                )
+                ),
+                navigationIcon = {
+                    IconButton(onClick = { (context as? ComponentActivity)?.finish() }) {
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+                }
             )
         },
         containerColor = splash
@@ -132,15 +144,14 @@ fun UpdateAdminProfileScreen() {
             // Save Button
             Button(
                 onClick = {
-                    // Here you would typically save the updated profile to your backend or local storage.
-                    // For this example, we can just update the local state.
                     val newAge = age.toIntOrNull() ?: currentProfile.value.age
                     currentProfile.value = currentProfile.value.copy(
                         name = name,
                         age = newAge,
                         qualification = qualification
                     )
-                    // Optionally, you could finish the activity after saving.
+                    Toast.makeText(context, "Profile updated successfully", Toast.LENGTH_SHORT).show()
+                    (context as? ComponentActivity)?.finish()
                 },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = Orange)
