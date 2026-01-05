@@ -35,7 +35,7 @@ import coil.compose.AsyncImage
 import com.example.rentr.R
 import com.example.rentr.model.ProductModel
 import com.example.rentr.repository.ProductRepoImpl
-import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.viewmodel.ProductViewModel
@@ -53,7 +53,7 @@ class RentalActivity : ComponentActivity() {
 @Composable
 fun RentalScreen() {
     val productViewModel = remember { ProductViewModel(ProductRepoImpl()) }
-    val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+    val userViewModel = remember { UserViewModel(UserRepoImpl()) }
     val userId = userViewModel.getCurrentUser()?.uid
 
     val products by productViewModel.allProducts.observeAsState(emptyList())

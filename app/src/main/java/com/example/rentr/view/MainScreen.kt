@@ -22,7 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.viewmodel.UserViewModel
 
@@ -41,7 +41,7 @@ val bottomNavItems = listOf(
 @Composable
 fun MainScreen() {
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
-    val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+    val userViewModel = remember { UserViewModel(UserRepoImpl()) }
 
     Scaffold(
         containerColor = Color.Black,

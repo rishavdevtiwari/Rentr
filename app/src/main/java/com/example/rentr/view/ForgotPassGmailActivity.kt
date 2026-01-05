@@ -48,7 +48,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.rentr.R
-import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.repository.UserRepoImpl
 // Assuming these color resources exist in your project
 import com.example.rentr.ui.theme.Button
 import com.example.rentr.ui.theme.Field
@@ -81,7 +81,7 @@ fun ForgotPassGmailBody() {
     }
 
     //ViewModel
-    val userViewModelPW = remember { UserViewModel(UserRepoImp1()) }
+    val userViewModelPW = remember { UserViewModel(UserRepoImpl()) }
 
     Scaffold (
         topBar = {

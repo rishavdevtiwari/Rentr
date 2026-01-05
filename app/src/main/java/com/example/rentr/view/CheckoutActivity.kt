@@ -21,11 +21,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.rentr.model.ProductModel
 import com.example.rentr.model.TransactionModel
 import com.example.rentr.repository.ProductRepoImpl
 import com.example.rentr.repository.TransactionRepoImpl
-import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.RentrTheme
 import com.example.rentr.viewmodel.ProductViewModel
@@ -96,7 +95,7 @@ fun CheckoutScreen(
     val context = LocalContext.current
     val activity = context as? Activity
 
-    val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+    val userViewModel = remember { UserViewModel(UserRepoImpl()) }
     val currentUser = userViewModel.getCurrentUser()
 
     val isLoading by transactionViewModel.isLoading.observeAsState(false)

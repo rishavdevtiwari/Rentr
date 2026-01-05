@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.rentr.R
 import com.example.rentr.repository.ProductRepoImpl
-import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
 
@@ -64,7 +64,7 @@ fun FlagReviewScreen(productId: String) {
     val activity = context as? Activity
 
     val productViewModel = remember { ProductViewModel(ProductRepoImpl()) }
-    val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+    val userViewModel = remember { UserViewModel(UserRepoImpl()) }
 
     val product by productViewModel.product.observeAsState()
     var sellerInfo by remember { mutableStateOf<com.example.rentr.model.UserModel?>(null) }
