@@ -114,23 +114,15 @@ fun ProfileScreen(userViewModel: UserViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Profile", fontWeight = FontWeight.SemiBold) },
-                actions = {
-                    IconButton(onClick = { /*TODO*/ }) {
-                        Icon(
-                            Icons.Filled.MoreVert,
-                            contentDescription = "More options",
-                            tint = textLightColor
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = primaryColor,
-                    titleContentColor = textColor
-                )
-            )
-        },
+                    Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 30.dp, start = 16.dp, end = 16.dp, bottom = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text("Profile", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                }},
         containerColor = primaryColor
     ) { paddingValues ->
         Column(
@@ -146,7 +138,7 @@ fun ProfileScreen(userViewModel: UserViewModel) {
                 },
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(50.dp))
             ProfileCard(user, isLoading) { imagePickerLauncher.launch("image/*") }
             Spacer(modifier = Modifier.height(30.dp))
             SettingsList(onEditProfile = {
