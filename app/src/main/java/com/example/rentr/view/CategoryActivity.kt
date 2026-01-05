@@ -74,6 +74,8 @@ class CategoryActivity : ComponentActivity() {
     }
 }
 
+// for flagged products.
+
 @Composable
 fun CategoryScreen(categoryName: String) {
     val context = LocalContext.current
@@ -86,7 +88,10 @@ fun CategoryScreen(categoryName: String) {
         productViewModel.getAllProductsByCategory(categoryName) { _, _, _ -> }
     }
 
-    val filteredProducts = products.filter { it.verified && !it.flagged }
+    // Filter out flagged products
+    val filteredProducts = products.filter {
+        it.category == categoryName && !it.flagged && it.verified
+    }
 
     Scaffold(containerColor = Color.Black) { paddingValues ->
         LazyVerticalGrid(

@@ -11,7 +11,7 @@ import com.google.firebase.database.MutableData
 import com.google.firebase.database.Transaction
 import com.google.firebase.database.ValueEventListener
 
-class UserRepoImp1 : UserRepo {
+class UserRepoImpl : UserRepo {
 
     val auth: FirebaseAuth = FirebaseAuth.getInstance()
     val database: FirebaseDatabase = FirebaseDatabase.getInstance()
@@ -234,6 +234,43 @@ class UserRepoImp1 : UserRepo {
                     callback(true, null)
                 } else {
                     callback(false, error?.message ?: "Transaction failed")
+                }
+            }
+        })
+    }
+
+    override fun incrementFlagCount(userId: String, callback: (Boolean, String) -> Unit) {
+        ref.child(userId).child("flagCount").runTransaction(object : Transaction.Handler {
+            override fun doTransaction(currentData: MutableData): Transaction.Result {
+                val currentCount = currentData.getValue(Int::class.java) ?: 0
+                currentData.value = currentCount + 1
+                return Transaction.success(currentData)
+            }
+
+            override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
+                if (error == null && committed) {
+                    callback(true, "Flag count incremented")
+                } else {
+                    callback(false, error?.message ?: "Failed to increment flag count")
+                }
+            }
+        })
+    }
+
+    override fun decrementFlagCount(userId: String, callback: (Boolean, String) -> Unit) {
+        ref.child(userId).child("flagCount").runTransaction(object : Transaction.Handler {
+            override fun doTransaction(currentData: MutableData): Transaction.Result {
+                val currentCount = currentData.getValue(Int::class.java) ?: 0
+                val newCount = if (currentCount > 0) currentCount - 1 else 0
+                currentData.value = newCount
+                return Transaction.success(currentData)
+            }
+
+            override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
+                if (error == null && committed) {
+                    callback(true, "Flag count decremented")
+                } else {
+                    callback(false, error?.message ?: "Failed to decrement flag count")
                 }
             }
         })

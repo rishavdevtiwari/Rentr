@@ -1,6 +1,5 @@
 package com.example.rentr.view
 
-import android.R.attr.onClick
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -41,13 +40,12 @@ import coil.compose.AsyncImage
 import com.example.rentr.R
 import com.example.rentr.model.ProductModel
 import com.example.rentr.repository.ProductRepoImpl
-import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.promo
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
-import kotlinx.coroutines.launch
 
 class DashboardActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -80,7 +78,7 @@ private val cardBackgroundColor = Color(0xFF2C2C2E)
 @Composable
 fun DashboardScreen() {
 
-    val userViewModelDash = remember { UserViewModel(UserRepoImp1()) }
+    val userViewModelDash = remember { UserViewModel(UserRepoImpl()) }
     val productViewModel = remember { ProductViewModel(ProductRepoImpl()) }
     val user by userViewModelDash.user.observeAsState(null)
     val products by productViewModel.allProducts.observeAsState()
@@ -109,12 +107,12 @@ fun DashboardScreen() {
         }
     }
 
-        val filteredProducts = products?.filter {
-           it.verified && !it.flagged && it.title.contains(searchQuery, ignoreCase = true)
-        } ?: emptyList()
+    val filteredProducts = products?.filter {
+        it.verified && !it.flagged && it.title.contains(searchQuery, ignoreCase = true)
+    } ?: emptyList()
 
-        // Limit to 6 items for the dashboard preview
-        val displayedProducts = filteredProducts.take(6)
+    // Limit to 6 items for the dashboard preview
+    val displayedProducts = filteredProducts.take(6)
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },

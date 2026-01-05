@@ -35,7 +35,7 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
     fun logout(callback: (Boolean, String) -> Unit){
         repo.logout(callback)
     }
-    
+
     fun changePassword(oldPass: String, newPass: String, callback: (Boolean, String) -> Unit) {
         repo.changePassword(oldPass, newPass, callback)
     }
@@ -143,4 +143,13 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
             return UserViewModel(repo) as T
         }
     }
+
+    fun decrementFlagCount(userId: String, callback: (Boolean, String) -> Unit) {
+        repo.decrementFlagCount(userId, callback)
+    }
+
+    fun incrementFlagCount(userId: String, callback: (Boolean, String) -> Unit) {
+        repo.incrementFlagCount(userId, callback)
+    }
+
 }

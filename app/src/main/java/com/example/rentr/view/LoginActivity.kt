@@ -1,6 +1,7 @@
 package com.example.rentr.view
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -51,7 +52,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.rentr.R
-import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.ui.theme.BG40
 import com.example.rentr.ui.theme.Button
 import com.example.rentr.ui.theme.Field
@@ -70,7 +71,7 @@ class LoginActivity : ComponentActivity() {
 @Composable
 fun LoginBody(){
 
-    var userViewModelLogin = remember { UserViewModel(UserRepoImp1()) }
+    var userViewModelLogin = remember { UserViewModel(UserRepoImpl()) }
 
     var email by remember { mutableStateOf("")}
     var password by remember { mutableStateOf("")}
@@ -201,6 +202,11 @@ fun LoginBody(){
                 onClick = {
                     userViewModelLogin.login(email, password) { success, msg ->
                         if(success){
+                            val sharedPreferences = context.getSharedPreferences("rentr_prefs", Context.MODE_PRIVATE)
+                            with(sharedPreferences.edit()) {
+                                putBoolean("remember_me", rememberMe)
+                                apply()
+                            }
                             Toast.makeText(context, "Logged In.", Toast.LENGTH_SHORT).show()
                             val intent = Intent(context, DashboardActivity::class.java)
                             context.startActivity(intent)

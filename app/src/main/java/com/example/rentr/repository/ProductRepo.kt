@@ -22,4 +22,17 @@ interface ProductRepo {
 
     fun updateRating(productId: String, userId: String, rating: Int, callback: (Boolean, String) -> Unit)
 
+    fun getFlaggedProducts(callback: (Boolean, String, List<ProductModel>) -> Unit)
+
+    fun updateProductFlags(productId: String, product: ProductModel, callback: (Boolean, String) -> Unit)
+
+    fun flagProduct(
+        productId: String,
+        userId: String,
+        reason: String,
+        callback: (Boolean, String) -> Unit
+    )
+
+    fun clearFlags(productId: String, callback: (Boolean, String) -> Unit)
 }
+
