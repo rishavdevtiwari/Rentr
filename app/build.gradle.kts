@@ -73,7 +73,6 @@ dependencies {
     implementation(libs.firebase.database)
     implementation(libs.firebase.auth)
     implementation(libs.androidx.compose.runtime.livedata)
-    implementation(libs.androidx.material3)
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.compose.ui.text)
     testImplementation(libs.junit)

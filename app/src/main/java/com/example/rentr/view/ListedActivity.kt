@@ -687,8 +687,14 @@ fun ListedItemCardCompact(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ListedTopAppBar() {
-    TopAppBar(
-        title = { Text("My Listings", color = Color.White, fontWeight = FontWeight.Bold) },
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Black),
-    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 30.dp, start = 16.dp, end = 16.dp, bottom = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Text("My Listings", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+    }
+    Spacer(modifier = Modifier.height(20.dp))
 }
