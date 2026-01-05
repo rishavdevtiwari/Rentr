@@ -29,6 +29,14 @@
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
+            android:name=".view.ConversationsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".view.ChatActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
             android:name=".view.KYC"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />

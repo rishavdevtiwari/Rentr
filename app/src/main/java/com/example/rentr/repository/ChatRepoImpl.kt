@@ -21,38 +21,60 @@ class ChatRepoImpl : ChatRepo {
         initialMessage: String,
         callback: (conversationId: String?) -> Unit
     ) {
-        // A consistent ID for the conversation between two users for a specific product
-        val conversationId = conversationsRef.push().key ?: return
+        // First, query to see if a conversation already exists
+        conversationsRef
+            .orderByChild("productId")
+            .equalTo(productId)
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val existingConversation = snapshot.children.find { 
+                        val convo = it.getValue(ChatConversation::class.java)
+                        convo?.participants?.containsKey(renterId) == true && convo.participants.containsKey(sellerId)
+                    }
 
-        val conversation = ChatConversation(
-            conversationId = conversationId,
-            productId = productId,
-            renterId = renterId,
-            sellerId = sellerId,
-            productTitle = productTitle,
-            productImageUrl = productImageUrl,
-            participants = listOf(renterId, sellerId),
-            lastMessage = initialMessage,
-            lastMessageTimestamp = System.currentTimeMillis()
-        )
+                    if (existingConversation != null) {
+                        // Conversation exists, send the message to it and return its ID
+                        val existingConvoId = existingConversation.key!!
+                        val message = ChatMessage(
+                            conversationId = existingConvoId,
+                            senderId = renterId,
+                            text = initialMessage
+                        )
+                        sendMessage(existingConvoId, message) { success ->
+                            if (success) callback(existingConvoId) else callback(null)
+                        }
+                    } else {
+                        // No conversation exists, create a new one
+                        val newConversationId = conversationsRef.push().key ?: return
+                        val participants = mapOf(renterId to true, sellerId to true)
+                        val conversation = ChatConversation(
+                            conversationId = newConversationId,
+                            productId = productId,
+                            renterId = renterId,
+                            sellerId = sellerId,
+                            productTitle = productTitle,
+                            productImageUrl = productImageUrl,
+                            participants = participants,
+                            lastMessage = initialMessage,
+                            lastMessageTimestamp = System.currentTimeMillis()
+                        )
+                        conversationsRef.child(newConversationId).setValue(conversation).addOnSuccessListener {
+                            val message = ChatMessage(
+                                conversationId = newConversationId,
+                                senderId = renterId,
+                                text = initialMessage
+                            )
+                            sendMessage(newConversationId, message) { success ->
+                                if (success) callback(newConversationId) else callback(null)
+                            }
+                        }.addOnFailureListener { callback(null) }
+                    }
+                }
 
-        conversationsRef.child(conversationId).setValue(conversation).addOnSuccessListener {
-            // After creating the conversation, send the first message
-            val message = ChatMessage(
-                conversationId = conversationId,
-                senderId = renterId,
-                text = initialMessage
-            )
-            sendMessage(conversationId, message) { success ->
-                if (success) {
-                    callback(conversationId)
-                } else {
+                override fun onCancelled(error: DatabaseError) {
                     callback(null)
                 }
-            }
-        }.addOnFailureListener {
-            callback(null)
-        }
+            })
     }
 
     override fun sendMessage(
@@ -65,7 +87,6 @@ class ChatRepoImpl : ChatRepo {
 
         messagesRef.child(conversationId).child(messageId).setValue(message)
             .addOnSuccessListener { 
-                // Also update the last message in the conversation for the chat list
                 conversationsRef.child(conversationId).updateChildren(
                     mapOf(
                         "lastMessage" to message.text,
@@ -95,17 +116,16 @@ class ChatRepoImpl : ChatRepo {
     }
 
     override fun getConversations(userId: String, callback: (List<ChatConversation>) -> Unit) {
-        conversationsRef.orderByChild("participants/0").equalTo(userId).addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val conversations = snapshot.children.mapNotNull { it.getValue(ChatConversation::class.java) }
-                // This is a simplified query. A more robust solution might need to query for participants/1 as well
-                // or restructure the data to allow better querying.
-                callback(conversations.sortedByDescending { it.lastMessageTimestamp })
-            }
+        conversationsRef.orderByChild("participants/$userId").equalTo(true)
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val conversations = snapshot.children.mapNotNull { it.getValue(ChatConversation::class.java) }
+                    callback(conversations.sortedByDescending { it.lastMessageTimestamp })
+                }
 
-            override fun onCancelled(error: DatabaseError) {
-                callback(emptyList())
-            }
-        })
+                override fun onCancelled(error: DatabaseError) {
+                    callback(emptyList())
+                }
+            })
     }
 }

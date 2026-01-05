@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.*
@@ -40,6 +41,7 @@ import coil.compose.AsyncImage
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
+import com.example.rentr.model.UserModel
 import com.example.rentr.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
 import kotlin.coroutines.resume
@@ -129,6 +131,15 @@ fun ProfileScreen(userViewModel: UserViewModel) {
                 )
             )
         },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { context.startActivity(Intent(context, ConversationsActivity::class.java)) },
+                containerColor = accentColor,
+                shape = CircleShape
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "My Chats", tint = Color.White)
+            }
+        },
         containerColor = primaryColor
     ) { paddingValues ->
         Column(
@@ -156,7 +167,7 @@ fun ProfileScreen(userViewModel: UserViewModel) {
 }
 
 @Composable
-private fun ProfileCard(user: com.example.rentr.model.UserModel?, isLoading: Boolean, onAvatarClick: () -> Unit) {
+private fun ProfileCard(user: UserModel?, isLoading: Boolean, onAvatarClick: () -> Unit) {
     val context = LocalContext.current
     val activity = context as? Activity
 
@@ -201,7 +212,6 @@ private fun ProfileCard(user: com.example.rentr.model.UserModel?, isLoading: Boo
                 val hasKYC = it.kycUrl.isNotEmpty()
 
                 when {
-                    // Condition 1: KYC is verified
                     it.verified -> {
                         Button(
                             onClick = { /* View KYC status - already verified */ },
@@ -225,7 +235,6 @@ private fun ProfileCard(user: com.example.rentr.model.UserModel?, isLoading: Boo
                         }
                     }
 
-                    // Condition 2: KYC is under review (has documents but not verified)
                     hasKYC && !it.verified -> {
                         Button(
                             onClick = { /* Non-clickable status indicator */ },
@@ -249,14 +258,11 @@ private fun ProfileCard(user: com.example.rentr.model.UserModel?, isLoading: Boo
                         }
                     }
 
-                    // Condition 3: No KYC uploaded - Navigate to KYC Upload
                     else -> {
                         Button(
                             onClick = {
-                                // ----------------------- INTENT CODE -----------------------
-                                val intent = Intent(context, KYC::class.java) // Changed from KYCListingActivity to KYC (Upload)
+                                val intent = Intent(context, KYC::class.java)
                                 activity?.startActivity(intent)
-                                // ----------------------- END INTENT CODE -----------------------
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
@@ -284,7 +290,7 @@ private fun ProfileCard(user: com.example.rentr.model.UserModel?, isLoading: Boo
 }
 
 @Composable
-private fun Avatar(user: com.example.rentr.model.UserModel?, isLoading: Boolean, onClick: () -> Unit) {
+private fun Avatar(user: UserModel?, isLoading: Boolean, onClick: () -> Unit) {
     fun getInitials(name: String): String {
         val names = name.trim().split(" ")
         return if (names.size > 1) {
@@ -299,7 +305,7 @@ private fun Avatar(user: com.example.rentr.model.UserModel?, isLoading: Boolean,
             .size(64.dp)
             .clip(CircleShape)
             .background(Brush.verticalGradient(listOf(accentColor, Color(0xFFFFC66C))))
-            .padding(2.dp) // Simulates border
+            .padding(2.dp)
             .clip(CircleShape)
             .background(cardBackgroundColor)
             .clickable(onClick = onClick),

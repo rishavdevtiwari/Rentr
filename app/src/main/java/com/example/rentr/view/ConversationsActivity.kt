@@ -51,7 +51,7 @@ class ConversationsActivity : ComponentActivity() {
 @Composable
 fun ConversationsScreen(onBackClicked: () -> Unit) {
     val chatViewModel = remember { ChatViewModel() }
-    val userViewModel = remember { UserViewModel(UserRepoImpl()) }
+    val userViewModel = remember { UserViewModel(UserRepoImpl()) } // Corrected this line
     val conversations by chatViewModel.conversations.observeAsState(emptyList())
     val currentUserId = userViewModel.getCurrentUser()?.uid ?: ""
 

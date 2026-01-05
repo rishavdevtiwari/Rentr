@@ -2,6 +2,9 @@ package com.example.rentr.model
 
 import com.google.firebase.database.Exclude
 
+/**
+ * Represents a single conversation thread in the user's chat list.
+ */
 data class ChatConversation(
     var conversationId: String = "",
     val productId: String = "",
@@ -11,11 +14,12 @@ data class ChatConversation(
     val renterId: String = "",
     var lastMessage: String = "",
     var lastMessageTimestamp: Long = 0L,
-    val participants: List<String> = emptyList(),
+    // Use a Map for participants to enable efficient querying in Firebase
+    val participants: Map<String, Boolean> = emptyMap(),
     var unreadCount: Int = 0
 ) {
     // Firebase requires a no-argument constructor
-    constructor() : this("", "", "", "", "", "", "", 0L, emptyList(), 0)
+    constructor() : this("", "", "", "", "", "", "", 0L, emptyMap(), 0)
 
     @Exclude
     fun toMap(): Map<String, Any?> {

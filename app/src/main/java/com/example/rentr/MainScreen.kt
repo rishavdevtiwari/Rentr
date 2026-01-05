@@ -35,6 +35,7 @@ data class NavItem(
     val icon: ImageVector,
 )
 
+// Corrected list of navigation items
 val bottomNavItems = listOf(
     NavItem("Home", Icons.Default.Home),
     NavItem("Listings", Icons.Default.ListAlt),
@@ -73,6 +74,7 @@ fun MainScreen() {
         }
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues)) {
+            // Corrected when block to match the nav items
             when (selectedIndex) {
                 0 -> DashboardScreen()
                 1 -> ListedScreen()
