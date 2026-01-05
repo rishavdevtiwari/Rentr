@@ -14,7 +14,7 @@ data class ProductModel(
     val ratedBy : Map <String,Int> = emptyMap(),
     val category: String = "", //foreign key
     val verified: Boolean = false,
-    val flaggedBy: List<String> = emptyList(), // this will resolve the flagCount and the button greyed logic
+    val flaggedBy: List<String> = emptyList(),
     val flagged: Boolean = false,
     val flaggedReason:List<String> = emptyList(),
     val appealReason:String="",

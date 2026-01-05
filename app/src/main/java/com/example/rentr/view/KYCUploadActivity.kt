@@ -32,7 +32,7 @@ import coil.compose.AsyncImage
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
-import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
 import kotlin.coroutines.resume
@@ -60,7 +60,7 @@ fun KYCScreen() {
     val context = LocalContext.current
     val activity = context as? Activity
 
-    val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+    val userViewModel = remember { UserViewModel(UserRepoImpl()) }
     val coroutineScope = rememberCoroutineScope()
 
     var currentStep by remember { mutableStateOf(1) }

@@ -45,7 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.ui.theme.RentrTheme
 import com.example.rentr.viewmodel.UserViewModel
 import java.util.Calendar
@@ -63,7 +63,7 @@ class EditProfile : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             RentrTheme {
-                val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+                val userViewModel = remember { UserViewModel(UserRepoImpl()) }
                 EditProfileScreen(userViewModel = userViewModel)
             }
         }

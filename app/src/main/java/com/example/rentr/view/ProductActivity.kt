@@ -10,6 +10,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -41,7 +42,7 @@ import coil.compose.AsyncImage
 import com.example.rentr.R
 import com.example.rentr.model.ProductModel
 import com.example.rentr.repository.ProductRepoImpl
-import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.RentrTheme
@@ -69,15 +70,34 @@ fun ProductDisplay(productId: String) {
     val activity = context as? Activity
 
     val productViewModel = remember { ProductViewModel(ProductRepoImpl()) }
-    val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+    val userViewModel = remember { UserViewModel(UserRepoImpl()) }
 
     val product by productViewModel.product.observeAsState()
     var sellerName by remember { mutableStateOf("") }
     var showFlagDialog by remember { mutableStateOf(false) }
     var rentalDays by remember { mutableStateOf(1) }
 
+    // Flag reason state
+    var selectedFlagReason by remember { mutableStateOf("") }
+    var customFlagReason by remember { mutableStateOf("") }
+
+    // Predefined flag reasons
+    val flagReasons = listOf(
+        "Inappropriate Content",
+        "Fake/Scam Product",
+        "Wrong Category",
+        "Price Gouging",
+        "Copyright Infringement",
+        "Other"
+    )
+
     val currentUserId = userViewModel.getCurrentUser()?.uid
     val isSeller = product?.listedBy == currentUserId
+
+    // Check if current user already flagged this product
+    val isAlreadyFlagged = remember(product, currentUserId) {
+        product?.flaggedBy?.contains(currentUserId) == true
+    }
 
     LaunchedEffect(productId) {
         if (productId.isNotEmpty()) {
@@ -96,31 +116,177 @@ fun ProductDisplay(productId: String) {
 
     if (showFlagDialog) {
         AlertDialog(
-            onDismissRequest = { showFlagDialog = false },
-            title = { Text("Confirm Flag") },
-            text = { Text("Are you sure you want to flag this item?") },
+            onDismissRequest = {
+                showFlagDialog = false
+                selectedFlagReason = ""
+                customFlagReason = ""
+            },
+            title = { Text("Flag Item", color = Color.White) },
+            text = {
+                Column {
+                    // Show warning if already flagged
+                    if (isAlreadyFlagged) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color.Red.copy(alpha = 0.1f)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Flag,
+                                    contentDescription = "Already Flagged",
+                                    tint = Color.Red,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "You have already flagged this item",
+                                    color = Color.Red,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    Text("Please select a reason for flagging:", color = Color.LightGray)
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Flag reason selection
+                    flagReasons.forEach { reason ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    if (!isAlreadyFlagged) {
+                                        selectedFlagReason = reason
+                                        if (reason != "Other") customFlagReason = ""
+                                    }
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedFlagReason == reason,
+                                onClick = {
+                                    if (!isAlreadyFlagged) {
+                                        selectedFlagReason = reason
+                                        if (reason != "Other") customFlagReason = ""
+                                    }
+                                },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = Color.Red,
+                                    unselectedColor = Color.Gray
+                                ),
+                                enabled = !isAlreadyFlagged
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(reason, color = if (isAlreadyFlagged) Color.Gray else Color.White, fontSize = 14.sp)
+                        }
+                    }
+
+                    // Custom reason input for "Other" option
+                    if (selectedFlagReason == "Other") {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = customFlagReason,
+                            onValueChange = { if (!isAlreadyFlagged) customFlagReason = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Please specify the reason", color = Color.Gray) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = Color.Red,
+                                unfocusedBorderColor = Color.Gray,
+                                focusedLabelColor = Color.Red,
+                                unfocusedLabelColor = Color.Gray
+                            ),
+                            singleLine = true,
+                            shape = RoundedCornerShape(8.dp),
+                            enabled = !isAlreadyFlagged
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        "⚠️ Flagging will increase the seller's flag count. Admin will review this item.",
+                        color = Color.Yellow,
+                        fontSize = 12.sp
+                    )
+                }
+            },
             confirmButton = {
                 Button(
                     onClick = {
+                        if (isAlreadyFlagged) {
+                            Toast.makeText(context, "You have already flagged this item", Toast.LENGTH_SHORT).show()
+                            showFlagDialog = false
+                            return@Button
+                        }
+
                         val currentProduct = product ?: return@Button
                         val uid = currentUserId ?: return@Button
 
-                        val updatedFlaggedBy = currentProduct.flaggedBy.toMutableList().apply {
-                            if (!contains(uid)) add(uid)
-                        }
-                        productViewModel.updateProduct(currentProduct.productId, currentProduct.copy(flaggedBy = updatedFlaggedBy)) { success, _ ->
-                            if (success) {
-                                productViewModel.getProductById(productId) { _, _, _ -> }
+                        val finalReason = when {
+                            selectedFlagReason == "Other" && customFlagReason.isNotEmpty() -> customFlagReason
+                            selectedFlagReason.isNotEmpty() && selectedFlagReason != "Other" -> selectedFlagReason
+                            else -> {
+                                Toast.makeText(context, "Please select or specify a reason", Toast.LENGTH_SHORT).show()
+                                return@Button
                             }
                         }
+
+                        productViewModel.flagProduct(
+                            productId = productId,
+                            userId = uid,
+                            reason = finalReason
+                        ) { success, message ->
+                            if (success) {
+                                // Update seller's flag count
+                                userViewModel.incrementFlagCount(currentProduct.listedBy) { userSuccess, userMsg ->
+                                    if (userSuccess) {
+                                        Toast.makeText(context, "Item flagged successfully!", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Flagged but failed to update flag count: $userMsg", Toast.LENGTH_SHORT).show()
+                                        // Note: In production, you might want to rollback the flag here
+                                    }
+                                }
+                            } else {
+                                Toast.makeText(context, "Failed to flag: $message", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+
                         showFlagDialog = false
+                        selectedFlagReason = ""
+                        customFlagReason = ""
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                ) { Text("Yes, Flag") }
+                    enabled = !isAlreadyFlagged && selectedFlagReason.isNotEmpty() &&
+                            (selectedFlagReason != "Other" || customFlagReason.isNotEmpty()),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isAlreadyFlagged) Color.Gray else Color.Red
+                    )
+                ) {
+                    Text(
+                        if (isAlreadyFlagged) "Already Flagged" else "Submit Flag",
+                        color = Color.White
+                    )
+                }
             },
             dismissButton = {
-                TextButton(onClick = { showFlagDialog = false }) { Text("Cancel") }
-            }
+                TextButton(
+                    onClick = {
+                        showFlagDialog = false
+                        selectedFlagReason = ""
+                        customFlagReason = ""
+                    }
+                ) {
+                    Text("Cancel", color = Color.Gray)
+                }
+            },
+            containerColor = Color(0xFF1E1E1E)
         )
     }
 
@@ -129,7 +295,7 @@ fun ProductDisplay(productId: String) {
         bottomBar = {
             val safeProduct = product
             if (!isSeller && safeProduct?.availability == true && safeProduct.outOfStock == false) {
-                BottomBar(
+                ProductBottomBar(
                     product = safeProduct,
                     rentalDays = rentalDays,
                     onRentNowClick = {
@@ -160,8 +326,6 @@ fun ProductDisplay(productId: String) {
             }
             return@Scaffold
         }
-
-        val isAlreadyFlagged = safeProduct.flaggedBy.contains(currentUserId)
 
         Column(
             modifier = Modifier
@@ -333,6 +497,29 @@ fun ProductDisplay(productId: String) {
                 Text("Listed By", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(sellerName, color = Color.Gray, fontSize = 14.sp)
+
+                // Show flag information if product is flagged
+                if (safeProduct.flagged && safeProduct.flaggedReason.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Divider(color = Field)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Flag Information", color = Color.Red, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Reason: ${safeProduct.flaggedReason.joinToString(", ")}",
+                        color = Color.Red.copy(alpha = 0.8f),
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "Flagged by ${safeProduct.flaggedBy.size} user(s)",
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Divider(color = Field)
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Description", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
@@ -408,7 +595,7 @@ fun RatingBar(
 }
 
 @Composable
-fun BottomBar(product: ProductModel, rentalDays: Int, onRentNowClick: () -> Unit) {
+fun ProductBottomBar(product: ProductModel, rentalDays: Int, onRentNowClick: () -> Unit) {
     val rentalPrice = product.price * rentalDays
     Row(
         modifier = Modifier

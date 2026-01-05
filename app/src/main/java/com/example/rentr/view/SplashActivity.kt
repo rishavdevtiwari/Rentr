@@ -24,7 +24,7 @@ import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.example.rentr.R
-import com.example.rentr.repository.UserRepoImp1
+import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.viewmodel.UserViewModel
 
 class SplashActivity : ComponentActivity() {
@@ -41,7 +41,7 @@ class SplashActivity : ComponentActivity() {
 fun SplashScreen() {
     val context = LocalContext.current
     val activity = context as Activity
-    val userViewModel = remember { UserViewModel(UserRepoImp1()) }
+    val userViewModel = remember { UserViewModel(UserRepoImpl()) }
 
     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.splash_loop))
     val progress by animateLottieCompositionAsState(

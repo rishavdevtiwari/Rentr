@@ -11,7 +11,7 @@ import com.google.firebase.database.MutableData
 import com.google.firebase.database.Transaction
 import com.google.firebase.database.ValueEventListener
 
-class UserRepoImp1 : UserRepo {
+class UserRepoImpl : UserRepo {
 
     val auth: FirebaseAuth = FirebaseAuth.getInstance()
     val database: FirebaseDatabase = FirebaseDatabase.getInstance()

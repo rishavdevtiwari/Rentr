@@ -145,7 +145,22 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
             callback(success, message, products)
         }
     }
-
+    fun flagProduct(
+        productId: String,
+        userId: String,
+        reason: String,
+        callback: (Boolean, String) -> Unit
+    ) {
+        _loading.postValue(true)
+        repo.flagProduct(productId, userId, reason) { success, message ->
+            if (success) {
+                // Refresh the product data
+                getProductById(productId) { _, _, _ -> }
+            }
+            _loading.postValue(false)
+            callback(success, message)
+        }
+    }
     fun updateProductFlags(productId: String, product: ProductModel, callback: (Boolean, String) -> Unit) {
         _loading.postValue(true)
         repo.updateProductFlags(productId, product) { success, message ->
