@@ -131,15 +131,6 @@ fun ProfileScreen(userViewModel: UserViewModel) {
                 )
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { context.startActivity(Intent(context, ConversationsActivity::class.java)) },
-                containerColor = accentColor,
-                shape = CircleShape
-            ) {
-                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "My Chats", tint = Color.White)
-            }
-        },
         containerColor = primaryColor
     ) { paddingValues ->
         Column(

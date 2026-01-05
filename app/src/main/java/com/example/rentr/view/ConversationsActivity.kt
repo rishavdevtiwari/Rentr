@@ -93,11 +93,6 @@ fun ConversationsScreen(onBackClicked: () -> Unit) {
         topBar = {
             TopAppBar(
                 title = { Text("My Chats", color = Color.White) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClicked) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Black)
             )
         },
