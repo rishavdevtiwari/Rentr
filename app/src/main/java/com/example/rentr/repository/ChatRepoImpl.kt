@@ -16,8 +16,6 @@ class ChatRepoImpl : ChatRepo {
         productId: String,
         renterId: String,
         sellerId: String,
-        productTitle: String,
-        productImageUrl: String,
         initialMessage: String,
         callback: (conversationId: String?) -> Unit
     ) {
@@ -52,8 +50,6 @@ class ChatRepoImpl : ChatRepo {
                             productId = productId,
                             renterId = renterId,
                             sellerId = sellerId,
-                            productTitle = productTitle,
-                            productImageUrl = productImageUrl,
                             participants = participants,
                             lastMessage = initialMessage,
                             lastMessageTimestamp = System.currentTimeMillis()

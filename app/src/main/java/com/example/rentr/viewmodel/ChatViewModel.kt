@@ -18,12 +18,16 @@ class ChatViewModel(private val chatRepo: ChatRepo = ChatRepoImpl()) : ViewModel
         productId: String,
         renterId: String,
         sellerId: String,
-        productTitle: String,
-        productImageUrl: String,
         initialMessage: String,
         callback: (conversationId: String?) -> Unit
     ) {
-        chatRepo.startOrGetConversation(productId, renterId, sellerId, productTitle, productImageUrl, initialMessage, callback)
+        chatRepo.startOrGetConversation(
+            productId, 
+            renterId, 
+            sellerId, 
+            initialMessage, 
+            callback
+        )
     }
 
     fun sendMessage(conversationId: String, message: ChatMessage, callback: (success: Boolean) -> Unit) {

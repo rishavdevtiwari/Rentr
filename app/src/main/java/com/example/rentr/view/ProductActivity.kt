@@ -166,8 +166,6 @@ fun ProductDisplay(productId: String) {
                                 productId = safeProduct.productId,
                                 renterId = renterId,
                                 sellerId = safeProduct.listedBy,
-                                productTitle = safeProduct.title,
-                                productImageUrl = safeProduct.imageUrl.firstOrNull() ?: "",
                                 initialMessage = chatInitialMessage
                             ) { conversationId ->
                                 if (conversationId != null) {
