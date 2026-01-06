@@ -100,6 +100,7 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-messaging")
     implementation("com.android.volley:volley:1.2.1")
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.19.0")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
