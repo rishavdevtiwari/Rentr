@@ -272,12 +272,26 @@ fun TopBar(userName: String?,userViewModel: UserViewModel) {
 
 @Composable
 fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
+    val context = LocalContext.current
+
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
         modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text("Search", color = Color.Gray) },
+        placeholder = { Text("Search for items...", color = Color.Gray) },
         leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
+        trailingIcon = {
+            // search button for searching
+            if (query.isNotEmpty()) {
+                IconButton(onClick = {
+                    val intent = Intent(context, SearchActivity::class.java)
+                    intent.putExtra("SEARCH_QUERY", query)
+                    context.startActivity(intent)
+                }) {
+                    Icon(Icons.Default.ArrowForward, contentDescription = "Search", tint = Orange)
+                }
+            }
+        },
         shape = RoundedCornerShape(18.dp),
         colors = TextFieldDefaults.colors(
             focusedContainerColor = Color.White,
@@ -285,9 +299,7 @@ fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
             focusedIndicatorColor = Orange,
             unfocusedIndicatorColor = Color.Transparent,
             focusedTextColor = Color.Black,
-            unfocusedTextColor = Color.White,
-            focusedLeadingIconColor = Color.Black,
-            unfocusedLeadingIconColor = Color.White
+            unfocusedTextColor = Color.White
         )
     )
 }
