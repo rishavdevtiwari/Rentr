@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "603256134770",
+    "firebase_url": "https://rentr-db9e6-default-rtdb.firebaseio.com",
+    "project_id": "rentr-db9e6",
+    "storage_bucket": "rentr-db9e6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:603256134770:android:ae0051f3b92e6cc616b6eb",
+        "android_client_info": {
+          "package_name": "com.example.rentr"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAarKBog-8kedRdE4aYpTStMnwuAzVeBYA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
