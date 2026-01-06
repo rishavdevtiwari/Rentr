@@ -11,7 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -83,6 +83,7 @@ fun ConversationsScreen(onBackClicked: () -> Unit) {
     val userViewModel = remember { UserViewModel(UserRepoImpl()) }
     val conversations by chatViewModel.conversations.observeAsState(emptyList())
     val currentUserId = userViewModel.getCurrentUser()?.uid ?: ""
+    val context = LocalContext.current
 
     LaunchedEffect(currentUserId) {
         if (currentUserId.isNotEmpty()) {
@@ -92,16 +93,18 @@ fun ConversationsScreen(onBackClicked: () -> Unit) {
 
     Scaffold(
         topBar = {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 30.dp, start = 16.dp, end = 16.dp, bottom = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text("Chats", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            TopAppBar(
+                title = { Text("Chats", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Black),
+                actions = {
+                    IconButton(onClick = {
+                        context.startActivity(Intent(context, ChatbotActivity::class.java))
+                    }) {
+                        Icon(Icons.Filled.Chat, contentDescription = "Chat with AI", tint = Color.White)
+                    }
                 }
-                        Spacer(modifier = Modifier.height(20.dp)) },
+            )
+        },
         containerColor = Color.Black
     ) { paddingValues ->
         LazyColumn(

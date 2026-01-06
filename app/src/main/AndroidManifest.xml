@@ -154,6 +154,11 @@
             android:name=".view.CheckoutActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".view.ChatbotActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+
     </application>
 
 </manifest>
