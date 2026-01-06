@@ -139,35 +139,79 @@ fun DashboardScreen() {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp),
+                        .height(160.dp)
+                        .padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Card(
                         modifier = Modifier
-                            .fillMaxWidth(0.9f)
-                            .height(150.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = promo)
+                            .fillMaxWidth()
+                            .height(140.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                     ) {
-                        Row(
+
+                        Box(
                             modifier = Modifier
-                                .padding(16.dp)
-                                .fillMaxSize(),
-                            verticalAlignment = Alignment.CenterVertically
+                                .fillMaxSize()
+                                .background(
+                                    Brush.linearGradient(
+                                        colors = listOf(promo, Color(0xFF1A1A1A)), // Fades from your promo color to dark
+                                        start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                                        end = androidx.compose.ui.geometry.Offset(1000f, 1000f)
+                                    )
+                                )
+                                .padding(20.dp)
                         ) {
-                            Column(modifier = Modifier.fillMaxWidth(0.6f)) {
-                                Text("Get Special Discounts", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                                Text("up to 35%", color = Orange, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Don't Buy, Just Rent!",
+                                        color = Orange,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 14.sp,
+                                        letterSpacing = 1.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Experience more for less. Rent quality items near you.",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 16.sp,
+                                        lineHeight = 20.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Orange.copy(alpha = 0.2f)
+                                    ) {
+                                        Text(
+                                            text = "Explore Now",
+                                            color = Orange,
+                                            fontSize = 12.sp,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(80.dp))
                             }
                         }
                     }
+
+                    //logoo
                     Image(
                         painter = painterResource(R.drawable.rentrimage),
-                        contentDescription = null,
+                        contentDescription = "Rentr Logo",
                         modifier = Modifier
-                            .size(180.dp)
+                            .size(160.dp) // Large enough to overlap slightly for depth
                             .align(Alignment.CenterEnd)
-                            .offset(x = 40.dp)
+                            .offset(x = 20.dp, y = (-5).dp) // Artistic offset
                     )
                 }
                 Spacer(modifier = Modifier.height(20.dp))
@@ -265,7 +309,6 @@ fun TopBar(userName: String?,userViewModel: UserViewModel) {
             }
             Spacer(modifier = Modifier.width(10.dp))
             Column {
-                Text("Good Morning", color = Color.Gray, fontSize = 12.sp)
                 Text(
                     text = userName ?: "...",
                     color = Color.White,
