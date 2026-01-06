@@ -3,6 +3,7 @@ package com.example.rentr.view
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ListAlt
@@ -35,6 +36,7 @@ val bottomNavItems = listOf(
     NavItem("Home", Icons.Default.Home),
     NavItem("Listings", Icons.Default.ListAlt),
     NavItem("Rentals", Icons.Default.History),
+    NavItem("Chats",Icons.Default.ChatBubble),
     NavItem("Profile", Icons.Default.Person)
 )
 
@@ -73,7 +75,8 @@ fun MainScreen() {
                 0 -> DashboardScreen()
                 1 -> ListedScreen()
                 2 -> RentalScreen()
-                3 -> ProfileScreen(userViewModel)
+                3 -> ConversationsScreen { }
+                4 -> ProfileScreen(userViewModel)
             }
         }
     }

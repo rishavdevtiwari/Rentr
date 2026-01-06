@@ -3,10 +3,12 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".MyApplication"
         android:allowBackup="true"
+        android:usesCleartextTraffic="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
@@ -26,6 +28,14 @@
         </activity> <!-- Other Activities -->
         <activity
             android:name=".view.ChangePassActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".view.ConversationsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".view.ChatActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
@@ -146,6 +156,18 @@
             android:name=".view.CheckoutActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".view.ChatbotActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+
+        <service
+            android:name=".MyFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>
