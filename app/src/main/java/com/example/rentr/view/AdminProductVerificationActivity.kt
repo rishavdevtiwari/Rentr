@@ -2,6 +2,7 @@ package com.example.rentr.view
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.*
@@ -32,6 +33,7 @@ import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.RentrTheme
+import com.example.rentr.viewmodel.AdminProductViewModel // Import the Notification ViewModel
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
 
@@ -64,21 +66,25 @@ fun ProductVerificationScreen(
                 return UserViewModel(UserRepoImpl()) as T
             }
         }
-    )
+    ),
+    // ADDED: The ViewModel that handles Notifications
+    adminViewModel: AdminProductViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val activity = context as? ComponentActivity
     val intent = activity?.intent ?: remember { Intent() }
 
     val productId = remember { intent.getStringExtra("productId") ?: "" }
-    val productName = remember { intent.getStringExtra("productName") ?: "" }
     val listedById = remember { intent.getStringExtra("listedBy") ?: "" }
 
     val product by productViewModel.product.observeAsState()
     var sellerName by remember { mutableStateOf("") }
     var sellerEmail by remember { mutableStateOf("") }
     var sellerPhone by remember { mutableStateOf("") }
-    var showRejectConfirmation by remember { mutableStateOf(false) }
+
+    // Dialog States
+    var showRejectDialog by remember { mutableStateOf(false) } // Renamed for clarity
+    var rejectionReason by remember { mutableStateOf("") }
     var showVerifyConfirmation by remember { mutableStateOf(false) }
 
     LaunchedEffect(productId) {
@@ -140,7 +146,7 @@ fun ProductVerificationScreen(
                 }
             } else {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    // Product Images (Scrollable)
+                    // Product Images
                     ProductImagesSection(product!!.imageUrl)
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -162,86 +168,94 @@ fun ProductVerificationScreen(
 
                     // Action Buttons
                     ActionButtonsSection(
-                        productId = productId,
                         isVerified = product!!.verified,
-                        onRejectClick = { showRejectConfirmation = true },
-                        onVerifyClick = { showVerifyConfirmation = true },
-                        productViewModel = productViewModel
+                        onRejectClick = { showRejectDialog = true },
+                        onVerifyClick = { showVerifyConfirmation = true }
                     )
                 }
             }
         }
     }
 
-    // Confirmation Dialogs
-    if (showRejectConfirmation) {
+    // --- REJECTION DIALOG (With Input Field) ---
+    if (showRejectDialog) {
         AlertDialog(
-            onDismissRequest = { showRejectConfirmation = false },
+            onDismissRequest = { showRejectDialog = false },
             title = { Text("Reject Product") },
-            text = { Text("Are you sure you want to reject this product? The product will be removed from the platform.") },
+            text = {
+                Column {
+                    Text("Please enter the reason for rejection:")
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = rejectionReason,
+                        onValueChange = { rejectionReason = it },
+                        label = { Text("Reason") },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("e.g., Blurry images, High price") }
+                    )
+                }
+            },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
-                        productViewModel.updateProduct(
-                            productId,
-                            product!!.copy(verified = false),
-                            callback = { success, message ->
-                                if (success) {
-                                    productViewModel.deleteProduct(productId) { _, _ ->
-                                        showRejectConfirmation = false
-                                        (context as? android.app.Activity)?.finish()
-                                    }
-                                }
-                            }
-                        )
-                    }
+                        if (rejectionReason.isNotBlank()) {
+                            // 1. Call Notification Logic
+                            adminViewModel.rejectProduct(productId, product!!.listedBy, rejectionReason)
+
+                            // 2. Close and Finish
+                            showRejectDialog = false
+                            rejectionReason = ""
+                            Toast.makeText(context, "Product Rejected", Toast.LENGTH_SHORT).show()
+                            (context as? android.app.Activity)?.finish()
+                        } else {
+                            Toast.makeText(context, "Please enter a reason", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
                 ) {
-                    Text("Yes, Reject")
+                    Text("Confirm Rejection")
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = { showRejectConfirmation = false }
-                ) {
+                TextButton(onClick = { showRejectDialog = false }) {
                     Text("Cancel")
                 }
             }
         )
     }
 
+    // --- VERIFICATION CONFIRMATION ---
     if (showVerifyConfirmation) {
         AlertDialog(
             onDismissRequest = { showVerifyConfirmation = false },
             title = { Text("Verify Product") },
-            text = { Text("Are you sure you want to verify this product?") },
+            text = { Text("Are you sure you want to verify this product? The user will be notified.") },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
-                        productViewModel.updateProduct(
-                            productId,
-                            product!!.copy(verified = true),
-                            callback = { success, message ->
-                                if (success) {
-                                    showVerifyConfirmation = false
-                                    (context as? android.app.Activity)?.finish()
-                                }
-                            }
-                        )
-                    }
+                        // 1. Call Notification Logic
+                        adminViewModel.approveProduct(productId, product!!.listedBy)
+
+                        // 2. Close and Finish
+                        showVerifyConfirmation = false
+                        Toast.makeText(context, "Product Verified!", Toast.LENGTH_SHORT).show()
+                        (context as? android.app.Activity)?.finish()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Green)
                 ) {
                     Text("Yes, Verify")
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = { showVerifyConfirmation = false }
-                ) {
+                TextButton(onClick = { showVerifyConfirmation = false }) {
                     Text("Cancel")
                 }
             }
         )
     }
 }
+
+// --- HELPER COMPOSABLES (Kept exactly as you had them) ---
 
 @Composable
 fun ProductImagesSection(imageUrls: List<String>) {
@@ -296,7 +310,6 @@ fun ProductDetailsSection(product: com.example.rentr.model.ProductModel) {
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            // Product Fields Grid
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 ProductDetailRow("Title", product.title)
                 ProductDetailRow("Price", "NPR. ${product.price}")
@@ -309,7 +322,6 @@ fun ProductDetailsSection(product: com.example.rentr.model.ProductModel) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Description
             Column {
                 Text(
                     "Description",
@@ -399,11 +411,9 @@ fun SellerInfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: 
 
 @Composable
 fun ActionButtonsSection(
-    productId: String,
     isVerified: Boolean,
     onRejectClick: () -> Unit,
-    onVerifyClick: () -> Unit,
-    productViewModel: ProductViewModel
+    onVerifyClick: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -420,7 +430,7 @@ fun ActionButtonsSection(
         ) {
             Icon(Icons.Default.Close, contentDescription = "Reject")
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Reject Product")
+            Text("Reject")
         }
 
         Button(
@@ -434,7 +444,7 @@ fun ActionButtonsSection(
         ) {
             Icon(Icons.Default.Check, contentDescription = "Verify")
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Verify Product")
+            Text("Verify")
         }
     }
 }

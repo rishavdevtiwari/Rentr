@@ -88,6 +88,15 @@ dependencies {
     // FORCE stable version to avoid "SDK 36" error
     implementation("androidx.activity:activity-compose:1.9.3")
 
+    //5.Adding a listener dependency for user side notification
+    implementation("com.google.firebase:firebase-messaging:23.2.1")
+    // Import the BoM for the Firebase platform
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+
+    // Add the dependencies for Firebase products
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-messaging")
+
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("com.airbnb.android:lottie-compose:6.0.1")
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
