@@ -13,6 +13,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.google.firebase.database.FirebaseDatabase
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
@@ -29,14 +30,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     // 2. This triggers when the Token changes (e.g., new install)
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d("FCM", "Refreshed token: $token")
 
-        // If user is logged in, update it in Firestore immediately
         val currentUser = FirebaseAuth.getInstance().currentUser
         if (currentUser != null) {
-            FirebaseFirestore.getInstance().collection("users")
-                .document(currentUser.uid)
-                .update("fcmToken", token)
+            // CHANGED: Save to Realtime Database instead of Firestore
+            val ref = FirebaseDatabase.getInstance().getReference("users").child(currentUser.uid)
+            ref.child("fcmToken").setValue(token)
         }
     }
 
