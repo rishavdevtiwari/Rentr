@@ -92,29 +92,27 @@ fun DashboardScreen() {
     LaunchedEffect(Unit) {
         userViewModelDash.getCurrentUser()?.uid?.let { userId ->
             userViewModelDash.getUserById(userId) { _, _, _ ->
-                // LiveData observer will handle user data update
             }
         }
     }
 
-    var selectedCategory by remember { mutableStateOf<Category?>(null) }
-    var searchQuery by remember { mutableStateOf("") }
+    var selectedCategoryName by remember { mutableStateOf("All") }
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
 
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    LaunchedEffect(selectedCategory) {
-        selectedCategory?.let { category ->
-            productViewModel.getAllProductsByCategory(category.name) { _, _, _ ->
-                // LiveData will update the product list
-            }
+    LaunchedEffect(selectedCategoryName) {
+        if (selectedCategoryName == "All") {
+            productViewModel.getAllProducts { _, _, _ -> }
+        } else {
+            productViewModel.getAllProductsByCategory(selectedCategoryName) { _, _, _ -> }
         }
     }
 
     val filteredProducts = products?.filter {
-        it.verified && !it.flagged && it.title.contains(searchQuery, ignoreCase = true)
+        it.verified && !it.flagged //&& it.title.contains(searchQuery, ignoreCase = true)
     } ?: emptyList()
 
     // Limit to 6 items for the dashboard preview
@@ -136,40 +134,84 @@ fun DashboardScreen() {
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                 TopBar(userName = user?.fullName, userViewModelDash)
                 Spacer(modifier = Modifier.height(20.dp))
-                SearchBar(searchQuery) { searchQuery = it }
+                DashboardSearchBar()
                 Spacer(modifier = Modifier.height(20.dp))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp),
+                        .height(160.dp)
+                        .padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Card(
                         modifier = Modifier
-                            .fillMaxWidth(0.9f)
-                            .height(150.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = promo)
+                            .fillMaxWidth()
+                            .height(140.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                     ) {
-                        Row(
+
+                        Box(
                             modifier = Modifier
-                                .padding(16.dp)
-                                .fillMaxSize(),
-                            verticalAlignment = Alignment.CenterVertically
+                                .fillMaxSize()
+                                .background(
+                                    Brush.linearGradient(
+                                        colors = listOf(promo, Color(0xFF1A1A1A)), // Fades from your promo color to dark
+                                        start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                                        end = androidx.compose.ui.geometry.Offset(1000f, 1000f)
+                                    )
+                                )
+                                .padding(20.dp)
                         ) {
-                            Column(modifier = Modifier.fillMaxWidth(0.6f)) {
-                                Text("Get Special Discounts", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                                Text("up to 35%", color = Orange, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Don't Buy, Just Rent!",
+                                        color = Orange,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 14.sp,
+                                        letterSpacing = 1.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Experience more for less. Rent quality items near you.",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 16.sp,
+                                        lineHeight = 20.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Orange.copy(alpha = 0.2f)
+                                    ) {
+                                        Text(
+                                            text = "Explore Now",
+                                            color = Orange,
+                                            fontSize = 12.sp,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(80.dp))
                             }
                         }
                     }
+
+                    //logoo
                     Image(
                         painter = painterResource(R.drawable.rentrimage),
-                        contentDescription = null,
+                        contentDescription = "Rentr Logo",
                         modifier = Modifier
-                            .size(180.dp)
+                            .size(160.dp) // Large enough to overlap slightly for depth
                             .align(Alignment.CenterEnd)
-                            .offset(x = 40.dp)
+                            .offset(x = 20.dp, y = (-5).dp) // Artistic offset
                     )
                 }
                 Spacer(modifier = Modifier.height(20.dp))
@@ -181,32 +223,44 @@ fun DashboardScreen() {
                     Text("Categories", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     Text(
                         "Show All",
-                        color = if (selectedCategory == null) Color.Gray else Orange.copy(0.7f),
+                        color = Orange.copy(0.7f),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.clickable {
-                            val intent = Intent (context,CategoryActivity::class.java)
-                            intent.putExtra("Category",selectedCategory?.name)
+//                            val targetCategory = if (selectedCategoryName == "All") "All" else selectedCategoryName
+                            val intent = Intent(context, CategoryActivity::class.java)
+                            intent.putExtra("Category", selectedCategoryName)
                             context.startActivity(intent)
                         }
                     )
                 }
                 Spacer(modifier = Modifier.height(10.dp))
             }
-            CategorySelection(selectedCategory?.name) { name ->
-                selectedCategory =
-                    if (selectedCategory?.name == name) null else categories.find { it.name == name }
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                item {
+                    CategorySearchChip("All", selectedCategoryName == "All") {
+                        selectedCategoryName = "All"
+                    }
+                }
+                items(categories) { category ->
+                    CategorySearchChip(category.name, selectedCategoryName == category.name) {
+                        selectedCategoryName = category.name
+                    }
+                }
             }
+
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                 Spacer(modifier = Modifier.height(20.dp))
-                if (selectedCategory != null) {
-                    ProductGrid(products = displayedProducts)
-                }
+                ProductGrid(products = displayedProducts)
                 Spacer(modifier = Modifier.height(100.dp))
             }
         }
     }
 }
+
 
 
 @Composable
@@ -255,7 +309,6 @@ fun TopBar(userName: String?,userViewModel: UserViewModel) {
             }
             Spacer(modifier = Modifier.width(10.dp))
             Column {
-                Text("Good Morning", color = Color.Gray, fontSize = 12.sp)
                 Text(
                     text = userName ?: "...",
                     color = Color.White,
@@ -271,25 +324,32 @@ fun TopBar(userName: String?,userViewModel: UserViewModel) {
 }
 
 @Composable
-fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text("Search", color = Color.Gray) },
-        leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
-        shape = RoundedCornerShape(18.dp),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = Color.White,
-            unfocusedContainerColor = Field,
-            focusedIndicatorColor = Orange,
-            unfocusedIndicatorColor = Color.Transparent,
-            focusedTextColor = Color.Black,
-            unfocusedTextColor = Color.White,
-            focusedLeadingIconColor = Color.Black,
-            unfocusedLeadingIconColor = Color.White
+fun DashboardSearchBar() {
+    val context = LocalContext.current
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                val intent = Intent(context, SearchActivity::class.java)
+                context.startActivity(intent)
+            }
+    ) {
+        OutlinedTextField(
+            value = "",
+            onValueChange = {},
+            enabled = false,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Search for items...", color = Color.Gray) },
+            leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
+            shape = RoundedCornerShape(18.dp),
+            colors = TextFieldDefaults.colors(
+                disabledContainerColor = Field,
+                disabledIndicatorColor = Color.Transparent,
+                disabledPlaceholderColor = Color.Gray,
+                disabledLeadingIconColor = Color.Gray
+            )
         )
-    )
+    }
 }
 
 @Composable
