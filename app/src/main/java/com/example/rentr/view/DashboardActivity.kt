@@ -92,24 +92,22 @@ fun DashboardScreen() {
     LaunchedEffect(Unit) {
         userViewModelDash.getCurrentUser()?.uid?.let { userId ->
             userViewModelDash.getUserById(userId) { _, _, _ ->
-                // LiveData observer will handle user data update
             }
         }
     }
 
-    var selectedCategory by remember { mutableStateOf<Category?>(null) }
-//    var searchQuery by remember { mutableStateOf("") }
+    var selectedCategoryName by remember { mutableStateOf("All") }
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
 
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    LaunchedEffect(selectedCategory) {
-        selectedCategory?.let { category ->
-            productViewModel.getAllProductsByCategory(category.name) { _, _, _ ->
-                // LiveData will update the product list
-            }
+    LaunchedEffect(selectedCategoryName) {
+        if (selectedCategoryName == "All") {
+            productViewModel.getAllProducts { _, _, _ -> }
+        } else {
+            productViewModel.getAllProductsByCategory(selectedCategoryName) { _, _, _ -> }
         }
     }
 
@@ -181,30 +179,44 @@ fun DashboardScreen() {
                     Text("Categories", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     Text(
                         "Show All",
-                        color = if (selectedCategory == null) Color.Gray else Orange.copy(0.7f),
+                        color = Orange.copy(0.7f),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.clickable {
-                            val intent = Intent (context,CategoryActivity::class.java)
-                            intent.putExtra("Category",selectedCategory?.name)
+//                            val targetCategory = if (selectedCategoryName == "All") "All" else selectedCategoryName
+                            val intent = Intent(context, CategoryActivity::class.java)
+                            intent.putExtra("Category", selectedCategoryName)
                             context.startActivity(intent)
                         }
                     )
                 }
                 Spacer(modifier = Modifier.height(10.dp))
             }
-            CategorySelection(selectedCategory?.name) { name ->
-                selectedCategory =
-                    if (selectedCategory?.name == name) null else categories.find { it.name == name }
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                item {
+                    CategorySearchChip("All", selectedCategoryName == "All") {
+                        selectedCategoryName = "All"
+                    }
+                }
+                items(categories) { category ->
+                    CategorySearchChip(category.name, selectedCategoryName == category.name) {
+                        selectedCategoryName = category.name
+                    }
+                }
             }
+
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                 Spacer(modifier = Modifier.height(20.dp))
-                    ProductGrid(products = displayedProducts)
+                ProductGrid(products = displayedProducts)
                 Spacer(modifier = Modifier.height(100.dp))
             }
         }
     }
 }
+
 
 
 @Composable
