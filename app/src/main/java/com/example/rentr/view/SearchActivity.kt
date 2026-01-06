@@ -52,12 +52,11 @@ fun SearchScreen(onBack: () -> Unit) {
     val allProducts by productViewModel.allProducts.observeAsState(emptyList())
 
     var query by remember { mutableStateOf("") }
-    var minPrice by remember { mutableStateOf(0.0) }
-    var maxPrice by remember { mutableStateOf(Double.MAX_VALUE) }
     var showFilterOptions by remember { mutableStateOf(false) }
 
-    // Sorting State: 0 = Default, 1 = Ascending, 2 = Descending
+    // Sorting States: 0 = Default, 1 = High-to-Low, 2 = Low-to-High
     var priceSortState by remember { mutableStateOf(0) }
+    var ratingSortState by remember { mutableStateOf(0) }
 
     val focusRequester = remember { FocusRequester() }
 
@@ -66,18 +65,23 @@ fun SearchScreen(onBack: () -> Unit) {
         focusRequester.requestFocus()
     }
 
-    // 1. Filter the results first
-    val baseResults = allProducts.filter {
-        val matchesQuery = it.title.contains(query, ignoreCase = true)
-        val matchesPrice = it.price in minPrice..maxPrice
-        it.verified && !it.flagged && matchesQuery && matchesPrice
+    // 1. Base Filter (Query + Verification)
+    var results = allProducts.filter {
+        it.verified && !it.flagged && it.title.contains(query, ignoreCase = true)
     }
 
-    // 2. Apply sorting logic
-    val filteredResults = when (priceSortState) {
-        1 -> baseResults.sortedBy { it.price }
-        2 -> baseResults.sortedByDescending { it.price }
-        else -> baseResults
+    // 2. Apply Price Sorting
+    results = when (priceSortState) {
+        1 -> results.sortedByDescending { it.price }
+        2 -> results.sortedBy { it.price }
+        else -> results
+    }
+
+    // 3. Apply Rating Sorting If active
+    results = when (ratingSortState) {
+        1 -> results.sortedByDescending { it.rating }
+        2 -> results.sortedBy { it.rating }
+        else -> results
     }
 
     Scaffold(
@@ -94,7 +98,7 @@ fun SearchScreen(onBack: () -> Unit) {
                     IconButton(onClick = { showFilterOptions = !showFilterOptions }) {
                         Icon(
                             imageVector = Icons.Default.FilterList,
-                            contentDescription = "Toggle Filter Bar",
+                            contentDescription = "Toggle Filters",
                             tint = if (showFilterOptions) Orange else Color.White
                         )
                     }
@@ -105,7 +109,7 @@ fun SearchScreen(onBack: () -> Unit) {
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
 
-            // Search Field
+            // Searching Field
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
@@ -113,73 +117,53 @@ fun SearchScreen(onBack: () -> Unit) {
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
                     .focusRequester(focusRequester),
-                placeholder = { Text("Search for items...", color = Color.Gray) },
+                placeholder = { Text("What are you looking for?", color = Color.Gray) },
                 leadingIcon = { Icon(Icons.Default.Search, null, tint = Orange) },
                 shape = RoundedCornerShape(18.dp),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Field,
-                    focusedTextColor = Color.Black
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.White,
+                    cursorColor = Orange,
+                    focusedIndicatorColor = Orange
                 )
             )
 
-            // Subtle Price Sort Bar (Appears on clicking Filter Icon)
+            // Filter Bar (Price & Rating)
             if (showFilterOptions) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Surface(
-                        onClick = {
-                            // Cycle through 0 -> 1 -> 2 -> 0
+                    // PRIXE SORT BUTTON
+                    FilterToggleChip(
+                        label = "Price",
+                        state = priceSortState,
+                        onToggle = {
                             priceSortState = (priceSortState + 1) % 3
-                        },
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (priceSortState > 0) Orange.copy(alpha = 0.2f) else Field,
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            if (priceSortState > 0) Orange else Color.Transparent
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Price",
-                                color = if (priceSortState > 0) Orange else Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = when(priceSortState) {
-                                    1 -> Icons.Default.KeyboardArrowUp
-                                    2 -> Icons.Default.KeyboardArrowDown
-                                    else -> Icons.Default.UnfoldMore
-                                },
-                                contentDescription = null,
-                                tint = if (priceSortState > 0) Orange else Color.Gray,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            if (priceSortState > 0) ratingSortState = 0 // Reset other sort
                         }
-                    }
+                    )
 
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // Button to open the Min/Max Price Modal
-                    TextButton(onClick = { /* show price modal from previous prompt */ }) {
-                        Text("Range", color = Color.Gray, fontSize = 14.sp)
-                    }
+                    // RATING SOET BUTTON
+                    FilterToggleChip(
+                        label = "Rating",
+                        state = ratingSortState,
+                        onToggle = {
+                            ratingSortState = (ratingSortState + 1) % 3
+                            if (ratingSortState > 0) priceSortState = 0 // Reset other sort
+                        }
+                    )
                 }
             }
 
-            // Results List
-            if (filteredResults.isEmpty()) {
+            // Product Grid for search screen.
+            if (results.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No results found", color = Color.Gray)
+                    Text("No products found", color = Color.Gray)
                 }
             } else {
                 LazyVerticalGrid(
@@ -188,11 +172,47 @@ fun SearchScreen(onBack: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(filteredResults) { product ->
+                    items(results) { product ->
                         SearchProductItem(product)
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun FilterToggleChip(label: String, state: Int, onToggle: () -> Unit) {
+    Surface(
+        onClick = onToggle,
+        shape = RoundedCornerShape(12.dp),
+        color = if (state > 0) Orange.copy(alpha = 0.15f) else Field,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = if (state > 0) Orange else Color.Transparent
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                color = if (state > 0) Orange else Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Icon(
+                imageVector = when (state) {
+                    1 -> Icons.Default.KeyboardArrowDown // High to Low
+                    2 -> Icons.Default.KeyboardArrowUp   // Low to High
+                    else -> Icons.Default.UnfoldMore
+                },
+                contentDescription = null,
+                tint = if (state > 0) Orange else Color.Gray,
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }
