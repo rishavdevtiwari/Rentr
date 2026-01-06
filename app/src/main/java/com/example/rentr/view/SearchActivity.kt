@@ -6,18 +6,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.UnfoldMore
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -26,7 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,6 +48,7 @@ fun SearchScreen(onBack: () -> Unit) {
 
     var query by remember { mutableStateOf("") }
     var showFilterOptions by remember { mutableStateOf(false) }
+    var selectedCategory by remember { mutableStateOf("All") }
 
     // Sorting States: 0 = Default, 1 = High-to-Low, 2 = Low-to-High
     var priceSortState by remember { mutableStateOf(0) }
@@ -65,9 +61,11 @@ fun SearchScreen(onBack: () -> Unit) {
         focusRequester.requestFocus()
     }
 
-    // 1. Base Filter (Query + Verification)
+    // 1. Base Filter (Query + Verification + Category)
     var results = allProducts.filter {
-        it.verified && !it.flagged && it.title.contains(query, ignoreCase = true)
+        val matchesQuery = it.title.contains(query, ignoreCase = true)
+        val matchesCategory = if (selectedCategory == "All") true else it.category == selectedCategory
+        it.verified && !it.flagged && matchesQuery && matchesCategory
     }
 
     // 2. Apply Price Sorting
@@ -109,7 +107,7 @@ fun SearchScreen(onBack: () -> Unit) {
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
 
-            // Searching Field
+            // Searchng Field
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
@@ -130,33 +128,54 @@ fun SearchScreen(onBack: () -> Unit) {
                 )
             )
 
-            // Filter Bar (Price & Rating)
+            // Filter Bar (Price & Rating & Categories)
             if (showFilterOptions) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // PRIXE SORT BUTTON
-                    FilterToggleChip(
-                        label = "Price",
-                        state = priceSortState,
-                        onToggle = {
-                            priceSortState = (priceSortState + 1) % 3
-                            if (priceSortState > 0) ratingSortState = 0 // Reset other sort
-                        }
-                    )
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // PRIXE SORT BUTTON
+                        FilterToggleChip(
+                            label = "Price",
+                            state = priceSortState,
+                            onToggle = {
+                                priceSortState = (priceSortState + 1) % 3
+                                if (priceSortState > 0) ratingSortState = 0 // Reset other sort
+                            }
+                        )
 
-                    // RATING SOET BUTTON
-                    FilterToggleChip(
-                        label = "Rating",
-                        state = ratingSortState,
-                        onToggle = {
-                            ratingSortState = (ratingSortState + 1) % 3
-                            if (ratingSortState > 0) priceSortState = 0 // Reset other sort
+                        // RATING SOET BUTTON
+                        FilterToggleChip(
+                            label = "Rating",
+                            state = ratingSortState,
+                            onToggle = {
+                                ratingSortState = (ratingSortState + 1) % 3
+                                if (ratingSortState > 0) priceSortState = 0 // Reset other sort
+                            }
+                        )
+                    }
+
+                    // lazy row for selection of categories
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        item {
+                            CategorySearchChip("All", selectedCategory == "All") { selectedCategory = "All" }
                         }
-                    )
+                        // same categories as dashbord
+                        items(categories) { category ->
+                            CategorySearchChip(
+                                category.name,
+                                selectedCategory == category.name
+                            ) { selectedCategory = category.name }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
 
@@ -178,6 +197,24 @@ fun SearchScreen(onBack: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+@Composable
+fun CategorySearchChip(name: String, isSelected: Boolean, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = if (isSelected) Orange else Field,
+        border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, Color.Gray.copy(0.3f))
+    ) {
+        Text(
+            text = name,
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
     }
 }
 
@@ -216,6 +253,7 @@ fun FilterToggleChip(label: String, state: Int, onToggle: () -> Unit) {
         }
     }
 }
+
 @Composable
 fun SearchProductItem(product: ProductModel) {
     Column {
@@ -224,51 +262,4 @@ fun SearchProductItem(product: ProductModel) {
         Text(product.title, color = Orange, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
         Text("NPR. ${product.price}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
     }
-}
-
-@Composable
-fun PriceFilterChips(min: Double, max: Double, onClear: () -> Unit) {
-    Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        SuggestionChip(
-            onClick = onClear,
-            label = {
-                val label = if (max == Double.MAX_VALUE) "Min: NPR $min" else "NPR $min - $max"
-                Text(label, color = Orange)
-            },
-            icon = { Icon(Icons.Default.Close, null, modifier = Modifier.size(14.dp), tint = Orange) }
-        )
-    }
-}
-
-@Composable
-fun PriceFilterModal(currentMin: Double, currentMax: Double, onDismiss: () -> Unit, onApply: (Double, Double) -> Unit) {
-    var minText by remember { mutableStateOf(if (currentMin == 0.0) "" else currentMin.toString()) }
-    var maxText by remember { mutableStateOf(if (currentMax == 0.0) "" else currentMax.toString()) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1C1C1E),
-        title = { Text("Filter by Price", color = Color.White) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = minText,
-                    onValueChange = { minText = it },
-                    label = { Text("Min Price") },
-                    colors = OutlinedTextFieldDefaults.colors(unfocusedTextColor = Color.White, focusedTextColor = Color.White, focusedBorderColor = Orange)
-                )
-                OutlinedTextField(
-                    value = maxText,
-                    onValueChange = { maxText = it },
-                    label = { Text("Max Price") },
-                    colors = OutlinedTextFieldDefaults.colors(unfocusedTextColor = Color.White, focusedTextColor = Color.White, focusedBorderColor = Orange)
-                )
-            }
-        },
-        confirmButton = {
-            Button(onClick = { onApply(minText.toDoubleOrNull() ?: 0.0, maxText.toDoubleOrNull() ?: 0.0) }, colors = ButtonDefaults.buttonColors(containerColor = Orange)) {
-                Text("Apply")
-            }
-        }
-    )
 }
