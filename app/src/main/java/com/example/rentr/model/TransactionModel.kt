@@ -12,7 +12,8 @@ data class TransactionModel(
     val paymentOption: String = "",
     val startTime: String = "",
     val endTime: String = "",
-    val pickupLocation: String = ""
+    val pickupLocation: String = "",
+    val paymentId: String = ""
 ) {
     fun toMap(): Map<String, Any?> {
         return mapOf(
@@ -27,7 +28,8 @@ data class TransactionModel(
             "paymentOption" to paymentOption,
             "startTime" to startTime,
             "endTime" to endTime,
-            "pickupLocation" to pickupLocation
+            "pickupLocation" to pickupLocation,
+            "paymentId" to paymentId
         )
     }
 }
