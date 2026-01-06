@@ -2,6 +2,7 @@ package com.example.rentr.view
 
 import android.app.Activity
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModelProvider
 import com.example.rentr.model.TransactionModel
 import com.example.rentr.repository.ProductRepoImpl
 import com.example.rentr.repository.TransactionRepoImpl
@@ -30,12 +32,17 @@ import com.example.rentr.ui.theme.RentrTheme
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.TransactionViewModel
 import com.example.rentr.viewmodel.UserViewModel
+// --- KHALTI IMPORTS ---
+
+import com.khalti.checkout.Khalti
+import com.khalti.checkout.data.Environment
+import com.khalti.checkout.data.KhaltiPayConfig
 import java.util.UUID
 
 class CheckoutActivity : ComponentActivity() {
 
     private val transactionViewModel: TransactionViewModel by viewModels {
-        object : androidx.lifecycle.ViewModelProvider.Factory {
+        object : ViewModelProvider.Factory {
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                 return TransactionViewModel(TransactionRepoImpl()) as T
             }
@@ -43,7 +50,7 @@ class CheckoutActivity : ComponentActivity() {
     }
 
     private val productViewModel: ProductViewModel by viewModels {
-        object : androidx.lifecycle.ViewModelProvider.Factory {
+        object : ViewModelProvider.Factory {
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                 return ProductViewModel(ProductRepoImpl()) as T
             }
@@ -54,7 +61,7 @@ class CheckoutActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val productTitle = intent.getStringExtra("productTitle") ?: "Product"
-        val basePrice = intent.getDoubleExtra("basePrice", 0.0) // Get base price
+        val basePrice = intent.getDoubleExtra("basePrice", 0.0)
         val rentalPrice = intent.getDoubleExtra("rentalPrice", 0.0)
         val days = intent.getIntExtra("days", 1)
         val productId = intent.getStringExtra("productId") ?: ""
@@ -64,7 +71,7 @@ class CheckoutActivity : ComponentActivity() {
             RentrTheme {
                 CheckoutScreen(
                     productTitle = productTitle,
-                    basePrice = basePrice, // Pass base price
+                    basePrice = basePrice,
                     rentalPrice = rentalPrice,
                     days = days,
                     productId = productId,
@@ -81,7 +88,7 @@ class CheckoutActivity : ComponentActivity() {
 @Composable
 fun CheckoutScreen(
     productTitle: String,
-    basePrice: Double, // Receive base price
+    basePrice: Double,
     rentalPrice: Double,
     days: Int,
     productId: String,
@@ -92,36 +99,79 @@ fun CheckoutScreen(
     var location by remember { mutableStateOf("") }
     val paymentOptions = listOf("Cash on Delivery", "Pay Online via Khalti")
     var selectedPayment by remember { mutableStateOf(paymentOptions[0]) }
+
     val context = LocalContext.current
     val activity = context as? Activity
-
     val userViewModel = remember { UserViewModel(UserRepoImpl()) }
     val currentUser = userViewModel.getCurrentUser()
 
+    // Observe State from ViewModel
     val isLoading by transactionViewModel.isLoading.observeAsState(false)
     val transactionResult by transactionViewModel.transactionResult.observeAsState()
+    val pidx by transactionViewModel.pidx.observeAsState() // <--- The backend response
 
+    // --- 1. HANDLE KHALTI OPENING ---
+    // This block runs automatically when 'pidx' gets a value from the backend
+    LaunchedEffect(pidx) {
+        pidx?.let { paymentId ->
+            Log.d("Khalti", "PIDX received: $paymentId. Opening Khalti...")
+
+            val config = KhaltiPayConfig(
+                publicKey = "bdf7c03c426241909b72382bb1359159", // TODO: Paste your TEST PUBLIC KEY here
+                pidx = paymentId,
+                environment = Environment.TEST
+            )
+
+            val khalti = Khalti.init(
+                context,
+                config,
+                onPaymentResult = { result, khalti ->
+                    Log.d("Khalti", "Payment Success: $result")
+
+                    // Payment successful! Now save transaction to Firebase
+                    val transaction = TransactionModel(
+                        transactionId = UUID.randomUUID().toString(),
+                        productId = productId,
+                        renterId = currentUser!!.uid,
+                        sellerId = sellerId,
+                        basePrice = basePrice,
+                        rentalPrice = rentalPrice,
+                        days = days,
+                        paymentOption = "Khalti (Paid)",
+                        pickupLocation = location,
+                        startTime = System.currentTimeMillis().toString(),
+                        endTime = (System.currentTimeMillis() + (days * 24L * 60 * 60 * 1000)).toString()
+                    )
+                    transactionViewModel.addTransaction(transaction)
+                    khalti.close()
+                },
+                onMessage = { payload, khalti ->
+                    Log.e("Khalti", "Message: ${payload.message}")
+                    khalti.close()
+                }
+            )
+            khalti.open()
+        }
+    }
+
+    // --- 2. HANDLE FINAL DATABASE SUCCESS ---
     LaunchedEffect(transactionResult) {
-        transactionResult?.let {
-            val (success, message) = it
+        transactionResult?.let { (success, message) ->
             if (success) {
+                // Mark product as out of stock
                 productViewModel.getProductById(productId) { productSuccess, _, product ->
                     if (productSuccess && product != null) {
                         val updatedProduct = product.copy(outOfStock = true, rentalStatus = "")
                         productViewModel.updateProduct(productId, updatedProduct) { updateSuccess, _ ->
                             if (updateSuccess) {
-                                Toast.makeText(context, "Order for $productTitle confirmed!", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, "Order Confirmed!", Toast.LENGTH_LONG).show()
                                 activity?.finish()
-                            } else {
-                                Toast.makeText(context, "Failed to update product status.", Toast.LENGTH_LONG).show()
                             }
                         }
-                    } else {
-                        Toast.makeText(context, "Failed to fetch product for updating.", Toast.LENGTH_LONG).show()
                     }
                 }
             } else {
-                Toast.makeText(context, "Order failed: ${message ?: "Unknown error"}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Transaction Failed: $message", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -132,30 +182,34 @@ fun CheckoutScreen(
             return
         }
         if (currentUser == null) {
-            Toast.makeText(context, "You must be logged in to place an order", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Login required", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val startTimeMillis = System.currentTimeMillis()
-        val rentalDurationMillis = days * 24L * 60 * 60 * 1000 // Use Long for calculation
-        val endTimeMillis = startTimeMillis + rentalDurationMillis
-
-        val transaction = TransactionModel(
-            transactionId = UUID.randomUUID().toString(),
-            productId = productId,
-            renterId = currentUser.uid,
-            sellerId = sellerId,
-            basePrice = basePrice, // Set the base price here
-            rentalPrice = rentalPrice,
-            days = days,
-            paymentOption = selectedPayment,
-            pickupLocation = location,
-            startTime = startTimeMillis.toString(),
-            endTime = endTimeMillis.toString() // Set the calculated end time
-        )
-
-
-        transactionViewModel.addTransaction(transaction)
+        if (selectedPayment == "Pay Online via Khalti") {
+            // STEP A: Call Backend to get PIDX
+            transactionViewModel.initiateKhaltiPayment(
+                rentalPrice = rentalPrice,
+                productId = productId,
+                productName = productTitle
+            )
+        } else {
+            // Cash on Delivery Flow
+            val transaction = TransactionModel(
+                transactionId = UUID.randomUUID().toString(),
+                productId = productId,
+                renterId = currentUser.uid,
+                sellerId = sellerId,
+                basePrice = basePrice,
+                rentalPrice = rentalPrice,
+                days = days,
+                paymentOption = "Cash on Delivery",
+                pickupLocation = location,
+                startTime = System.currentTimeMillis().toString(),
+                endTime = (System.currentTimeMillis() + (days * 24L * 60 * 60 * 1000)).toString()
+            )
+            transactionViewModel.addTransaction(transaction)
+        }
     }
 
     Scaffold(
@@ -191,21 +245,17 @@ fun CheckoutScreen(
         }
     ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
+            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)
         ) {
-            // Product Summary
             Text("Item", color = Color.Gray)
             Text(productTitle, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
+
             Text("Total Price for $days day(s)", color = Color.Gray)
             Text(String.format("NPR. %.2f", rentalPrice), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
 
             Divider(modifier = Modifier.padding(vertical = 24.dp), color = Color.Gray.copy(alpha = 0.5f))
 
-            // Location Field
             Text("Delivery Location", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
@@ -226,21 +276,15 @@ fun CheckoutScreen(
                     unfocusedLabelColor = Color.Gray
                 )
             )
-
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Payment Method
             Text("Payment Method", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
             Spacer(modifier = Modifier.height(8.dp))
             Column {
                 paymentOptions.forEach { option ->
                     Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = (option == selectedPayment),
-                                onClick = { selectedPayment = option }
-                            )
+                        Modifier.fillMaxWidth()
+                            .selectable(selected = (option == selectedPayment), onClick = { selectedPayment = option })
                             .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -249,11 +293,7 @@ fun CheckoutScreen(
                             onClick = { selectedPayment = option },
                             colors = RadioButtonDefaults.colors(selectedColor = Orange, unselectedColor = Color.Gray)
                         )
-                        Text(
-                            text = option,
-                            modifier = Modifier.padding(start = 8.dp),
-                            color = Color.White
-                        )
+                        Text(text = option, modifier = Modifier.padding(start = 8.dp), color = Color.White)
                     }
                 }
             }

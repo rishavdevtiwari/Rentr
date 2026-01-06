@@ -86,8 +86,7 @@ fun DashboardScreen() {
     LaunchedEffect(Unit) {
         userViewModelDash.getCurrentUser()?.uid?.let { userId ->
             userViewModelDash.getUserById(userId) { _, _, _ ->
-            // LiveData observer will handle user data update
-                userViewModelDash.updateFCMToken()
+                // LiveData observer will handle user data update
             }
         }
     }

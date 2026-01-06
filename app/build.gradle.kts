@@ -15,9 +15,11 @@ if (localPropertiesFile.exists()) {
 }
 
 android {
+
     namespace = "com.example.rentr"
     // USE 35 to avoid the "Requires 36/Baklava" error
     compileSdk = 36
+
 
     defaultConfig {
         applicationId = "com.example.rentr"
@@ -68,6 +70,7 @@ android {
         compose = true
         buildConfig = true
     }
+
 }
 
 dependencies {
@@ -91,15 +94,6 @@ dependencies {
     implementation("com.google.accompanist:accompanist-pager:0.28.0")
     implementation("com.google.accompanist:accompanist-pager-indicators:0.28.0")
 
-    //5.Adding a listener dependency for user side notification
-    implementation("com.google.firebase:firebase-messaging:23.2.1")
-    // Import the BoM for the Firebase platform
-    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
-
-    // Add the dependencies for Firebase products
-    implementation("com.google.firebase:firebase-firestore")
-    implementation("com.google.firebase:firebase-messaging")
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     // implementation(libs.androidx.activity.compose) // Commented out to use the forced version above
@@ -114,6 +108,10 @@ dependencies {
     implementation(libs.androidx.compose.runtime.livedata)
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.compose.ui.text)
+    implementation("com.khalti:checkout-android:0.07.00")
+
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -122,4 +120,5 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
 }
