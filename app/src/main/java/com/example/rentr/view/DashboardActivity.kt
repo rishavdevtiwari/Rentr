@@ -1,6 +1,8 @@
 package com.example.rentr.view
 
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -46,11 +48,15 @@ import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.promo
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
+import android.Manifest
 
 class DashboardActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) && (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
+        }
         setContent {
             MainScreen()
         }

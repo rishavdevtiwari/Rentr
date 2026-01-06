@@ -71,6 +71,20 @@ android {
         buildConfig = true
     }
 
+    packaging {
+        resources {
+            excludes += "META-INF/DEPENDENCIES"
+            excludes += "META-INF/LICENSE"
+            excludes += "META-INF/LICENSE.txt"
+            excludes += "META-INF/license.txt"
+            excludes += "META-INF/NOTICE"
+            excludes += "META-INF/NOTICE.txt"
+            excludes += "META-INF/notice.txt"
+            excludes += "META-INF/ASL2.0"
+        }
+    }
+
+
 }
 
 dependencies {
@@ -87,6 +101,20 @@ dependencies {
     // --- 4. Android & Compose ---
     // FORCE stable version to avoid "SDK 36" error
     implementation("androidx.activity:activity-compose:1.9.3")
+
+    //5.Adding a listener dependency for user side notification
+
+    // Import the BoM for the Firebase platform
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.android.volley:volley:1.2.1")
+// Google Auth (Fixes com.google.auth imports)
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.19.0")
+
+
+
+    // Add the dependencies for Firebase products
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-messaging")
 
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("com.airbnb.android:lottie-compose:6.0.1")
