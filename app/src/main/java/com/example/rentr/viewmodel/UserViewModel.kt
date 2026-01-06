@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.example.rentr.model.UserModel
 import com.example.rentr.repository.UserRepo
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.FirebaseDatabase
 
@@ -151,5 +152,17 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
     fun incrementFlagCount(userId: String, callback: (Boolean, String) -> Unit) {
         repo.incrementFlagCount(userId, callback)
     }
+    fun updateFCMToken() {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        if (currentUser != null) {
+            repo.updateUserFCMToken(currentUser.uid) { success, message ->
+                if (success) {
+                    android.util.Log.d("MVVM", "FCM Token synced successfully")
+                } else {
+                    android.util.Log.e("MVVM", "FCM Sync failed: $message")
+                }
 
+            }
+        }
+    }
 }

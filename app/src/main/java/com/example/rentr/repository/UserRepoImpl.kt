@@ -10,6 +10,8 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.MutableData
 import com.google.firebase.database.Transaction
 import com.google.firebase.database.ValueEventListener
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.messaging.FirebaseMessaging
 
 class UserRepoImpl : UserRepo {
 
@@ -345,6 +347,29 @@ class UserRepoImpl : UserRepo {
             }
         }
     }
+    override fun updateUserFCMToken(userId: String, callback: (Boolean, String?) -> Unit) {
+        // 1. Get the token from FCM SDK
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                callback(false, "Failed to fetch FCM token")
+                return@addOnCompleteListener
+            }
 
+            // 2. Get the actual token string
+            val token = task.result
 
+            // 3. Save it to Firestore
+            FirebaseFirestore.getInstance().collection("users").document(userId)
+                .update("fcmToken", token)
+                .addOnSuccessListener {
+                    // 4. Also subscribe to the broadcast topic here
+                    FirebaseMessaging.getInstance().subscribeToTopic("all_users")
+                    callback(true, "Token updated")
+                }
+                .addOnFailureListener { e ->
+                    callback(false, e.message)
+                }
+
+        }
+    }
 }
