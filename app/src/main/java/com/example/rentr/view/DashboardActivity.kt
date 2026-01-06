@@ -98,7 +98,7 @@ fun DashboardScreen() {
     }
 
     var selectedCategory by remember { mutableStateOf<Category?>(null) }
-    var searchQuery by remember { mutableStateOf("") }
+//    var searchQuery by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
 
@@ -114,7 +114,7 @@ fun DashboardScreen() {
     }
 
     val filteredProducts = products?.filter {
-        it.verified && !it.flagged && it.title.contains(searchQuery, ignoreCase = true)
+        it.verified && !it.flagged //&& it.title.contains(searchQuery, ignoreCase = true)
     } ?: emptyList()
 
     // Limit to 6 items for the dashboard preview
@@ -136,7 +136,7 @@ fun DashboardScreen() {
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                 TopBar(userName = user?.fullName, userViewModelDash)
                 Spacer(modifier = Modifier.height(20.dp))
-                SearchBar(searchQuery) { searchQuery = it }
+                DashboardSearchBar()
                 Spacer(modifier = Modifier.height(20.dp))
                 Box(
                     modifier = Modifier
@@ -199,9 +199,7 @@ fun DashboardScreen() {
             }
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                 Spacer(modifier = Modifier.height(20.dp))
-                if (selectedCategory != null) {
                     ProductGrid(products = displayedProducts)
-                }
                 Spacer(modifier = Modifier.height(100.dp))
             }
         }
@@ -271,37 +269,32 @@ fun TopBar(userName: String?,userViewModel: UserViewModel) {
 }
 
 @Composable
-fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
+fun DashboardSearchBar() {
     val context = LocalContext.current
-
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text("Search for items...", color = Color.Gray) },
-        leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
-        trailingIcon = {
-            // search button for searching
-            if (query.isNotEmpty()) {
-                IconButton(onClick = {
-                    val intent = Intent(context, SearchActivity::class.java)
-                    intent.putExtra("SEARCH_QUERY", query)
-                    context.startActivity(intent)
-                }) {
-                    Icon(Icons.Default.ArrowForward, contentDescription = "Search", tint = Orange)
-                }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                val intent = Intent(context, SearchActivity::class.java)
+                context.startActivity(intent)
             }
-        },
-        shape = RoundedCornerShape(18.dp),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = Color.White,
-            unfocusedContainerColor = Field,
-            focusedIndicatorColor = Orange,
-            unfocusedIndicatorColor = Color.Transparent,
-            focusedTextColor = Color.Black,
-            unfocusedTextColor = Color.White
+    ) {
+        OutlinedTextField(
+            value = "",
+            onValueChange = {},
+            enabled = false,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Search for items...", color = Color.Gray) },
+            leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
+            shape = RoundedCornerShape(18.dp),
+            colors = TextFieldDefaults.colors(
+                disabledContainerColor = Field,
+                disabledIndicatorColor = Color.Transparent,
+                disabledPlaceholderColor = Color.Gray,
+                disabledLeadingIconColor = Color.Gray
+            )
         )
-    )
+    }
 }
 
 @Composable
