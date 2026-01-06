@@ -71,6 +71,20 @@ android {
         buildConfig = true
     }
 
+    packaging {
+        resources {
+            excludes += "META-INF/DEPENDENCIES"
+            excludes += "META-INF/LICENSE"
+            excludes += "META-INF/LICENSE.txt"
+            excludes += "META-INF/license.txt"
+            excludes += "META-INF/NOTICE"
+            excludes += "META-INF/NOTICE.txt"
+            excludes += "META-INF/notice.txt"
+            excludes += "META-INF/ASL2.0"
+        }
+    }
+
+
 }
 
 dependencies {
@@ -89,9 +103,14 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.3")
 
     //5.Adding a listener dependency for user side notification
-    implementation("com.google.firebase:firebase-messaging:23.2.1")
+
     // Import the BoM for the Firebase platform
-    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.android.volley:volley:1.2.1")
+// Google Auth (Fixes com.google.auth imports)
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.19.0")
+
+
 
     // Add the dependencies for Firebase products
     implementation("com.google.firebase:firebase-firestore")
