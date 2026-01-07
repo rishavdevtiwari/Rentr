@@ -49,6 +49,10 @@ import com.example.rentr.ui.theme.promo
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
 import android.Manifest
+import android.util.Log
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.messaging.FirebaseMessaging
 
 class DashboardActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,6 +60,37 @@ class DashboardActivity : ComponentActivity() {
         enableEdgeToEdge()
         if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) && (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
+        }
+        // 2. FORCE SAVE TOKEN (The "Nuclear" Option)
+        // We use the Hardcoded URL here to ensure it works even if google-services.json is wrong.
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val token = task.result
+                val currentUser = FirebaseAuth.getInstance().currentUser
+
+                if (currentUser != null) {
+                    Log.d("FCM_DEBUG", "Found User: ${currentUser.uid}")
+                    Log.d("FCM_DEBUG", "Token to save: $token")
+
+                    // --- KEY FIX: Hardcoded Database URL ---
+                    val database = FirebaseDatabase.getInstance("https://rentr-db9e6-default-rtdb.firebaseio.com/")
+
+                    database.getReference("users")
+                        .child(currentUser.uid)
+                        .child("fcmToken")
+                        .setValue(token)
+                        .addOnSuccessListener {
+                            Log.d("FCM_DEBUG", "✅ SUCCESS! Token saved to Realtime DB.")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("FCM_DEBUG", "❌ FAILED to save token.", e)
+                        }
+                } else {
+                    Log.e("FCM_DEBUG", "❌ User is null in Dashboard.")
+                }
+            } else {
+                Log.e("FCM_DEBUG", "❌ Failed to get FCM token", task.exception)
+            }
         }
         setContent {
             MainScreen()
@@ -266,7 +301,7 @@ fun DashboardScreen() {
 @Composable
 fun TopBar(userName: String?,userViewModel: UserViewModel) {
     val user by userViewModel.user.observeAsState(null)
-
+    val context = LocalContext.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -317,7 +352,9 @@ fun TopBar(userName: String?,userViewModel: UserViewModel) {
                 )
             }
         }
-        IconButton(onClick = {}) {
+        IconButton(onClick = {val intent = Intent (context, NotificationActivity::class.java)
+            context.startActivity(intent)
+        }) {
             Icon(Icons.Default.Notifications, contentDescription = null, tint = Color.White)
         }
     }
