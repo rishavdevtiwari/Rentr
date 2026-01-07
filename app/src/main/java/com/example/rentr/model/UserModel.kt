@@ -12,7 +12,8 @@ data class UserModel(
     val verified: Boolean = false,
     val profileImage: String = "",
     val kycUrl: List<String> = emptyList(),
-    val flagCount: Int = 0 // Count of how many times user's products have been flagged
+    val flagCount: Int = 0, // Count of how many times user's products have been flagged
+    val fcmToken: String? = null // <--- Added this field
 ) {
     fun toMap(): Map<String, Any?> {
         return mapOf(
@@ -25,7 +26,8 @@ data class UserModel(
             "verified" to verified,
             "profileImage" to profileImage,
             "kycUrl" to kycUrl,
-            "flagCount" to flagCount
+            "flagCount" to flagCount,
+            "fcmToken" to fcmToken // <--- Added to map
         )
     }
 }

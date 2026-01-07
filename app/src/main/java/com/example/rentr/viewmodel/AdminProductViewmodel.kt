@@ -3,76 +3,56 @@ package com.example.rentr.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.rentr.model.NotificationModel
 import com.example.rentr.utils.FcmSenderV1
-import com.google.firebase.database.FirebaseDatabase // Using Realtime Database only
+import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 class AdminProductViewModel(application: Application) : AndroidViewModel(application) {
 
-    // Initialize Realtime Database
     private val db = FirebaseDatabase.getInstance()
 
-    // 1. Approve Logic: Notify User -> Update Product in RTDB
     fun approveProduct(productId: String, ownerId: String) {
-        viewModelScope.launch {
-            // A. Get the user's Token from Realtime Database
-            val userRef = db.getReference("users").child(ownerId)
+        val title = "Product Verified! ✅"
+        val body = "Your listing is now live on Rentr."
 
-            userRef.get().addOnSuccessListener { snapshot ->
-                val token = snapshot.child("fcmToken").value as? String
+        // 1. Send & Save Notification
+        sendAndSaveNotification(ownerId, title, body)
 
-                if (token != null) {
-                    // Send "Approved" Notification
-                    val sender = FcmSenderV1(
-                        context = getApplication(),
-                        userToken = token,
-                        title = "Product Verified! ✅",
-                        body = "Your listing is now live on Rentr."
-                    )
-                    viewModelScope.launch { sender.send() }
-                }
-
-                // B. Update Product Status in Realtime Database
-                val productUpdates = mapOf<String, Any>(
-                    "verified" to true,
-                    "status" to "verified"
-                )
-
-                db.getReference("products").child(productId)
-                    .updateChildren(productUpdates)
-            }
-        }
+        // 2. Update Product
+        db.getReference("products").child(productId).updateChildren(
+            mapOf("verified" to true, "rejectionReason" to null)
+        )
     }
 
-    // 2. Reject Logic: Notify User -> Update Product in RTDB
     fun rejectProduct(productId: String, ownerId: String, reason: String) {
-        viewModelScope.launch {
-            // A. Get Token from Realtime Database
-            val userRef = db.getReference("users").child(ownerId)
+        val title = "Product Rejected ❌"
+        val body = "Reason: $reason"
 
-            userRef.get().addOnSuccessListener { snapshot ->
-                val token = snapshot.child("fcmToken").value as? String
+        // 1. Send & Save Notification
+        sendAndSaveNotification(ownerId, title, body)
 
-                if (token != null) {
-                    // Send "Rejected" Notification
-                    val sender = FcmSenderV1(
-                        context = getApplication(),
-                        userToken = token,
-                        title = "Product Rejected ❌",
-                        body = "Reason: $reason"
-                    )
-                    viewModelScope.launch { sender.send() }
+        // 2. Update Product
+        db.getReference("products").child(productId).updateChildren(
+            mapOf("verified" to false, "rejectionReason" to reason)
+        )
+    }
+
+    private fun sendAndSaveNotification(userId: String, title: String, body: String) {
+        // A. Save to Database (History)
+        val notifId = UUID.randomUUID().toString()
+        val notification = NotificationModel(notifId, title, body, System.currentTimeMillis(), false)
+
+        db.getReference("notifications").child(userId).child(notifId).setValue(notification)
+
+        // B. Send FCM (Pop-up)
+        db.getReference("users").child(userId).child("fcmToken").get().addOnSuccessListener {
+            val token = it.value as? String
+            if (!token.isNullOrEmpty()) {
+                viewModelScope.launch {
+                    FcmSenderV1(getApplication(), token, title, body).send()
                 }
-
-                // B. Update Product Status in Realtime Database
-                val productUpdates = mapOf<String, Any>(
-                    "verified" to false,
-                    "status" to "rejected",
-                    "rejectionReason" to reason
-                )
-
-                db.getReference("products").child(productId)
-                    .updateChildren(productUpdates)
             }
         }
     }

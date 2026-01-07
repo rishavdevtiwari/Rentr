@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log // Added log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -58,6 +59,10 @@ import com.example.rentr.ui.theme.Button
 import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.viewmodel.UserViewModel
+// --- FIREBASE IMPORTS ---
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.messaging.FirebaseMessaging
 
 class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -207,6 +212,25 @@ fun LoginBody(){
                                 putBoolean("remember_me", rememberMe)
                                 apply()
                             }
+
+                            // --- FIX: START TOKEN SAVE ---
+                            FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+                                val userId = FirebaseAuth.getInstance().currentUser?.uid
+                                if (userId != null) {
+                                    // Use Hardcoded URL here too
+                                    val database = FirebaseDatabase.getInstance("https://rentr-db9e6-default-rtdb.firebaseio.com/")
+
+                                    database.getReference("users")
+                                        .child(userId)
+                                        .child("fcmToken")
+                                        .setValue(token)
+                                        .addOnSuccessListener {
+                                            Log.d("FCM_LOGIN", "Token saved on login!")
+                                        }
+                                }
+                            }
+                            // --- FIX: END TOKEN SAVE ---
+
                             Toast.makeText(context, "Logged In.", Toast.LENGTH_SHORT).show()
                             val intent = Intent(context, DashboardActivity::class.java)
                             context.startActivity(intent)
@@ -267,9 +291,7 @@ fun LoginBody(){
                     }
                 )
             }
-
         }
-
     }
 }
 

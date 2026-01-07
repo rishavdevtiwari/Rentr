@@ -16,16 +16,26 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Rentr">
+
         <activity
             android:name=".view.SplashActivity"
             android:exported="true"
             android:theme="@style/Theme.Rentr">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity> <!-- Other Activities -->
+        </activity>
+
+        <activity
+            android:name=".view.NotificationActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
+
+        <activity
+            android:name=".view.DashboardActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Rentr" />
         <activity
             android:name=".view.ChangePassActivity"
             android:exported="false"
@@ -44,10 +54,6 @@
             android:theme="@style/Theme.Rentr" />
         <activity
             android:name=".view.CategoryActivity"
-            android:exported="false"
-            android:theme="@style/Theme.Rentr" />
-        <activity
-            android:name=".view.DashboardActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
         <activity
@@ -107,8 +113,6 @@
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
 
-
-
         <activity
             android:name=".view.AdminDashboardActivity"
             android:exported="true"
@@ -116,7 +120,6 @@
             android:theme="@style/Theme.Rentr">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
@@ -162,7 +165,7 @@
             android:theme="@style/Theme.Rentr" />
 
         <service
-            android:name=".MyFirebaseMessagingService"
+            android:name=".service.MyFirebaseMessagingService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
