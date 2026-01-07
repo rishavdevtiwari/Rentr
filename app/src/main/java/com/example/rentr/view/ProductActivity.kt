@@ -127,12 +127,155 @@ fun ProductDisplay(productId: String) {
 
     if (showFlagDialog) {
         AlertDialog(
-            onDismissRequest = { showFlagDialog = false },
+            onDismissRequest = {
+                showFlagDialog = false
+                selectedFlagReason = ""
+                customFlagReason = ""
+            },
             title = { Text("Flag Item", color = Color.White) },
-            text = { /* ...dialog content... */ }, // Assuming this is correct from previous steps
-            confirmButton = { /* ...dialog actions... */ }
+            text = {
+                Column {
+                    // Already flagged warning
+                    if (isAlreadyFlagged) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color.Red.copy(alpha = 0.1f)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Flag, contentDescription = null, tint = Color.Red, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("You have already flagged this item", color = Color.Red, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    Text("Please select a reason for flagging:", color = Color.LightGray)
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    flagReasons.forEach { reason ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    if (!isAlreadyFlagged) {
+                                        selectedFlagReason = reason
+                                        if (reason != "Other") customFlagReason = ""
+                                    }
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedFlagReason == reason,
+                                onClick = {
+                                    if (!isAlreadyFlagged) {
+                                        selectedFlagReason = reason
+                                        if (reason != "Other") customFlagReason = ""
+                                    }
+                                },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = Color.Red,
+                                    unselectedColor = Color.Gray
+                                ),
+                                enabled = !isAlreadyFlagged
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(reason, color = if (isAlreadyFlagged) Color.Gray else Color.White, fontSize = 14.sp)
+                        }
+                    }
+
+                    if (selectedFlagReason == "Other") {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = customFlagReason,
+                            onValueChange = { if (!isAlreadyFlagged) customFlagReason = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Please specify the reason", color = Color.Gray) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = Color.Red,
+                                unfocusedBorderColor = Color.Gray,
+                                focusedLabelColor = Color.Red,
+                                unfocusedLabelColor = Color.Gray
+                            ),
+                            singleLine = true,
+                            shape = RoundedCornerShape(8.dp),
+                            enabled = !isAlreadyFlagged
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        "⚠️ Flagging will increase the seller's flag count. Admin will review this item.",
+                        color = Color.Yellow,
+                        fontSize = 12.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (isAlreadyFlagged) {
+                            Toast.makeText(context, "You have already flagged this item", Toast.LENGTH_SHORT).show()
+                            showFlagDialog = false
+                            return@Button
+                        }
+
+                        val safeProduct = product ?: return@Button
+                        val uid = currentUserId ?: return@Button
+
+                        val finalReason = when {
+                            selectedFlagReason == "Other" && customFlagReason.isNotEmpty() -> customFlagReason
+                            selectedFlagReason.isNotEmpty() && selectedFlagReason != "Other" -> selectedFlagReason
+                            else -> {
+                                Toast.makeText(context, "Please select or specify a reason", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                        }
+
+                        productViewModel.flagProduct(
+                            productId = safeProduct.productId,
+                            userId = uid,
+                            reason = finalReason
+                        ) { success, message ->
+                            if (success) {
+                                Toast.makeText(context, "Item flagged successfully!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Failed to flag: $message", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+
+                        showFlagDialog = false
+                        selectedFlagReason = ""
+                        customFlagReason = ""
+                    },
+                    enabled = !isAlreadyFlagged && selectedFlagReason.isNotEmpty() &&
+                            (selectedFlagReason != "Other" || customFlagReason.isNotEmpty()),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isAlreadyFlagged) Color.Gray else Color.Red
+                    )
+                ) {
+                    Text(if (isAlreadyFlagged) "Already Flagged" else "Submit Flag", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showFlagDialog = false
+                    selectedFlagReason = ""
+                    customFlagReason = ""
+                }) {
+                    Text("Cancel", color = Color.Gray)
+                }
+            },
+            containerColor = Color(0xFF1E1E1E)
         )
     }
+
 
     if (showChatDialog) {
         AlertDialog(
