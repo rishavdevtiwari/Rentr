@@ -19,6 +19,18 @@ class TransactionRepoImpl : TransactionRepo {
                 callback(false, exception.message)
             }
     }
+    override fun getRenterTransactions(userId: String, callback: (Boolean, List<TransactionModel>) -> Unit) {
+        transactionsRef.orderByChild("renterId").equalTo(userId)
+            .addListenerForSingleValueEvent(object : com.google.firebase.database.ValueEventListener {
+                override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+                    val list = snapshot.children.mapNotNull { it.getValue(TransactionModel::class.java) }
+                    callback(true, list)
+                }
+                override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
+                    callback(false, emptyList())
+                }
+            })
+    }
 
     // --- NEW FUNCTION TO CALL BACKEND ---
     override suspend fun getPidxFromBackend(

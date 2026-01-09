@@ -13,6 +13,9 @@ class TransactionViewModel(private val repository: TransactionRepo) : ViewModel(
     private val _transactionResult = MutableLiveData<Pair<Boolean, String?>>()
     val transactionResult: LiveData<Pair<Boolean, String?>> = _transactionResult
 
+    private val _pastRentals = MutableLiveData<List<TransactionModel>>()
+    val pastRentals: LiveData<List<TransactionModel>> = _pastRentals
+
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
 
@@ -25,6 +28,16 @@ class TransactionViewModel(private val repository: TransactionRepo) : ViewModel(
         repository.addTransaction(transaction) { success, message ->
             _isLoading.value = false
             _transactionResult.value = Pair(success, message)
+        }
+    }
+
+    fun fetchPastRentals(userId: String) {
+        _isLoading.value = true
+        repository.getRenterTransactions(userId) { success, data ->
+            _isLoading.value = false
+            if (success) {
+                _pastRentals.postValue(data)
+            }
         }
     }
 

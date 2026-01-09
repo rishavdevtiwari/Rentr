@@ -239,6 +239,11 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
         }
     }
 
+    fun updateRentalStatus(productId: String, status: String, callback: (Boolean, String) -> Unit) {
+        val updates = mapOf("rentalStatus" to status)
+        repo.updateProduct(productId, ProductModel(rentalStatus = status), callback)
+    }
+
     class Factory(private val repo: ProductRepo) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
