@@ -39,7 +39,7 @@ import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
 
 private val Orange = Color(0xFFFF5D18)
-private val Field = Color(0xFF333232)
+val Field = Color(0xFF333232)
 private val Outline = Color(0xFF818181)
 
 enum class FlagCategory(val label: String, val color: Color) {
