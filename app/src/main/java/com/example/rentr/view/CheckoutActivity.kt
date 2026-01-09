@@ -161,7 +161,10 @@ fun CheckoutScreen(
                 // Mark product as out of stock
                 productViewModel.getProductById(productId) { productSuccess, _, product ->
                     if (productSuccess && product != null) {
-                        val updatedProduct = product.copy(outOfStock = true, rentalStatus = "")
+                        val updatedProduct = product.copy(
+                            outOfStock = true,
+                            rentalStatus = "rented"
+                        )
                         productViewModel.updateProduct(productId, updatedProduct) { updateSuccess, _ ->
                             if (updateSuccess) {
                                 Toast.makeText(context, "Order Confirmed!", Toast.LENGTH_LONG).show()
