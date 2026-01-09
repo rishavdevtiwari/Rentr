@@ -190,12 +190,12 @@ fun RentalCard(rental: ProductModel, isPending: Boolean, isOngoing: Boolean) {
                         }
                     }
                 // Item is paid and currently in possession (outOfStock is true)
-                isOngoing && rental.outOfStock -> {
+                    isOngoing && rental.outOfStock && rental.rentalStatus == "approved" -> {
                 Button(
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
                     onClick = {
-                        productViewModel.endRental(rental.productId) { success, msg ->
-                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        productViewModel.updateRentalStatus(rental.productId, "returning") { success, _ ->
+                            if(success) Toast.makeText(context, "Marked as returned. Waiting for owner.", Toast.LENGTH_SHORT).show()
                         }
                     }
                 ) {
@@ -204,8 +204,10 @@ fun RentalCard(rental: ProductModel, isPending: Boolean, isOngoing: Boolean) {
                     Text("End Rental / Return")
                 }
             }
+                    rental.rentalStatus == "returning" -> {
+                        Text("Return Pending Confirmation", color = Orange)
+                    }
             }
-
                 Text("NPR. ${rental.price}/day", color = Orange, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
         }
