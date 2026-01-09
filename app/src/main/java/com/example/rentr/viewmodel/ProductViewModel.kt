@@ -225,6 +225,19 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
         }
     }
 
+    fun endRental(productId: String, callback: (Boolean, String) -> Unit) {
+        _loading.postValue(true)
+        repo.endRental(productId) { success, msg ->
+            _loading.postValue(false)
+            if (success) {
+                // Refresh list to show product is back to available
+                _product.value?.let {
+                    _product.postValue(it.copy(outOfStock = false, rentalStatus = ""))
+                }
+            }
+            callback(success, msg)
+        }
+    }
 
     class Factory(private val repo: ProductRepo) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")

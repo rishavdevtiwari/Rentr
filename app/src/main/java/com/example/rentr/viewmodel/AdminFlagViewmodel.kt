@@ -16,7 +16,7 @@ class AdminFlagViewModel(application: Application) : AndroidViewModel(applicatio
 
     // 1. Resolve Flag (SENDS NOTIFICATION)
     fun resolveFlag(product: ProductModel) {
-        val title = "Flag Resolved ✅"
+        val title = "Flag Resolved !!!"
         val body = "The flag on '${product.title}' has been removed. Your product is active."
         sendAndSaveNotification(product.listedBy, title, body)
 
@@ -33,7 +33,7 @@ class AdminFlagViewModel(application: Application) : AndroidViewModel(applicatio
 
     // 2. Delete Product (SENDS NOTIFICATION)
     fun deleteProduct(product: ProductModel) {
-        val title = "Product Deleted ⚠️"
+        val title = "Product Deleted !!!"
         val body = "Your product '${product.title}' was deleted due to policy violations."
         sendAndSaveNotification(product.listedBy, title, body)
 
@@ -52,7 +52,7 @@ class AdminFlagViewModel(application: Application) : AndroidViewModel(applicatio
 
     // 4. Delete User Account (SENDS NOTIFICATION)
     fun deleteUserAccount(userId: String) {
-        val title = "Account Suspended 🚫"
+        val title = "Account Suspended !!!"
         val body = "Your account has been permanently suspended due to violations."
         sendAndSaveNotification(userId, title, body)
 

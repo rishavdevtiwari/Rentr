@@ -16,7 +16,7 @@ class AdminKYCViewModel(application: Application) : AndroidViewModel(application
 
     // 1. Approve KYC
     fun approveKYC(userId: String) {
-        val title = "KYC Verified! ✅"
+        val title = "KYC Verified !!!"
         val body = "Your identity verification is complete. You now have full access."
 
         // A. Send & Save Notification
@@ -31,7 +31,7 @@ class AdminKYCViewModel(application: Application) : AndroidViewModel(application
 
 
     fun rejectKYC(userId: String, reason: String) {
-        val title = "KYC Rejected ⚠️"
+        val title = "KYC Rejected !!!"
         val body = "Reason: $reason. Please upload valid documents."
 
 

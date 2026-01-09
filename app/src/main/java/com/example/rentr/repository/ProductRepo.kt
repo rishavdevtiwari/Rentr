@@ -33,6 +33,8 @@ interface ProductRepo {
         callback: (Boolean, String) -> Unit
     )
 
+    fun endRental(productId: String, callback: (Boolean, String) -> Unit)
+
     fun clearFlags(productId: String, callback: (Boolean, String) -> Unit)
 }
 

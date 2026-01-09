@@ -307,6 +307,25 @@ class ProductRepoImpl : ProductRepo {
         })
     }
 
+    override fun endRental(productId: String, callback: (Boolean, String) -> Unit) {
+        val updates = mapOf(
+            "rentalStatus" to "",
+            "rentalRequesterId" to "",
+            "rentalDays" to 1,
+            "rentalStartDate" to 0L,
+            "outOfStock" to false,
+            "availability" to true
+        )
+
+        ref.child(productId).updateChildren(updates).addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                callback(true, "Rental ended and product is now available.")
+            } else {
+                callback(false, task.exception?.message ?: "Failed to end rental")
+            }
+        }
+    }
+
     override fun clearFlags(productId: String, callback: (Boolean, String) -> Unit) {
         ref.child(productId).child("flagged").setValue(false)
             .addOnCompleteListener { flagTask ->

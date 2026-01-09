@@ -2,6 +2,7 @@ package com.example.rentr.view
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
@@ -141,6 +144,8 @@ fun RentalsList(rentals: List<ProductModel>, isPending: Boolean = false, isOngoi
 @Composable
 fun RentalCard(rental: ProductModel, isPending: Boolean, isOngoing: Boolean) {
     val context = LocalContext.current
+    val productViewModel = remember { ProductViewModel(ProductRepoImpl()) }
+    val scope = rememberCoroutineScope()
     Card(
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier.height(150.dp),
@@ -166,11 +171,12 @@ fun RentalCard(rental: ProductModel, isPending: Boolean, isOngoing: Boolean) {
 
                 when {
                     isPending -> {
-                        Text("Request Pending", color = Color.Gray, fontSize = 14.sp)
+                        Text("Rental Request Pending", color = Color.Gray, fontSize = 14.sp)
                     }
                     isOngoing -> {
                         Button(onClick = {
                             val intent = Intent(context, CheckoutActivity::class.java).apply {
+                                putExtra("productId", rental.productId)
                                 putExtra("productTitle", rental.title)
                                 putExtra("basePrice", rental.price)
                                 putExtra("rentalPrice", rental.price * rental.rentalDays)
@@ -180,13 +186,25 @@ fun RentalCard(rental: ProductModel, isPending: Boolean, isOngoing: Boolean) {
                             }
                             context.startActivity(intent)
                         }) {
-                            Text("Pay Now")
+                            Text("Pay NPR. ${rental.price * rental.rentalDays}", color = Color.Black)
                         }
                     }
-                    else -> {
-                        Text("Rented", color = Color.Gray, fontSize = 14.sp)
+                // Item is paid and currently in possession (outOfStock is true)
+                isOngoing && rental.outOfStock -> {
+                Button(
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                    onClick = {
+                        productViewModel.endRental(rental.productId) { success, msg ->
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        }
                     }
+                ) {
+                    Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("End Rental / Return")
                 }
+            }
+            }
 
                 Text("NPR. ${rental.price}/day", color = Orange, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
