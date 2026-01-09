@@ -14,74 +14,63 @@ class AdminFlagViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val db = FirebaseDatabase.getInstance()
 
+    // 1. Resolve Flag (SENDS NOTIFICATION)
     fun resolveFlag(product: ProductModel) {
-        val sellerId = product.listedBy
         val title = "Flag Resolved ✅"
-        val body = "The flag on '${product.title}' has been reviewed and removed. Your product is active."
+        val body = "The flag on '${product.title}' has been removed. Your product is active."
+        sendAndSaveNotification(product.listedBy, title, body)
 
-
-        sendAndSaveNotification(sellerId, title, body)
-
-
-        val updatedProduct = mapOf<String, Any?>(
+        val updates = mapOf<String, Any?>(
             "flagged" to false,
             "flaggedBy" to emptyList<String>(),
             "flaggedReason" to emptyList<String>(),
             "appealReason" to "",
             "availability" to true
         )
-        db.getReference("products").child(product.productId).updateChildren(updatedProduct)
-
-
-        decrementFlagCount(sellerId)
+        db.getReference("products").child(product.productId).updateChildren(updates)
+        decrementFlagCount(product.listedBy)
     }
 
-
+    // 2. Delete Product (SENDS NOTIFICATION)
     fun deleteProduct(product: ProductModel) {
-        val sellerId = product.listedBy
         val title = "Product Deleted ⚠️"
         val body = "Your product '${product.title}' was deleted due to policy violations."
-
-
-        sendAndSaveNotification(sellerId, title, body)
-
+        sendAndSaveNotification(product.listedBy, title, body)
 
         db.getReference("products").child(product.productId).removeValue()
-
-        // Note: We usually don't decrement flag count on deletion (punishment),
-        // but that depends on your specific rules.
     }
 
+    // 3. Mark for Review (SILENT - NO NOTIFICATION)
+    fun markForReview(product: ProductModel) {
+        // Just update DB to hide product
+        val updates = mapOf<String, Any?>(
+            "availability" to false, // Hides it from search
+            "flagged" to true
+        )
+        db.getReference("products").child(product.productId).updateChildren(updates)
+    }
 
+    // 4. Delete User Account (SENDS NOTIFICATION)
     fun deleteUserAccount(userId: String) {
         val title = "Account Suspended 🚫"
-        val body = "Your account has been deleted due to multiple violations."
-
-
+        val body = "Your account has been permanently suspended due to violations."
         sendAndSaveNotification(userId, title, body)
 
-
         db.getReference("users").child(userId).removeValue()
-
-
     }
 
     private fun decrementFlagCount(userId: String) {
         val userRef = db.getReference("users").child(userId)
         userRef.child("flagCount").get().addOnSuccessListener {
             val current = it.value.toString().toIntOrNull() ?: 0
-            if (current > 0) {
-                userRef.child("flagCount").setValue(current - 1)
-            }
+            if (current > 0) userRef.child("flagCount").setValue(current - 1)
         }
     }
 
     private fun sendAndSaveNotification(userId: String, title: String, body: String) {
-
         val notifId = UUID.randomUUID().toString()
         val notification = NotificationModel(notifId, title, body, System.currentTimeMillis(), false)
         db.getReference("notifications").child(userId).child(notifId).setValue(notification)
-
 
         db.getReference("users").child(userId).child("fcmToken").get().addOnSuccessListener {
             val token = it.value as? String
