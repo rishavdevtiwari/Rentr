@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.rememberCoroutineScope
@@ -43,6 +44,7 @@ import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
 import com.example.rentr.model.UserModel
 import com.example.rentr.viewmodel.UserViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -69,6 +71,18 @@ fun ProfileScreen(userViewModel: UserViewModel) {
 
     val user by userViewModel.user.observeAsState()
     var isLoading by remember { mutableStateOf(false) }
+    var isRefreshing by remember { mutableStateOf(false) }
+
+    fun refreshData() {
+        coroutineScope.launch {
+            isRefreshing = true
+            userViewModel.getCurrentUser()?.uid?.let { userId ->
+                userViewModel.getUserById(userId) { _, _, _ -> }
+            }
+            delay(1000)
+            isRefreshing = false
+        }
+    }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -125,26 +139,31 @@ fun ProfileScreen(userViewModel: UserViewModel) {
                 }},
         containerColor = primaryColor
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 20.dp)
-                .verticalScroll(rememberScrollState())
-                .pointerInput(Unit) {
-                    detectTapGestures(onTap = {
-                        focusManager.clearFocus()
-                    })
-                },
-            horizontalAlignment = Alignment.CenterHorizontally
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { refreshData() },
+            modifier = Modifier.padding(paddingValues).fillMaxSize()
         ) {
-            Spacer(modifier = Modifier.height(50.dp))
-            ProfileCard(user, isLoading) { imagePickerLauncher.launch("image/*") }
-            Spacer(modifier = Modifier.height(30.dp))
-            SettingsList(onEditProfile = {
-                val intent = Intent(context, EditProfile::class.java)
-                editProfileLauncher.launch(intent)
-            },userViewModel)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp)
+                    .verticalScroll(rememberScrollState())
+                    .pointerInput(Unit) {
+                        detectTapGestures(onTap = {
+                            focusManager.clearFocus()
+                        })
+                    },
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(modifier = Modifier.height(20.dp))
+                ProfileCard(user, isLoading) { imagePickerLauncher.launch("image/*") }
+                Spacer(modifier = Modifier.height(30.dp))
+                SettingsList(onEditProfile = {
+                    val intent = Intent(context, EditProfile::class.java)
+                    editProfileLauncher.launch(intent)
+                },userViewModel)
+            }
         }
     }
 }

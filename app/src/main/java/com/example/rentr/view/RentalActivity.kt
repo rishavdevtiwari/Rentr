@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
@@ -40,6 +41,8 @@ import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class RentalActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -50,6 +53,7 @@ class RentalActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RentalScreen() {
     val productViewModel = remember { ProductViewModel(ProductRepoImpl()) }
@@ -57,6 +61,20 @@ fun RentalScreen() {
     val userId = userViewModel.getCurrentUser()?.uid
 
     val products by productViewModel.allProducts.observeAsState(emptyList())
+
+    var isRefreshing by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    fun refreshData() {
+        coroutineScope.launch {
+            isRefreshing = true
+            userId?.let {
+                productViewModel.getAllProducts { _, _, _ -> }
+            }
+            delay(1000)
+            isRefreshing = false
+        }
+    }
 
     LaunchedEffect(userId) {
         userId?.let {
@@ -75,38 +93,43 @@ fun RentalScreen() {
         containerColor = Color.Black,
         topBar = { RentalTopAppBar() }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { refreshData() },
+            modifier = Modifier.padding(paddingValues).fillMaxSize()
         ) {
-            TabRow(
-                selectedTabIndex = selectedTabIndex,
-                containerColor = Color.Black,
-                contentColor = Color.White,
-                indicator = { tabPositions ->
-                    if (selectedTabIndex < tabPositions.size) {
-                        TabRowDefaults.Indicator(
-                            modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                            height = 3.dp,
-                            color = Orange
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+            ) {
+                TabRow(
+                    selectedTabIndex = selectedTabIndex,
+                    containerColor = Color.Black,
+                    contentColor = Color.White,
+                    indicator = { tabPositions ->
+                        if (selectedTabIndex < tabPositions.size) {
+                            TabRowDefaults.Indicator(
+                                modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                                height = 3.dp,
+                                color = Orange
+                            )
+                        }
+                    }
+                ) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTabIndex == index,
+                            onClick = { selectedTabIndex = index },
+                            text = { Text(title, fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal, color = if (selectedTabIndex == index) Color.White else Color.Gray) }
                         )
                     }
                 }
-            ) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTabIndex == index,
-                        onClick = { selectedTabIndex = index },
-                        text = { Text(title, fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal, color = if (selectedTabIndex == index) Color.White else Color.Gray) }
-                    )
-                }
-            }
 
-            when (selectedTabIndex) {
-                0 -> RentalsList(rentals = pendingRentals, isPending = true)
-                1 -> RentalsList(rentals = ongoingRentals, isOngoing = true)
-                2 -> RentalsList(rentals = pastRentals)
+                when (selectedTabIndex) {
+                    0 -> RentalsList(rentals = pendingRentals, isPending = true)
+                    1 -> RentalsList(rentals = ongoingRentals, isOngoing = true)
+                    2 -> RentalsList(rentals = pastRentals)
+                }
             }
         }
     }
