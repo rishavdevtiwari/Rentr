@@ -63,7 +63,10 @@ class RentalActivity : ComponentActivity() {
 fun RentalScreen() {
     val context = LocalContext.current
     val productViewModel = remember {
-        ViewModelProvider(context as ComponentActivity).get(ProductViewModel::class.java)
+        ViewModelProvider(
+            context as ComponentActivity,
+            ProductViewModel.Factory(ProductRepoImpl())
+        ).get(ProductViewModel::class.java)
     }
     val transactionViewModel = remember { TransactionViewModel(TransactionRepoImpl()) }
     val userViewModel = remember { UserViewModel(UserRepoImpl()) }

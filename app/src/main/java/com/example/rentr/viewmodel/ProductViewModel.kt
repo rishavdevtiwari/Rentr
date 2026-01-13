@@ -383,7 +383,10 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
     class Factory(private val repo: ProductRepo) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return ProductViewModel(repo) as T
+            if (modelClass.isAssignableFrom(ProductViewModel::class.java)) {
+                return ProductViewModel(repo) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class")
         }
     }
 }

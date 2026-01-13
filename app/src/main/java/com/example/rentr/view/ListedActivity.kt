@@ -64,7 +64,10 @@ class ListedActivity : ComponentActivity() {
 fun ListedScreen() {
     val context = LocalContext.current
     val productViewModel = remember {
-        ViewModelProvider(context as ComponentActivity).get(ProductViewModel::class.java)
+        ViewModelProvider(
+            context as ComponentActivity,
+            ProductViewModel.Factory(ProductRepoImpl())
+        ).get(ProductViewModel::class.java)
     }
     val products by productViewModel.allProducts.observeAsState(emptyList())
     var selectedTabIndex by remember { mutableIntStateOf(0) }
