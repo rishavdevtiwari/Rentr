@@ -1,9 +1,7 @@
 package com.example.rentr.repository
 
-import ProductRepo
 import com.example.rentr.model.ProductModel
 import com.google.firebase.database.*
-import java.util.UUID
 
 class ProductRepoImpl : ProductRepo {
 

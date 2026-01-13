@@ -10,7 +10,7 @@ interface ChatRepo {
         productId: String,
         renterId: String,
         sellerId: String,
-        initialMessage: String,
+        initialMessage: String? = null,
         callback: (conversationId: String?) -> Unit
     )
 

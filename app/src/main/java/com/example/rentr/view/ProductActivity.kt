@@ -88,6 +88,11 @@ fun ProductDisplay(productId: String) {
     val isSeller = product?.listedBy == currentUserId
     val isUserVerified = currentUser?.verified == true
 
+    // Flagging state
+    val isAlreadyFlagged = remember(product, currentUserId) {
+        product?.flaggedBy?.contains(currentUserId) == true
+    }
+
     // State logic for rental flow
     val isRentedOut = product?.rentalStatus == "rented" || product?.outOfStock == true
     val userAlreadyRequested = product?.rentalRequesterId == currentUserId && product?.rentalStatus == "pending"
@@ -108,30 +113,114 @@ fun ProductDisplay(productId: String) {
         }
     }
 
-    // Flagging Dialog Logic
+// Flagging Dialog Logic
     if (showFlagDialog) {
-        val isAlreadyFlagged = product?.flaggedBy?.contains(currentUserId) == true
         AlertDialog(
             onDismissRequest = { showFlagDialog = false },
             title = { Text("Flag Item", color = Color.White) },
             text = {
                 Column {
-                    if (isAlreadyFlagged) Text("Already flagged.", color = Color.Red, fontSize = 12.sp)
-                    flagReasons.forEach { reason ->
-                        Row(modifier = Modifier.fillMaxWidth().clickable(enabled = !isAlreadyFlagged) {
-                            selectedFlagReason = reason
-                        }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = selectedFlagReason == reason, onClick = null, enabled = !isAlreadyFlagged)
-                            Spacer(modifier = Modifier.width(8.dp)); Text(reason, color = Color.White)
+                    if (isAlreadyFlagged) {
+                        Text(
+                            "You have already flagged this item.",
+                            color = Color.Red,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+                        // Show the user's own flag reason if available
+                        val userFlagIndex = product?.flaggedBy?.indexOf(currentUserId ?: "")
+                        if (userFlagIndex != null && userFlagIndex >= 0 &&
+                            product?.flaggedReason?.size ?: 0 > userFlagIndex) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Your reason: ${product?.flaggedReason?.get(userFlagIndex) ?: ""}",
+                                color = Color.White,
+                                fontSize = 12.sp
+                            )
+                        }
+                    } else {
+                        flagReasons.forEach { reason ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        selectedFlagReason = reason
+                                        if (reason != "Other") {
+                                            customFlagReason = ""
+                                        }
+                                    }
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = selectedFlagReason == reason,
+                                    onClick = null
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(reason, color = Color.White)
+                            }
+                        }
+                        if (selectedFlagReason == "Other") {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedTextField(
+                                value = customFlagReason,
+                                onValueChange = { customFlagReason = it },
+                                label = { Text("Specify reason", color = Color.Gray) },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    focusedBorderColor = Orange,
+                                    unfocusedBorderColor = Color.Gray,
+                                    focusedLabelColor = Orange,
+                                    unfocusedLabelColor = Color.Gray,
+                                    cursorColor = Orange
+                                )
+                            )
                         }
                     }
                 }
             },
             confirmButton = {
-                Button(onClick = {
-                    productViewModel.flagProduct(product!!.productId, currentUserId!!, selectedFlagReason) { _, _ -> }
-                    showFlagDialog = false
-                }, enabled = !isAlreadyFlagged && selectedFlagReason.isNotEmpty()) { Text("Flag") }
+                Row {
+                    TextButton(onClick = { showFlagDialog = false }) {
+                        Text("Cancel", color = Color.Gray)
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    if (!isAlreadyFlagged) {
+                        Button(
+                            onClick = {
+                                val finalReason = if (selectedFlagReason == "Other" && customFlagReason.isNotBlank()) {
+                                    customFlagReason
+                                } else {
+                                    selectedFlagReason
+                                }
+                                if (finalReason.isNotEmpty()) {
+                                    productViewModel.flagProduct(product!!.productId, currentUserId!!, finalReason) { success, message ->
+                                        if (success) {
+                                            Toast.makeText(context, "Item flagged successfully", Toast.LENGTH_SHORT).show()
+                                            productViewModel.getProductById(productId) { _, _, _ -> }
+                                        } else {
+                                            Toast.makeText(context, message ?: "Failed to flag item", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                    showFlagDialog = false
+                                }
+                            },
+                            enabled = selectedFlagReason.isNotEmpty() &&
+                                    (selectedFlagReason != "Other" || customFlagReason.isNotBlank())
+                        ) {
+                            Text("Flag")
+                        }
+                    } else {
+                        // Only show OK button if already flagged
+                        Button(
+                            onClick = { showFlagDialog = false }
+                        ) {
+                            Text("OK")
+                        }
+                    }
+                }
             },
             containerColor = Color(0xFF1E1E1E)
         )
@@ -147,7 +236,15 @@ fun ProductDisplay(productId: String) {
                     value = chatInitialMessage,
                     onValueChange = { chatInitialMessage = it },
                     label = { Text("Your message") },
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White)
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = Orange,
+                        unfocusedBorderColor = Color.Gray,
+                        focusedLabelColor = Orange,
+                        unfocusedLabelColor = Color.Gray,
+                        cursorColor = Orange
+                    )
                 )
             },
             confirmButton = {
@@ -198,10 +295,90 @@ fun ProductDisplay(productId: String) {
                 val pagerState = rememberPagerState { product!!.imageUrl.size }
                 Box(modifier = Modifier.fillMaxWidth().height(400.dp)) {
                     HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
-                        AsyncImage(model = product!!.imageUrl[page], contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                        AsyncImage(
+                            model = product!!.imageUrl[page],
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
                     }
-                    IconButton(onClick = { activity?.finish() }, modifier = Modifier.padding(16.dp).background(Field.copy(0.5f), CircleShape)) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.TopStart)
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = { activity?.finish() },
+                            modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
+                        }
+
+                        if (!isSeller) {
+                            if (isAlreadyFlagged) {
+                                Card(
+                                    shape = RoundedCornerShape(50),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = Field.copy(
+                                            alpha = 0.5f
+                                        )
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(
+                                            horizontal = 12.dp,
+                                            vertical = 8.dp
+                                        ),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Flag,
+                                            contentDescription = "Flagged",
+                                            tint = Color.White
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            "Flagged",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
+                            } else {
+                                IconButton(
+                                    onClick = { showFlagDialog = true },
+                                    modifier = Modifier.background(
+                                        Field.copy(alpha = 0.5f),
+                                        CircleShape
+                                    )
+                                ) {
+                                    Icon(Icons.Default.Flag, "Flag item", tint = Color.Red)
+                                }
+                            }
+                        }
+                    }
+                }
+                if (product!!.imageUrl.size > 1) {
+                    Row(
+                        Modifier
+                            .height(20.dp)
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        repeat(pagerState.pageCount) { iteration ->
+                            val color = if (pagerState.currentPage == iteration) Orange else Color.Gray
+                            Box(
+                                modifier = Modifier
+                                    .padding(4.dp)
+                                    .clip(CircleShape)
+                                    .background(color)
+                                    .size(8.dp)
+                            )
+                        }
                     }
                 }
 
@@ -249,6 +426,47 @@ fun ProductDisplay(productId: String) {
                             productViewModel.updateRating(productId, currentUserId, newRating) { _, _ ->
                                 productViewModel.getProductById(productId) { _, _, _ -> }
                             }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(24.dp))
+                    if (product!!.flagged && product!!.flaggedReason.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Divider(color = Field)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Flag Information", color = Color.Red, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Show all flagged reasons
+                        val flagInfo = buildString {
+                            append("This item has been flagged for: ")
+                            product!!.flaggedReason.forEachIndexed { index, reason ->
+                                append(reason)
+                                if (index < product!!.flaggedReason.size - 1) {
+                                    append(", ")
+                                }
+                            }
+                        }
+                        Text(
+                            flagInfo,
+                            color = Color.Red.copy(alpha = 0.8f),
+                            fontSize = 14.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Flagged by ${product!!.flaggedBy.size} user(s)",
+                            color = Color.Gray,
+                            fontSize = 12.sp
+                        )
+
+                        // If current user has flagged, show their specific reason
+                        val userFlagIndex = product!!.flaggedBy.indexOf(currentUserId ?: "")
+                        if (userFlagIndex >= 0 && product!!.flaggedReason.size > userFlagIndex) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "Your flag reason: ${product!!.flaggedReason[userFlagIndex]}",
+                                color = Color.Yellow,
+                                fontSize = 12.sp
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.height(100.dp))

@@ -1,21 +1,22 @@
 package com.example.rentr.viewmodel
 
-import ProductRepo
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.example.rentr.model.ProductModel
+import com.example.rentr.repository.ProductRepo
 
 class ProductViewModel(val repo: ProductRepo) : ViewModel() {
 
     companion object {
-        // Rental Status Constants
         const val STATUS_PENDING = "pending"
         const val STATUS_APPROVED = "approved"
+        const val STATUS_PAID = "paid"
         const val STATUS_RENTED = "rented"
         const val STATUS_RETURNING = "returning"
         const val STATUS_RETURNED = "returned"
         const val STATUS_CANCELLED = "cancelled"
+        const val STATUS_COMPLETED = "completed"
     }
 
     private val _product = MutableLiveData<ProductModel?>()
