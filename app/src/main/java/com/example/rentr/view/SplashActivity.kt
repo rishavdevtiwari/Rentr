@@ -40,6 +40,7 @@ class SplashActivity : ComponentActivity() {
             SplashScreen()
         }
     }
+
 }
 
 @Composable

@@ -14,7 +14,7 @@ class AdminProductViewModel(application: Application) : AndroidViewModel(applica
     private val db = FirebaseDatabase.getInstance()
 
     fun approveProduct(productId: String, ownerId: String) {
-        val title = "Product Verified! ✅"
+        val title = "Product Verified !!!"
         val body = "Your listing is now live on Rentr."
 
         // 1. Send & Save Notification
@@ -27,7 +27,7 @@ class AdminProductViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun rejectProduct(productId: String, ownerId: String, reason: String) {
-        val title = "Product Rejected ❌"
+        val title = "Product Rejected !!!"
         val body = "Reason: $reason"
 
         // 1. Send & Save Notification

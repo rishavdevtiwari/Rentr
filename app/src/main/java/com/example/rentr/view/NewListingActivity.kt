@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.example.rentr.view
 
 import android.app.Activity
@@ -47,11 +49,11 @@ import com.example.rentr.ui.theme.RentrTheme
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
+import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 class NewListingActivity : ComponentActivity() {
-    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -59,12 +61,12 @@ class NewListingActivity : ComponentActivity() {
                 Scaffold(
                     containerColor = Color.Black,
                     topBar = {
-                        TopAppBar(
-                            title = { Text("Create New Listing", color = Color.White) },
-                            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Black),
+                        CenterAlignedTopAppBar(
+                            title = { Text("Create Listing", color = Color.White, fontWeight = FontWeight.Bold) },
+                            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Black),
                             navigationIcon = {
                                 IconButton(onClick = { onBackPressedDispatcher.onBackPressed() }) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
                                 }
                             }
                         )
@@ -77,74 +79,66 @@ class NewListingActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewListingScreen(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val activity = context as Activity
+    val coroutineScope = rememberCoroutineScope()
+
     val productViewModel = remember { ProductViewModel(ProductRepoImpl()) }
     val userViewModel = remember { UserViewModel(UserRepoImpl()) }
 
+    // Form States
     var productName by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var isAvailable by remember { mutableStateOf(true) }
     var selectedImageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var selectedCategory by remember { mutableStateOf("") }
-    val context = LocalContext.current
-    val activity = context as Activity
-    val coroutineScope = rememberCoroutineScope()
+    var categoryExpanded by remember { mutableStateOf(false) }
+
+    // UI States
     var isLoading by remember { mutableStateOf(false) }
     var isUserVerified by remember { mutableStateOf(false) }
 
-    val minImages = 4
-    val maxImages = 7
+    val categories = listOf("Vehicles", "Household", "Electronics", "Accessories", "Furniture", "Sports & Adventure", "Baby Items")
 
+    // Check Verification Status on Launch
     LaunchedEffect(Unit) {
-        val userId = userViewModel.getCurrentUser()?.uid
-        if (userId != null) {
-            userViewModel.getUserById(userId) { success, msg, user ->
-                if (success) {
-                    user?.let { fetchedUser ->
-                        isUserVerified = fetchedUser.verified
-                        if (!isUserVerified) {
-                            Toast.makeText(context, "This feature is locked for you. You are not verified yet.", Toast.LENGTH_LONG).show()
-                        }
-                    }
-                }
+        userViewModel.getCurrentUser()?.uid?.let { uid ->
+            userViewModel.getUserById(uid) { success, _, user ->
+                if (success) isUserVerified = user?.verified ?: false
             }
         }
     }
 
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
-    ) { uris: List<Uri> ->
-        val totalImages = selectedImageUris.size + uris.size
-        if (totalImages <= maxImages) {
+    val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+        if (selectedImageUris.size + uris.size <= 7) {
             selectedImageUris = selectedImageUris + uris
         } else {
-            Toast.makeText(context, "You can select a maximum of $maxImages photos.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Maximum 7 photos allowed", Toast.LENGTH_SHORT).show()
         }
     }
 
-    val categories = listOf("Vehicles", "Household", "Electronics", "Accessories", "Furniture", "Sports & Adventure", "Baby Items")
-    var categoryExpanded by remember { mutableStateOf(false) }
+
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .background(Color.Black)
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Text("Add Photos", style = MaterialTheme.typography.titleMedium, color = Color.White)
+            // Photo Section
+            Text("Photos (Min 4, Max 7)", color = Color.White, fontWeight = FontWeight.SemiBold)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(selectedImageUris) { uri ->
-                    Box(modifier = Modifier.size(100.dp)) {
+                    Box(modifier = Modifier.size(110.dp)) {
                         AsyncImage(
                             model = uri,
-                            contentDescription = "Selected product image",
-                            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)),
                             contentScale = ContentScale.Crop
                         )
                         IconButton(
@@ -152,173 +146,72 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(4.dp)
-                                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                                .background(Color.Black.copy(0.6f), CircleShape)
                                 .size(24.dp)
-                        ) {
-                            Icon(Icons.Default.Close, contentDescription = "Remove image", tint = Color.White)
-                        }
+                        ) { Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(16.dp)) }
                     }
                 }
-
-                if (selectedImageUris.size < maxImages) {
+                if (selectedImageUris.size < 7) {
                     item {
                         Box(
                             modifier = Modifier
-                                .size(100.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
+                                .size(110.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(1.dp, Color.DarkGray, RoundedCornerShape(12.dp))
                                 .clickable { imagePickerLauncher.launch("image/*") },
                             contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.AddAPhoto, contentDescription = "Add Photo", tint = Color.Gray)
+                        ) { Icon(Icons.Default.AddAPhoto, null, tint = Orange) }
+                    }
+                }
+            }
+
+            // Input Fields
+            ListingField("Product Name", productName, "E.g. Mountain Bike") { productName = it }
+            ListingField("Price (NPR / Day)", price, "0.00", KeyboardType.Number) { price = it }
+
+            // Category Dropdown
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Category", color = Color.White, fontWeight = FontWeight.SemiBold)
+                ExposedDropdownMenuBox(
+                    expanded = categoryExpanded,
+                    onExpandedChange = { categoryExpanded = !categoryExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = selectedCategory,
+                        onValueChange = {},
+                        readOnly = true,
+                        placeholder = { Text("Select Category", color = Color.Gray) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = customTextFieldColors()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = categoryExpanded,
+                        onDismissRequest = { categoryExpanded = false },
+                        modifier = Modifier.background(Field)
+                    ) {
+                        categories.forEach { cat ->
+                            DropdownMenuItem(
+                                text = { Text(cat, color = Color.White) },
+                                onClick = { selectedCategory = cat; categoryExpanded = false }
+                            )
                         }
                     }
                 }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Product Name", style = MaterialTheme.typography.titleMedium, color = Color.White)
-                OutlinedTextField(
-                    value = productName,
-                    onValueChange = { productName = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Field,
-                        focusedBorderColor = Orange,
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedTextColor = Color.Black,
-                        unfocusedTextColor = Color.White,
-                        cursorColor = Orange
-                    ),
-                    placeholder = { Text("Enter product name", color = Color.Gray) },
-                    singleLine = true
-                )
-            }
+            ListingField("Description", description, "Item condition, rules, etc.", height = 120.dp) { description = it }
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Price (NPR)", style = MaterialTheme.typography.titleMedium, color = Color.White)
-                OutlinedTextField(
-                    value = price,
-                    onValueChange = { price = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Field,
-                        focusedBorderColor = Orange,
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedTextColor = Color.Black,
-                        unfocusedTextColor = Color.White,
-                        cursorColor = Orange
-                    ),
-                    placeholder = { Text("Enter price per day", color = Color.Gray) },
-                    singleLine = true
-                )
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Description", style = MaterialTheme.typography.titleMedium, color = Color.White)
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Field,
-                        focusedBorderColor = Orange,
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedTextColor = Color.Black,
-                        unfocusedTextColor = Color.White,
-                        cursorColor = Orange
-                    ),
-                    placeholder = { Text("Tell us about your product", color = Color.Gray) }
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Availability", fontWeight = FontWeight.Medium, color = Color.White, fontSize = 16.sp)
-                Switch(
-                    checked = isAvailable,
-                    onCheckedChange = { isAvailable = it },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.Black,
-                        checkedTrackColor = Orange,
-                        uncheckedThumbColor = Color.Gray,
-                        uncheckedTrackColor = Field
-                    )
-                )
-            }
-
-            ExposedDropdownMenuBox(
-                expanded = categoryExpanded,
-                onExpandedChange = { categoryExpanded = !categoryExpanded },
-            ) {
-                OutlinedTextField(
-                    modifier = Modifier.menuAnchor().fillMaxWidth(),
-                    value = selectedCategory,
-                    onValueChange = {},
-                    readOnly = true,
-                    placeholder = { Text("Select Category", color = Color.Gray) },
-                    trailingIcon = { Icon(if (categoryExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown, null) },
-                    shape = RoundedCornerShape(8.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Field,
-                        focusedBorderColor = Orange,
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedTextColor = Color.Black,
-                        unfocusedTextColor = Color.White,
-                        cursorColor = Orange
-                    )
-                )
-                ExposedDropdownMenu(
-                    expanded = categoryExpanded,
-                    onDismissRequest = { categoryExpanded = false },
-                    modifier = Modifier.background(Field)
-                ) {
-                    categories.forEach { category ->
-                        DropdownMenuItem(
-                            text = { Text(category, color = Color.White) },
-                            onClick = {
-                                selectedCategory = category
-                                categoryExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
+            // Submit Button
             Button(
                 onClick = {
                     if (!isUserVerified) {
-                        Toast.makeText(context, "This feature is locked for you. You are not verified yet.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Verify your account to list items", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
-
-                    if (selectedImageUris.size < minImages) {
-                        Toast.makeText(context, "Please add at least $minImages photo(s).", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
-                    val priceDouble = price.toDoubleOrNull()
-                    if (priceDouble == null || priceDouble <= 0) {
-                        Toast.makeText(context, "Please enter a valid price.", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
-                    val userId = userViewModel.getCurrentUser()?.uid
-                    if (userId == null) {
-                        Toast.makeText(context, "You must be logged in to list an item.", Toast.LENGTH_SHORT).show()
+                    if (selectedImageUris.size < 4 || productName.isBlank() || price.isBlank()) {
+                        Toast.makeText(context, "Please complete all fields and add 4 photos", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
 
@@ -327,113 +220,102 @@ fun NewListingScreen(modifier: Modifier = Modifier) {
                         val uploadedUrls = uploadImagesToCloudinary(selectedImageUris)
 
                         if (uploadedUrls.size < selectedImageUris.size) {
-                            Toast.makeText(context, "Image upload failed for some images. Please try again.", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, "Upload failed. Check internet.", Toast.LENGTH_SHORT).show()
                             isLoading = false
                             return@launch
                         }
 
-                        val model = ProductModel(
+                        val userId = userViewModel.getCurrentUser()?.uid ?: return@launch
+                        val product = ProductModel(
                             title = productName,
                             description = description,
                             availability = isAvailable,
                             category = selectedCategory,
                             listedBy = userId,
                             imageUrl = uploadedUrls,
-                            price = priceDouble
+                            price = price.toDoubleOrNull() ?: 0.0,
+                            verified = false // Production: Admin must approve first
                         )
 
-                        productViewModel.addProduct(model) { success, msg, productId ->
+                        productViewModel.addProduct(product) { success, _, productId ->
                             if (success && productId != null) {
-                                userViewModel.getUserById(userId) { getUserSuccess, _, user ->
-                                    if (getUserSuccess && user != null) {
-                                        val updatedListings = user.listings?.toMutableList() ?: mutableListOf()
-                                        updatedListings.add(productId)
-                                        val updatedUser = user.copy(listings = updatedListings)
-                                        userViewModel.updateProfile(userId, updatedUser) { updateUserSuccess, _ ->
-                                            isLoading = false
-                                            if (updateUserSuccess) {
-                                                Toast.makeText(context, "Product listed successfully!", Toast.LENGTH_SHORT).show()
-                                                activity.finish()
-                                            } else {
-                                                Toast.makeText(context, "Failed to update user listings.", Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                    } else {
-                                        isLoading = false
-                                        Toast.makeText(context, "Failed to retrieve user data.", Toast.LENGTH_SHORT).show()
-                                    }
+                                updateUserSettings(userId, productId, userViewModel) {
+                                    isLoading = false
+                                    Toast.makeText(context, "Submitted for review!", Toast.LENGTH_SHORT).show()
+                                    activity.finish()
                                 }
                             } else {
                                 isLoading = false
-                                Toast.makeText(context, "Failed to list product: $msg", Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Orange),
-                enabled = !isLoading && isUserVerified
+                enabled = !isLoading
             ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = Color.White
-                    )
-                } else {
-                    Text("List Item", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
-            }
-        }
-
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.5f)),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Orange)
+                if (isLoading) CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(24.dp))
+                else Text("List Item", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         }
     }
 }
 
+@Composable
+fun ListingField(label: String, value: String, hint: String, type: KeyboardType = KeyboardType.Text, height: androidx.compose.ui.unit.Dp = 56.dp, onValueChange: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(label, color = Color.White, fontWeight = FontWeight.SemiBold)
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth().heightIn(min = height),
+            placeholder = { Text(hint, color = Color.Gray) },
+            keyboardOptions = KeyboardOptions(keyboardType = type),
+            shape = RoundedCornerShape(12.dp),
+            colors = customTextFieldColors()
+        )
+    }
+}
+
+@Composable
+fun customTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = Color.White,
+    unfocusedContainerColor = Field,
+    focusedBorderColor = Orange,
+    unfocusedBorderColor = Color.Transparent,
+    focusedTextColor = Color.Black,
+    unfocusedTextColor = Color.White,
+    cursorColor = Orange
+)
+
+private fun updateUserSettings(userId: String, pId: String, vm: UserViewModel, onComplete: () -> Unit) {
+    vm.getUserById(userId) { success, _, user ->
+        if (success && user != null) {
+            val list = (user.listings ?: emptyList()).toMutableList().apply { add(pId) }
+            vm.updateProfile(userId, user.copy(listings = list)) { _, _ -> onComplete() }
+        } else onComplete()
+    }
+}
+
 private suspend fun uploadImagesToCloudinary(uris: List<Uri>): List<String> = suspendCoroutine { continuation ->
-    val uploadedUrls = mutableListOf<String>()
-    val uploadCounter = object {
-        var count = 0
-        fun increment() {
-            count++
-            if (count == uris.size) {
-                continuation.resume(uploadedUrls)
-            }
-        }
-    }
+    val urls = mutableListOf<String>()
+    if (uris.isEmpty()) { continuation.resume(emptyList()); return@suspendCoroutine }
 
-    if (uris.isEmpty()) {
-        continuation.resume(emptyList())
-        return@suspendCoroutine
-    }
-
-    for (uri in uris) {
+    var finished = 0
+    uris.forEach { uri ->
         MediaManager.get().upload(uri)
             .callback(object : UploadCallback {
-                override fun onStart(requestId: String) {}
-                override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}
-                override fun onSuccess(requestId: String, resultData: Map<*, *>) {
-                    resultData["secure_url"]?.toString()?.let { 
-                        uploadedUrls.add(it) 
-                    }
-                    uploadCounter.increment()
+                override fun onSuccess(requestId: String?, resultData: Map<*, *>?) {
+                    resultData?.get("secure_url")?.toString()?.let { urls.add(it) }
+                    if (++finished == uris.size) continuation.resume(urls)
                 }
-                override fun onError(requestId: String, error: ErrorInfo) {
-                    uploadCounter.increment() // Also increment on error to not block forever
+                override fun onError(requestId: String?, error: ErrorInfo?) {
+                    if (++finished == uris.size) continuation.resume(urls)
                 }
-                override fun onReschedule(requestId: String, error: ErrorInfo) {}
-            })
-            .dispatch()
+                override fun onStart(requestId: String?) {}
+                override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) {}
+                override fun onReschedule(requestId: String?, error: ErrorInfo?) {}
+            }).dispatch()
     }
 }

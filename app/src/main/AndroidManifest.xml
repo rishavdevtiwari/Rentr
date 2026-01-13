@@ -8,30 +8,33 @@
     <application
         android:name=".MyApplication"
         android:allowBackup="true"
-        android:usesCleartextTraffic="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Rentr">
-
+        android:theme="@style/Theme.Rentr"
+        android:usesCleartextTraffic="true">
+        <activity
+            android:name=".utils.TransactionService"
+            android:exported="false"
+            android:label="@string/title_activity_transaction_service"
+            android:theme="@style/Theme.Rentr" />
         <activity
             android:name=".view.SplashActivity"
             android:exported="true"
             android:theme="@style/Theme.Rentr">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
         <activity
             android:name=".view.NotificationActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
-
         <activity
             android:name=".view.DashboardActivity"
             android:exported="false"
@@ -112,7 +115,6 @@
             android:name=".view.TermsActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
-
         <activity
             android:name=".view.AdminDashboardActivity"
             android:exported="true"
@@ -120,6 +122,7 @@
             android:theme="@style/Theme.Rentr">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
@@ -150,11 +153,11 @@
         <activity
             android:name=".view.AdminSettings"
             android:exported="true"
-            android:theme="@style/Theme.Rentr"/>
+            android:theme="@style/Theme.Rentr" />
         <activity
             android:name=".view.AdminReviewManagementActivity"
             android:exported="true"
-            android:theme="@style/Theme.Rentr"/>
+            android:theme="@style/Theme.Rentr" />
         <activity
             android:name=".view.CheckoutActivity"
             android:exported="false"
@@ -168,6 +171,7 @@
             android:exported="false"
             android:label="@string/title_activity_search"
             android:theme="@style/Theme.Rentr" />
+
         <service
             android:name=".service.MyFirebaseMessagingService"
             android:exported="false">

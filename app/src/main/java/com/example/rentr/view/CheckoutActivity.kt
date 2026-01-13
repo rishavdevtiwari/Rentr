@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.example.rentr.view
 
 import android.app.Activity
@@ -27,17 +29,17 @@ import com.example.rentr.model.TransactionModel
 import com.example.rentr.repository.ProductRepoImpl
 import com.example.rentr.repository.TransactionRepoImpl
 import com.example.rentr.repository.UserRepoImpl
+import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.RentrTheme
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.TransactionViewModel
 import com.example.rentr.viewmodel.UserViewModel
-// --- KHALTI IMPORTS ---
-
 import com.khalti.checkout.Khalti
 import com.khalti.checkout.data.Environment
 import com.khalti.checkout.data.KhaltiPayConfig
-import java.util.UUID
+import java.text.SimpleDateFormat
+import java.util.*
 
 class CheckoutActivity : ComponentActivity() {
 
@@ -84,7 +86,6 @@ class CheckoutActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CheckoutScreen(
     productTitle: String,
@@ -105,196 +106,172 @@ fun CheckoutScreen(
     val userViewModel = remember { UserViewModel(UserRepoImpl()) }
     val currentUser = userViewModel.getCurrentUser()
 
-    // Observe State from ViewModel
     val isLoading by transactionViewModel.isLoading.observeAsState(false)
     val transactionResult by transactionViewModel.transactionResult.observeAsState()
-    val pidx by transactionViewModel.pidx.observeAsState() // <--- The backend response
+    val pidx by transactionViewModel.pidx.observeAsState()
 
-    // --- 1. HANDLE KHALTI OPENING ---
-    // This block runs automatically when 'pidx' gets a value from the backend
+    // Handlers for Transaction Creation
+    val createTransactionRecord: (String) -> Unit = { paymentMethod ->
+        val currentTime = System.currentTimeMillis()
+        val endTime = currentTime + (days * 24L * 60 * 60 * 1000)
+
+        val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+        val transactionId = "TRX_${currentTime}_${UUID.randomUUID().toString().substring(0, 8)}"
+
+        val transaction = TransactionModel(
+            transactionId = transactionId,
+            productId = productId,
+            renterId = currentUser?.uid ?: "",
+            sellerId = sellerId,
+            basePrice = basePrice,
+            rentalPrice = rentalPrice,
+            days = days,
+            paymentOption = paymentMethod,
+            startTime = dateFormat.format(Date(currentTime)),
+            endTime = dateFormat.format(Date(endTime)),
+            pickupLocation = location,
+            paymentId = "PAY_$currentTime"
+        )
+        transactionViewModel.addTransaction(transaction)
+    }
+
+    // Khalti Integration Logic
     LaunchedEffect(pidx) {
         pidx?.let { paymentId ->
-            Log.d("Khalti", "PIDX received: $paymentId. Opening Khalti...")
-
             val config = KhaltiPayConfig(
-                publicKey = "bdf7c03c426241909b72382bb1359159", // TODO: Paste your TEST PUBLIC KEY here
+                publicKey = "bdf7c03c426241909b72382bb1359159",
                 pidx = paymentId,
                 environment = Environment.TEST
             )
 
-            val khalti = Khalti.init(
-                context,
-                config,
-                onPaymentResult = { result, khalti ->
-                    Log.d("Khalti", "Payment Success: $result")
-
-                    // Payment successful! Now save transaction to Firebase
-                    val transaction = TransactionModel(
-                        transactionId = UUID.randomUUID().toString(),
-                        productId = productId,
-                        renterId = currentUser!!.uid,
-                        sellerId = sellerId,
-                        basePrice = basePrice,
-                        rentalPrice = rentalPrice,
-                        days = days,
-                        paymentOption = "Khalti (Paid)",
-                        pickupLocation = location,
-                        startTime = System.currentTimeMillis().toString(),
-                        endTime = (System.currentTimeMillis() + (days * 24L * 60 * 60 * 1000)).toString()
-                    )
-                    transactionViewModel.addTransaction(transaction)
-                    khalti.close()
-                },
-                onMessage = { payload, khalti ->
-                    Log.e("Khalti", "Message: ${payload.message}")
-                    khalti.close()
-                }
-            )
+            val khalti = Khalti.init(context, config, onPaymentResult = { result, k ->
+                Log.d("Khalti", "Success: $result")
+                createTransactionRecord("Khalti (Paid)")
+                k.close()
+            }, onMessage = { payload, k ->
+                Log.e("Khalti", "Error: ${payload.message}")
+                k.close()
+            })
             khalti.open()
         }
     }
 
-    // --- 2. HANDLE FINAL DATABASE SUCCESS ---
+    // Final Success Logic: Syncing Product State - UPDATED
     LaunchedEffect(transactionResult) {
-        transactionResult?.let { (success, message) ->
+        transactionResult?.let { (success, _) ->
             if (success) {
-                // Mark product as out of stock
-                productViewModel.getProductById(productId) { productSuccess, _, product ->
-                    if (productSuccess && product != null) {
-                        val updatedProduct = product.copy(outOfStock = true, rentalStatus = "")
-                        productViewModel.updateProduct(productId, updatedProduct) { updateSuccess, _ ->
-                            if (updateSuccess) {
-                                Toast.makeText(context, "Order Confirmed!", Toast.LENGTH_LONG).show()
+                if (selectedPayment == "Cash on Delivery") {
+                    // For Cash on Delivery, just create transaction record
+                    Toast.makeText(context, "Order placed successfully!", Toast.LENGTH_LONG).show()
+                    activity?.finish()
+                } else {
+                    // For online payment, product status will be updated after payment
+                    productViewModel.completeCheckout(
+                        productId = productId,
+                        pickupLocation = location,
+                        paymentMethod = selectedPayment,
+                        callback = { uSuccess, message ->
+                            if (uSuccess) {
+                                Toast.makeText(context, "Payment successful! Rental started.", Toast.LENGTH_LONG).show()
                                 activity?.finish()
+                            } else {
+                                Toast.makeText(context, "Error: $message", Toast.LENGTH_LONG).show()
                             }
                         }
-                    }
+                    )
                 }
-            } else {
-                Toast.makeText(context, "Transaction Failed: $message", Toast.LENGTH_LONG).show()
             }
-        }
-    }
-
-    fun confirmOrder() {
-        if (location.isBlank()) {
-            Toast.makeText(context, "Please enter a delivery location", Toast.LENGTH_SHORT).show()
-            return
-        }
-        if (currentUser == null) {
-            Toast.makeText(context, "Login required", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        if (selectedPayment == "Pay Online via Khalti") {
-            // STEP A: Call Backend to get PIDX
-            transactionViewModel.initiateKhaltiPayment(
-                rentalPrice = rentalPrice,
-                productId = productId,
-                productName = productTitle
-            )
-        } else {
-            // Cash on Delivery Flow
-            val transaction = TransactionModel(
-                transactionId = UUID.randomUUID().toString(),
-                productId = productId,
-                renterId = currentUser.uid,
-                sellerId = sellerId,
-                basePrice = basePrice,
-                rentalPrice = rentalPrice,
-                days = days,
-                paymentOption = "Cash on Delivery",
-                pickupLocation = location,
-                startTime = System.currentTimeMillis().toString(),
-                endTime = (System.currentTimeMillis() + (days * 24L * 60 * 60 * 1000)).toString()
-            )
-            transactionViewModel.addTransaction(transaction)
         }
     }
 
     Scaffold(
         containerColor = Color.Black,
         topBar = {
-            TopAppBar(
-                title = { Text("Checkout", color = Color.White) },
+            CenterAlignedTopAppBar(
+                title = { Text("Complete Rental", color = Color.White, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { activity?.finish() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Black)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Black)
             )
         },
         bottomBar = {
             Button(
-                onClick = { confirmOrder() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .height(56.dp),
+                onClick = {
+                    if (location.isBlank()) {
+                        Toast.makeText(context, "Enter pickup location", Toast.LENGTH_SHORT).show()
+                    } else if (selectedPayment == "Pay Online via Khalti") {
+                        transactionViewModel.initiateKhaltiPayment(rentalPrice, productId, productTitle)
+                    } else {
+                        createTransactionRecord("Cash on Delivery")
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().padding(16.dp).height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Orange),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 enabled = !isLoading
             ) {
-                if (isLoading) {
-                    CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(24.dp))
-                } else {
-                    Text("Confirm Order", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.Black)
-                }
+                if (isLoading) CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(24.dp))
+                else Text(
+                    if (selectedPayment == "Cash on Delivery") "Place Order" else "Confirm & Pay",
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
             }
         }
     ) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)
-        ) {
-            Text("Item", color = Color.Gray)
-            Text(productTitle, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(8.dp))
+        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(20.dp)) {
+            // Summary Card
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Field),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Rental Summary", color = Orange, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+                    Text(productTitle, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                    Text("$days days @ NPR. $basePrice/day", color = Color.Gray, fontSize = 14.sp)
+                    Divider(Modifier.padding(vertical = 12.dp), color = Color.DarkGray)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Total Amount", color = Color.White)
+                        Text("NPR. $rentalPrice", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
 
-            Text("Total Price for $days day(s)", color = Color.Gray)
-            Text(String.format("NPR. %.2f", rentalPrice), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-
-            Divider(modifier = Modifier.padding(vertical = 24.dp), color = Color.Gray.copy(alpha = 0.5f))
-
-            Text("Delivery Location", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("Pickup / Delivery Info", color = Color.White, fontWeight = FontWeight.Bold)
             OutlinedTextField(
                 value = location,
                 onValueChange = { location = it },
-                label = { Text("Set Location") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
+                label = { Text("Pickup Location Details") },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    cursorColor = Orange,
-                    focusedBorderColor = Orange,
-                    unfocusedBorderColor = Color.Gray,
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White,
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedLabelColor = Orange,
-                    unfocusedLabelColor = Color.Gray
+                    focusedBorderColor = Orange,
+                    cursorColor = Orange
                 )
             )
-            Spacer(modifier = Modifier.height(24.dp))
 
-            Text("Payment Method", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(8.dp))
-            Column {
-                paymentOptions.forEach { option ->
-                    Row(
-                        Modifier.fillMaxWidth()
-                            .selectable(selected = (option == selectedPayment), onClick = { selectedPayment = option })
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = (option == selectedPayment),
-                            onClick = { selectedPayment = option },
-                            colors = RadioButtonDefaults.colors(selectedColor = Orange, unselectedColor = Color.Gray)
-                        )
-                        Text(text = option, modifier = Modifier.padding(start = 8.dp), color = Color.White)
-                    }
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("Payment Selection", color = Color.White, fontWeight = FontWeight.Bold)
+            paymentOptions.forEach { option ->
+                Row(
+                    Modifier.fillMaxWidth()
+                        .selectable(selected = (option == selectedPayment), onClick = { selectedPayment = option })
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = (option == selectedPayment),
+                        onClick = { selectedPayment = option },
+                        colors = RadioButtonDefaults.colors(selectedColor = Orange)
+                    )
+                    Text(option, color = Color.White, modifier = Modifier.padding(start = 12.dp))
                 }
             }
         }
