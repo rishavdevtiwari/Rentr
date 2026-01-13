@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log // Added for logging
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -26,15 +27,20 @@ import com.airbnb.lottie.compose.rememberLottieComposition
 import com.example.rentr.R
 import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.viewmodel.UserViewModel
+// --- FIREBASE IMPORTS ---
+import com.google.firebase.messaging.FirebaseMessaging
+import com.google.firebase.database.FirebaseDatabase
 
 class SplashActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
             SplashScreen()
         }
     }
+
 }
 
 @Composable
@@ -55,14 +61,41 @@ fun SplashScreen() {
             val rememberMe = sharedPreferences.getBoolean("remember_me", false)
             val currentUser = userViewModel.getCurrentUser()
 
-            val destination = if (rememberMe && currentUser != null) {
-                DashboardActivity::class.java
+            if (rememberMe && currentUser != null) {
+                // 1. User is logged in: FETCH & SAVE TOKEN
+                FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        val token = task.result
+                        Log.d("FCM_DEBUG", "Token Fetched: $token")
+
+                        // --- FIX: Using Hardcoded Database URL ---
+                        val database = FirebaseDatabase.getInstance("https://rentr-db9e6-default-rtdb.firebaseio.com/")
+
+                        database.getReference("users")
+                            .child(currentUser.uid)
+                            .child("fcmToken")
+                            .setValue(token)
+                            .addOnSuccessListener {
+                                Log.d("FCM_DEBUG", "✅ Token saved to DB successfully!")
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e("FCM_DEBUG", "❌ Failed to save to DB", e)
+                            }
+                    } else {
+                        Log.e("FCM_DEBUG", "❌ Failed to fetch token from Google", task.exception)
+                    }
+
+                    // 2. Navigate regardless of success/failure
+                    val intent = Intent(context, DashboardActivity::class.java)
+                    context.startActivity(intent)
+                    activity.finish()
+                }
             } else {
-                LoginActivity::class.java
+                // User NOT logged in -> Go to Login
+                val intent = Intent(context, LoginActivity::class.java)
+                context.startActivity(intent)
+                activity.finish()
             }
-            val intent = Intent(context, destination)
-            context.startActivity(intent)
-            activity.finish()
         }
     }
 

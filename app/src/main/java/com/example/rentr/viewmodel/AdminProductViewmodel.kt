@@ -3,67 +3,57 @@ package com.example.rentr.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.rentr.model.NotificationModel
 import com.example.rentr.utils.FcmSenderV1
-import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 class AdminProductViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val db = FirebaseFirestore.getInstance()
+    private val db = FirebaseDatabase.getInstance()
 
-    // 1. Approve Logic: Notify User -> Update DB
     fun approveProduct(productId: String, ownerId: String) {
-        viewModelScope.launch {
-            // A. Get the user's Token
-            db.collection("users").document(ownerId).get()
-                .addOnSuccessListener { document ->
-                    val token = document.getString("fcmToken")
+        val title = "Product Verified !!!"
+        val body = "Your listing is now live on Rentr."
 
-                    if (token != null) {
-                        // B. Send "Approved" Notification
-                        val sender = FcmSenderV1(
-                            context = getApplication(),
-                            userToken = token,
-                            title = "Product Verified! ✅",
-                            body = "Your listing is now live on Rentr."
-                        )
-                        viewModelScope.launch { sender.send() }
-                    }
+        // 1. Send & Save Notification
+        sendAndSaveNotification(ownerId, title, body)
 
-                    // C. Update Firestore
-                    db.collection("products").document(productId)
-                        .update("status", "verified", "verified", true)
-                }
-        }
+        // 2. Update Product
+        db.getReference("products").child(productId).updateChildren(
+            mapOf("verified" to true, "rejectionReason" to null)
+        )
     }
 
-    // 2. Reject Logic: Notify User -> Update DB with Reason
     fun rejectProduct(productId: String, ownerId: String, reason: String) {
-        viewModelScope.launch {
-            // A. Get Token
-            db.collection("users").document(ownerId).get()
-                .addOnSuccessListener { document ->
-                    val token = document.getString("fcmToken")
+        val title = "Product Rejected !!!"
+        val body = "Reason: $reason"
 
-                    if (token != null) {
-                        // B. Send "Rejected" Notification
-                        val sender = FcmSenderV1(
-                            context = getApplication(),
-                            userToken = token,
-                            title = "Product Rejected ❌",
-                            body = "Reason: $reason"
-                        )
-                        viewModelScope.launch { sender.send() }
-                    }
+        // 1. Send & Save Notification
+        sendAndSaveNotification(ownerId, title, body)
 
-                    // C. Update Firestore
-                    db.collection("products").document(productId)
-                        .update(
-                            "verified", false,
-                            "status", "rejected",
-                            "rejectionReason", reason
-                        )
+        // 2. Update Product
+        db.getReference("products").child(productId).updateChildren(
+            mapOf("verified" to false, "rejectionReason" to reason)
+        )
+    }
+
+    private fun sendAndSaveNotification(userId: String, title: String, body: String) {
+        // A. Save to Database (History)
+        val notifId = UUID.randomUUID().toString()
+        val notification = NotificationModel(notifId, title, body, System.currentTimeMillis(), false)
+
+        db.getReference("notifications").child(userId).child(notifId).setValue(notification)
+
+        // B. Send FCM (Pop-up)
+        db.getReference("users").child(userId).child("fcmToken").get().addOnSuccessListener {
+            val token = it.value as? String
+            if (!token.isNullOrEmpty()) {
+                viewModelScope.launch {
+                    FcmSenderV1(getApplication(), token, title, body).send()
                 }
+            }
         }
     }
 }

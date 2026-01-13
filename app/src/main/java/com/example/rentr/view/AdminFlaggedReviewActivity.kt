@@ -28,10 +28,12 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.rentr.R
 import com.example.rentr.repository.ProductRepoImpl
 import com.example.rentr.repository.UserRepoImpl
+import com.example.rentr.viewmodel.AdminFlagViewModel
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
 
@@ -65,15 +67,18 @@ fun FlagReviewScreen(productId: String) {
 
     val productViewModel = remember { ProductViewModel(ProductRepoImpl()) }
     val userViewModel = remember { UserViewModel(UserRepoImpl()) }
+    val adminFlagViewModel: AdminFlagViewModel = viewModel()
 
     val product by productViewModel.product.observeAsState()
     var sellerInfo by remember { mutableStateOf<com.example.rentr.model.UserModel?>(null) }
     var flaggerInfo by remember { mutableStateOf<com.example.rentr.model.UserModel?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
+    // Dialog States
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showResolveDialog by remember { mutableStateOf(false) }
     var showMarkDialog by remember { mutableStateOf(false) }
+    var showDeleteUserDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(productId) {
         if (productId.isNotEmpty()) {
@@ -82,7 +87,6 @@ fun FlagReviewScreen(productId: String) {
                     userViewModel.getUserById(productData.listedBy) { sellerSuccess, _, seller ->
                         if (sellerSuccess) sellerInfo = seller
                     }
-
                     productData.flaggedBy.firstOrNull()?.let { flaggerId ->
                         userViewModel.getUserById(flaggerId) { flaggerSuccess, _, flagger ->
                             if (flaggerSuccess) flaggerInfo = flagger
@@ -98,6 +102,7 @@ fun FlagReviewScreen(productId: String) {
         return when {
             product?.appealReason?.isNotEmpty() == true -> "APPEALED"
             product?.flagged == true -> "UNDER REVIEW"
+            product?.flaggedBy?.isNotEmpty() == true -> "PENDING REVIEW"
             else -> "RESOLVED"
         }
     }
@@ -105,57 +110,21 @@ fun FlagReviewScreen(productId: String) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = "Flag Review - ${product?.title ?: ""}",
-                        color = textColor,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1
-                    )
-                },
+                title = { Text("Flag Review", color = textColor, fontWeight = FontWeight.Medium) },
                 navigationIcon = {
                     IconButton(onClick = { activity?.finish() }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = textColor
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = textColor)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = primaryColor,
-                    titleContentColor = textColor,
-                    navigationIconContentColor = textColor
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = primaryColor)
             )
         },
         containerColor = primaryColor
     ) { paddingValues ->
         if (isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = accentColor)
-            }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = accentColor) }
         } else if (product == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Error,
-                        contentDescription = "Error",
-                        tint = errorColor,
-                        modifier = Modifier.size(64.dp)
-                    )
-                    Text("Product not found", color = textColor, fontSize = 18.sp)
-                    Button(
-                        onClick = { activity?.finish() },
-                        colors = ButtonDefaults.buttonColors(containerColor = accentColor)
-                    ) {
-                        Text("Go Back")
-                    }
-                }
-            }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Product not found", color = textColor) }
         } else {
             Column(
                 modifier = Modifier
@@ -163,678 +132,279 @@ fun FlagReviewScreen(productId: String) {
                     .padding(paddingValues)
                     .verticalScroll(rememberScrollState())
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
+                // Status Badge
+                Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                     Box(
-                        modifier = Modifier
+                        Modifier
                             .align(Alignment.CenterEnd)
                             .clip(RoundedCornerShape(8.dp))
                             .background(
                                 when (getProductStatus()) {
-                                    "APPEALED" -> infoColor.copy(alpha = 0.9f)
-                                    "RESOLVED" -> successColor.copy(alpha = 0.9f)
-                                    else -> warningColor.copy(alpha = 0.9f)
-                                }
+                                    "APPEALED" -> infoColor
+                                    "PENDING REVIEW" -> Color(0xFFFF9800) // Orange
+                                    "UNDER REVIEW" -> warningColor
+                                    "RESOLVED" -> successColor
+                                    else -> warningColor
+                                }.copy(alpha = 0.9f)
                             )
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Text(
-                            text = getProductStatus(),
-                            color = textColor,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text(getProductStatus(), color = textColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
+                Column(Modifier.fillMaxWidth().padding(16.dp)) {
+
+                    // --- SELLER INFO (With Delete User Button) ---
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = cardBackgroundColor)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Person,
-                                    contentDescription = "Seller",
-                                    tint = errorColor,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Text(
-                                    text = "Seller Information",
-                                    color = textColor,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            sellerInfo?.let { seller ->
-                                FlagInfoRow(
-                                    icon = Icons.Default.Person,
-                                    label = "Name",
-                                    value = seller.fullName,
-                                    iconColor = textLightColor
-                                )
-
-                                FlagInfoRow(
-                                    icon = Icons.Default.Email,
-                                    label = "Email",
-                                    value = seller.email,
-                                    iconColor = textLightColor
-                                )
-
-                                FlagInfoRow(
-                                    icon = Icons.Default.Flag,
-                                    label = "Flag Count",
-                                    value = seller.flagCount.toString(),
-                                    iconColor = textLightColor
-                                )
-
-                                if (seller.phoneNumber.isNotEmpty()) {
-                                    FlagInfoRow(
-                                        icon = Icons.Default.Phone,
-                                        label = "Phone",
-                                        value = seller.phoneNumber,
-                                        iconColor = textLightColor
-                                    )
-                                }
-                            } ?: run {
-                                Text("Loading seller info...", color = textLightColor)
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.ShoppingBag,
-                                    contentDescription = "Product",
-                                    tint = warningColor,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Text(
-                                    text = "Product Details",
-                                    color = textColor,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            product?.imageUrl?.firstOrNull()?.let { imageUrl ->
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(180.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                ) {
-                                    AsyncImage(
-                                        model = imageUrl,
-                                        contentDescription = product?.title,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop,
-                                        placeholder = painterResource(id = R.drawable.rentrimage),
-                                        error = painterResource(id = R.drawable.rentrimage)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(12.dp))
-                            }
-
-                            Text(
-                                text = product?.title ?: "",
-                                color = textColor,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Text(
-                                text = product?.description ?: "",
-                                color = textLightColor,
-                                fontSize = 14.sp
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = product?.category ?: "",
-                                    color = textLightColor,
-                                    fontSize = 14.sp
-                                )
-                                Text(
-                                    text = "NPR. ${"%.2f".format(product?.price ?: 0.0)}",
-                                    color = accentColor,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Icon(Icons.Default.Person, null, tint = errorColor, modifier = Modifier.size(20.dp))
+                                    Text("Seller Info", color = textColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                }
+                                IconButton(onClick = { showDeleteUserDialog = true }) {
+                                    Icon(Icons.Default.PersonRemove, "Delete User", tint = errorColor)
+                                }
                             }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Flagged by ${product?.flaggedBy?.size ?: 0} user(s)",
-                                color = Color.Red.copy(alpha = 0.8f),
-                                fontSize = 12.sp
-                            )
+                            Spacer(Modifier.height(12.dp))
+                            sellerInfo?.let { seller ->
+                                FlagInfoRow(Icons.Default.Person, "Name", seller.fullName, textLightColor)
+                                FlagInfoRow(Icons.Default.Email, "Email", seller.email, textLightColor)
+                                FlagInfoRow(Icons.Default.Flag, "Flags", seller.flagCount.toString(), textLightColor)
+                            } ?: Text("Loading...", color = textLightColor)
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(Modifier.height(16.dp))
 
+                    // --- PRODUCT DETAILS ---
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = cardBackgroundColor)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Flag,
-                                    contentDescription = "Flag Details",
-                                    tint = accentColor,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Text(
-                                    text = "Flag Details",
-                                    color = textColor,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Default.ShoppingBag, null, tint = warningColor, modifier = Modifier.size(20.dp))
+                                Text("Product Details", color = textColor, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                             }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            Text(
-                                text = "Reason for Flagging:",
-                                color = textColor,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            if (product?.flaggedReason?.isNotEmpty() == true) {
-                                // flaggedReason is List<String> - join it directly
-                                Text(
-                                    text = product!!.flaggedReason.joinToString(", "),
-                                    color = textLightColor,
-                                    fontSize = 13.sp,
-                                    lineHeight = 18.sp
+                            Spacer(Modifier.height(12.dp))
+                            product?.imageUrl?.firstOrNull()?.let { url ->
+                                AsyncImage(
+                                    model = url,
+                                    contentDescription = null,
+                                    modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(8.dp)),
+                                    contentScale = ContentScale.Crop,
+                                    placeholder = painterResource(R.drawable.rentrimage)
                                 )
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            Text(product?.title ?: "", color = textColor, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text(product?.description ?: "", color = textLightColor, fontSize = 14.sp)
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    // --- FLAG DETAILS ---
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            if (product?.flaggedBy?.isNotEmpty() == true) {
+                                Text("Flagged by ${product?.flaggedBy?.size ?: 0} user(s)",
+                                    color = textColor, fontWeight = FontWeight.Medium)
+
+                                if (product?.flaggedReason?.isNotEmpty() == true) {
+                                    Spacer(Modifier.height(8.dp))
+                                    Text("Reasons:", color = textLightColor, fontSize = 13.sp)
+                                    product?.flaggedReason?.forEachIndexed { index, reason ->
+                                        Text("${index + 1}. $reason",
+                                            color = textLightColor, fontSize = 12.sp)
+                                    }
+                                }
                             } else {
-                                Text(
-                                    text = "No reason provided",
-                                    color = textLightColor,
-                                    fontSize = 13.sp,
-                                    fontStyle = FontStyle.Italic
-                                )
+                                Text("No user flags", color = textLightColor, fontSize = 13.sp)
                             }
 
                             if (product?.appealReason?.isNotEmpty() == true) {
-                                Spacer(modifier = Modifier.height(12.dp))
-
-                                Text(
-                                    text = "Seller Appeal:",
-                                    color = Color.Cyan,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                // appealReason is String - use it directly
-                                Text(
-                                    text = product!!.appealReason,
-                                    color = Color.Cyan.copy(alpha = 0.8f),
-                                    fontSize = 13.sp,
-                                    lineHeight = 18.sp,
-                                    fontStyle = FontStyle.Italic
-                                )
+                                Spacer(Modifier.height(12.dp))
+                                Text("Appeal:", color = Color.Cyan, fontWeight = FontWeight.Medium)
+                                Text(product!!.appealReason, color = Color.Cyan.copy(alpha = 0.8f), fontStyle = FontStyle.Italic)
                             }
                         }
                     }
 
-                    flaggerInfo?.let {
-                        Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(Modifier.height(24.dp))
 
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = cardBackgroundColor)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    // --- ACTION BUTTONS (Delete, Resolve, Mark) ---
+                    val hasUserFlags = product?.flaggedBy?.isNotEmpty() == true
+                    val isUnderAdminReview = product?.flagged == true
+
+                    if (hasUserFlags || isUnderAdminReview) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            if (!isUnderAdminReview && hasUserFlags) {
+                                // Show MARK FOR REVIEW button for pending items
+                                Button(
+                                    onClick = { showMarkDialog = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = warningColor),
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Icon(
-                                        Icons.Default.Report,
-                                        contentDescription = "Reporter",
-                                        tint = infoColor,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Text(
-                                        text = "Reported By (First User)",
-                                        color = textColor,
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Icon(Icons.Default.Flag, null, Modifier.size(20.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Mark for Review")
                                 }
-
-                                Spacer(modifier = Modifier.height(12.dp))
-
-                                FlagInfoRow(
-                                    icon = Icons.Default.Person,
-                                    label = "Name",
-                                    value = it.fullName,
-                                    iconColor = textLightColor
-                                )
-
-                                FlagInfoRow(
-                                    icon = Icons.Default.Email,
-                                    label = "Email",
-                                    value = it.email,
-                                    iconColor = textLightColor
-                                )
                             }
-                        }
-                    }
 
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    if (product?.flagged == true) {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Button(
                                     onClick = { showDeleteDialog = true },
                                     modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = errorColor)
+                                    colors = ButtonDefaults.buttonColors(containerColor = errorColor),
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.Center
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Delete,
-                                            contentDescription = "Delete",
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = "Delete",
-                                            color = textColor,
-                                            fontWeight = FontWeight.Medium,
-                                            fontSize = 16.sp
-                                        )
-                                    }
+                                    Icon(Icons.Default.Delete, null, Modifier.size(20.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Delete")
                                 }
-
                                 Button(
                                     onClick = { showResolveDialog = true },
                                     modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = successColor)
+                                    colors = ButtonDefaults.buttonColors(containerColor = successColor),
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.Center
-                                    ) {
-                                        Icon(
-                                            Icons.Default.CheckCircle,
-                                            contentDescription = "Resolve",
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = "Resolve",
-                                            color = textColor,
-                                            fontWeight = FontWeight.Medium,
-                                            fontSize = 16.sp
-                                        )
-                                    }
-                                }
-                            }
-
-                            Button(
-                                onClick = { showMarkDialog = true },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = warningColor)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        Icons.Default.Flag,
-                                        contentDescription = "Mark",
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Mark for Review",
-                                        color = textColor,
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 16.sp
-                                    )
+                                    Icon(Icons.Default.CheckCircle, null, Modifier.size(20.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Resolve")
                                 }
                             }
                         }
                     } else {
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = successColor.copy(alpha = 0.1f)
-                            )
+                            Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = successColor.copy(alpha = 0.1f))
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .padding(16.dp)
-                                    .fillMaxWidth(),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = "Resolved",
-                                    tint = successColor,
-                                    modifier = Modifier.size(40.dp)
-                                )
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                Text(
-                                    text = "Flag Already Resolved",
-                                    color = textColor,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-
-                                Text(
-                                    text = "This product has been reviewed and is now available for rent.",
-                                    color = textLightColor,
-                                    fontSize = 14.sp,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
+                            Column(Modifier.padding(16.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.CheckCircle, null, tint = successColor, modifier = Modifier.size(40.dp))
+                                Text("Flag Resolved", color = textColor, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(Modifier.height(32.dp))
                 }
             }
         }
     }
 
+    // --- DIALOGS ---
+
+    // 1. DELETE PRODUCT
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = {
-                Text(
-                    text = "Delete Product",
-                    color = textColor,
-                    fontWeight = FontWeight.Bold
-                )
-            },
+            title = { Text("Delete Product?", color = textColor) },
             text = {
                 Column {
-                    Text(
-                        text = "This will PERMANENTLY DELETE the product from the platform.",
-                        color = textLightColor,
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Seller's flag count will remain the same.",
-                        color = textLightColor,
-                        fontSize = 12.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "This action cannot be undone!",
-                        color = errorColor,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("This is permanent.", color = textLightColor)
+                    Text("User will be notified.", color = textLightColor)
+                    Text("Seller's flag count will increase.", color = errorColor.copy(alpha = 0.8f))
                 }
             },
             confirmButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = { showDeleteDialog = false },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = cardBackgroundColor
-                        )
-                    ) {
-                        Text("Cancel", color = textColor)
-                    }
-                    Button(
-                        onClick = {
-                            product?.let { currentProduct ->
-                                productViewModel.deleteProduct(currentProduct.productId) { success, _ ->
-                                    if (success) {
-                                        Toast.makeText(context, "Product deleted", Toast.LENGTH_SHORT).show()
-                                        activity?.finish()
-                                    }
-                                }
-                            }
-                            showDeleteDialog = false
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = errorColor
-                        )
-                    ) {
-                        Text("DELETE PERMANENTLY", color = textColor)
-                    }
-                }
+                Button(onClick = {
+                    product?.let { adminFlagViewModel.deleteProduct(it); activity?.finish() }
+                }, colors = ButtonDefaults.buttonColors(containerColor = errorColor)) { Text("Delete") }
             },
+            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") } },
             containerColor = primaryColor
         )
     }
 
+    // 2. RESOLVE FLAG
     if (showResolveDialog) {
         AlertDialog(
             onDismissRequest = { showResolveDialog = false },
-            title = {
-                Text(
-                    text = "Resolve Flag",
-                    color = textColor,
-                    fontWeight = FontWeight.Bold
-                )
-            },
+            title = { Text("Resolve Flag?", color = textColor) },
             text = {
                 Column {
-                    Text(
-                        text = "Resolving will clear the flag and make the product available again.",
-                        color = textLightColor,
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "The flag will be removed from product and seller's flag count will decrease.",
-                        color = textLightColor,
-                        fontSize = 12.sp
-                    )
+                    Text("Product will be visible again.", color = textLightColor)
+                    Text("All flags will be cleared.", color = textLightColor)
+                    Text("Seller's flag count will NOT change.", color = successColor.copy(alpha = 0.8f))
                 }
             },
             confirmButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = { showResolveDialog = false },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = cardBackgroundColor
-                        )
-                    ) {
-                        Text("Cancel", color = textColor)
-                    }
-                    Button(
-                        onClick = {
-                            product?.let { currentProduct ->
-                                val updatedProduct = currentProduct.copy(
-                                    flagged = false,
-                                    flaggedBy = emptyList(),
-                                    flaggedReason = emptyList(),
-                                    appealReason = "",
-                                    availability = true
-                                )
-                                productViewModel.updateProduct(currentProduct.productId, updatedProduct) { success, _ ->
-                                    if (success) {
-                                        val sellerId = currentProduct.listedBy
-                                        userViewModel.decrementFlagCount(sellerId) { flagSuccess, _ ->
-                                            if (flagSuccess) {
-                                                Toast.makeText(context, "Flag resolved and flag count updated", Toast.LENGTH_SHORT).show()
-                                            } else {
-                                                Toast.makeText(context, "Flag resolved (but couldn't update flag count)", Toast.LENGTH_SHORT).show()
-                                            }
-                                            activity?.finish()
-                                        }
-                                    }
-                                }
-                            }
-                            showResolveDialog = false
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = successColor
-                        )
-                    ) {
-                        Text("Confirm Resolve", color = textColor)
-                    }
-                }
+                Button(onClick = {
+                    product?.let { adminFlagViewModel.resolveFlag(it); activity?.finish() }
+                }, colors = ButtonDefaults.buttonColors(containerColor = successColor)) { Text("Resolve") }
             },
+            dismissButton = { TextButton(onClick = { showResolveDialog = false }) { Text("Cancel") } },
             containerColor = primaryColor
         )
     }
 
+    // 3. MARK FOR REVIEW
     if (showMarkDialog) {
         AlertDialog(
             onDismissRequest = { showMarkDialog = false },
-            title = {
-                Text(
-                    text = "Mark for Review",
-                    color = textColor,
-                    fontWeight = FontWeight.Bold
-                )
-            },
+            title = { Text("Mark for Review?", color = textColor) },
             text = {
                 Column {
-                    Text(
-                        text = "Marking will hide the product from listings. Seller can appeal this decision.",
-                        color = textLightColor,
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Product will be hidden until further review.",
-                        color = textLightColor,
-                        fontSize = 12.sp
-                    )
+                    Text("This will:", color = textLightColor)
+                    Text("• Set flagged = true", color = textLightColor)
+                    Text("• Hide product from listings", color = textLightColor)
+                    Text("• Increase seller's flag count", color = warningColor.copy(alpha = 0.8f))
+                    Text("• Send notification to seller", color = textLightColor)
                 }
             },
             confirmButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = { showMarkDialog = false },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = cardBackgroundColor
-                        )
-                    ) {
-                        Text("Cancel", color = textColor)
-                    }
-                    Button(
-                        onClick = {
-                            product?.let { currentProduct ->
-                                val updatedProduct = currentProduct.copy(
-                                    availability = false,
-                                    flagged = true
-                                )
-                                productViewModel.updateProduct(currentProduct.productId, updatedProduct) { success, _ ->
-                                    if (success) {
-                                        Toast.makeText(context, "Product marked for review", Toast.LENGTH_SHORT).show()
-                                        activity?.finish()
-                                    }
-                                }
-                            }
-                            showMarkDialog = false
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = warningColor
-                        )
-                    ) {
-                        Text("Mark for Review", color = textColor)
-                    }
+                Button(onClick = {
+                    product?.let { adminFlagViewModel.markForReview(it); activity?.finish() }
+                }, colors = ButtonDefaults.buttonColors(containerColor = warningColor)) {
+                    Text("Mark for Review")
                 }
             },
+            dismissButton = { TextButton(onClick = { showMarkDialog = false }) { Text("Cancel") } },
+            containerColor = primaryColor
+        )
+    }
+
+    // 4. DELETE USER
+    if (showDeleteUserDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteUserDialog = false },
+            title = { Text("Delete User Account?", color = textColor) },
+            text = { Text("This will delete the user's data permanently. A notification will be sent.", color = errorColor) },
+            confirmButton = {
+                Button(onClick = {
+                    product?.listedBy?.let { adminFlagViewModel.deleteUserAccount(it); activity?.finish() }
+                }, colors = ButtonDefaults.buttonColors(containerColor = errorColor)) { Text("Delete User") }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteUserDialog = false }) { Text("Cancel") } },
             containerColor = primaryColor
         )
     }
 }
 
 @Composable
-fun FlagInfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String, iconColor: Color) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Icon(
-            icon,
-            contentDescription = label,
-            modifier = Modifier
-                .size(18.dp)
-                .padding(top = 2.dp),
-            tint = iconColor
-        )
-        Spacer(modifier = Modifier.width(12.dp))
+fun FlagInfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String, color: Color) {
+    Row(Modifier.padding(vertical = 4.dp)) {
+        Icon(icon, null, tint = color, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(8.dp))
         Column {
-            Text(
-                text = label,
-                color = textLightColor,
-                fontSize = 12.sp
-            )
-            Text(
-                text = value,
-                color = textColor,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
+            Text(label, color = color, fontSize = 12.sp)
+            Text(value, color = textColor, fontSize = 14.sp)
         }
     }
 }

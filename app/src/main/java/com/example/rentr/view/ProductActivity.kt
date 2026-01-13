@@ -21,11 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -56,7 +52,6 @@ class ProductActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val productId = intent.getStringExtra("productId") ?: ""
-
         setContent {
             RentrTheme {
                 ProductDisplay(productId)
@@ -79,117 +74,191 @@ fun ProductDisplay(productId: String) {
     val product by productViewModel.product.observeAsState()
     val currentUser by currentUserViewModel.user.observeAsState()
     var sellerName by remember { mutableStateOf("") }
+
+    // Dialog States
     var showFlagDialog by remember { mutableStateOf(false) }
     var showChatDialog by remember { mutableStateOf(false) }
     var chatInitialMessage by remember { mutableStateOf("") }
     var rentalDays by remember { mutableStateOf(1) }
-
     var selectedFlagReason by remember { mutableStateOf("") }
     var customFlagReason by remember { mutableStateOf("") }
 
-    val flagReasons = listOf(
-        "Inappropriate Content",
-        "Fake/Scam Product",
-        "Wrong Category",
-        "Price Gouging",
-        "Copyright Infringement",
-        "Other"
-    )
-
+    val flagReasons = listOf("Inappropriate Content", "Fake/Scam Product", "Wrong Category", "Price Gouging", "Copyright Infringement", "Other")
     val currentUserId = currentUserViewModel.getCurrentUser()?.uid
     val isSeller = product?.listedBy == currentUserId
     val isUserVerified = currentUser?.verified == true
 
+    // Flagging state
     val isAlreadyFlagged = remember(product, currentUserId) {
         product?.flaggedBy?.contains(currentUserId) == true
     }
 
+    // State logic for rental flow
+    val isRentedOut = product?.rentalStatus == "rented" || product?.outOfStock == true
+    val userAlreadyRequested = product?.rentalRequesterId == currentUserId && product?.rentalStatus == "pending"
+
     LaunchedEffect(currentUserId) {
-        if (currentUserId != null) {
-            currentUserViewModel.getUserById(currentUserId) { _, _, _ -> }
-        }
+        currentUserId?.let { currentUserViewModel.getUserById(it) { _, _, _ -> } }
     }
 
     LaunchedEffect(productId) {
-        if (productId.isNotEmpty()) {
-            productViewModel.getProductById(productId) { _, _, _ -> }
-        }
+        if (productId.isNotEmpty()) productViewModel.getProductById(productId) { _, _, _ -> }
     }
 
     LaunchedEffect(product?.listedBy) {
-        val sellerId = product?.listedBy ?: return@LaunchedEffect
-        sellerViewModel.getUserById(sellerId) { success, _, user ->
-            if (success && user != null) {
-                sellerName = user.fullName
+        product?.listedBy?.let { id ->
+            sellerViewModel.getUserById(id) { success, _, user ->
+                if (success) sellerName = user?.fullName ?: ""
             }
         }
     }
 
+// Flagging Dialog Logic
     if (showFlagDialog) {
         AlertDialog(
             onDismissRequest = { showFlagDialog = false },
             title = { Text("Flag Item", color = Color.White) },
-            text = { /* ...dialog content... */ }, // Assuming this is correct from previous steps
-            confirmButton = { /* ...dialog actions... */ }
+            text = {
+                Column {
+                    if (isAlreadyFlagged) {
+                        Text(
+                            "You have already flagged this item.",
+                            color = Color.Red,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+                        // Show the user's own flag reason if available
+                        val userFlagIndex = product?.flaggedBy?.indexOf(currentUserId ?: "")
+                        if (userFlagIndex != null && userFlagIndex >= 0 &&
+                            product?.flaggedReason?.size ?: 0 > userFlagIndex) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Your reason: ${product?.flaggedReason?.get(userFlagIndex) ?: ""}",
+                                color = Color.White,
+                                fontSize = 12.sp
+                            )
+                        }
+                    } else {
+                        flagReasons.forEach { reason ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        selectedFlagReason = reason
+                                        if (reason != "Other") {
+                                            customFlagReason = ""
+                                        }
+                                    }
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = selectedFlagReason == reason,
+                                    onClick = null
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(reason, color = Color.White)
+                            }
+                        }
+                        if (selectedFlagReason == "Other") {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedTextField(
+                                value = customFlagReason,
+                                onValueChange = { customFlagReason = it },
+                                label = { Text("Specify reason", color = Color.Gray) },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    focusedBorderColor = Orange,
+                                    unfocusedBorderColor = Color.Gray,
+                                    focusedLabelColor = Orange,
+                                    unfocusedLabelColor = Color.Gray,
+                                    cursorColor = Orange
+                                )
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Row {
+                    TextButton(onClick = { showFlagDialog = false }) {
+                        Text("Cancel", color = Color.Gray)
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    if (!isAlreadyFlagged) {
+                        Button(
+                            onClick = {
+                                val finalReason = if (selectedFlagReason == "Other" && customFlagReason.isNotBlank()) {
+                                    customFlagReason
+                                } else {
+                                    selectedFlagReason
+                                }
+                                if (finalReason.isNotEmpty()) {
+                                    productViewModel.flagProduct(product!!.productId, currentUserId!!, finalReason) { success, message ->
+                                        if (success) {
+                                            Toast.makeText(context, "Item flagged successfully", Toast.LENGTH_SHORT).show()
+                                            productViewModel.getProductById(productId) { _, _, _ -> }
+                                        } else {
+                                            Toast.makeText(context, message ?: "Failed to flag item", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                    showFlagDialog = false
+                                }
+                            },
+                            enabled = selectedFlagReason.isNotEmpty() &&
+                                    (selectedFlagReason != "Other" || customFlagReason.isNotBlank())
+                        ) {
+                            Text("Flag")
+                        }
+                    } else {
+                        // Only show OK button if already flagged
+                        Button(
+                            onClick = { showFlagDialog = false }
+                        ) {
+                            Text("OK")
+                        }
+                    }
+                }
+            },
+            containerColor = Color(0xFF1E1E1E)
         )
     }
 
+    // Chat Dialog Logic
     if (showChatDialog) {
         AlertDialog(
             onDismissRequest = { showChatDialog = false },
             title = { Text("Start Chat", color = Color.White) },
             text = {
-                Column {
-                    OutlinedTextField(
-                        value = chatInitialMessage,
-                        onValueChange = { chatInitialMessage = it },
-                        label = { Text("Your message") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = Orange,
-                            unfocusedBorderColor = Color.Gray,
-                            focusedLabelColor = Orange,
-                            unfocusedLabelColor = Color.Gray,
-                            cursorColor = Orange
-                        )
+                OutlinedTextField(
+                    value = chatInitialMessage,
+                    onValueChange = { chatInitialMessage = it },
+                    label = { Text("Your message") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = Orange,
+                        unfocusedBorderColor = Color.Gray,
+                        focusedLabelColor = Orange,
+                        unfocusedLabelColor = Color.Gray,
+                        cursorColor = Orange
                     )
-                }
+                )
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        val safeProduct = product ?: return@Button
-                        val renterId = currentUserId ?: return@Button
-                        if (chatInitialMessage.isNotBlank()) {
-                            chatViewModel.startOrGetConversation(
-                                productId = safeProduct.productId,
-                                renterId = renterId,
-                                sellerId = safeProduct.listedBy,
-                                initialMessage = chatInitialMessage
-                            ) { conversationId ->
-                                if (conversationId != null) {
-                                    val intent = Intent(context, ChatActivity::class.java).apply {
-                                        putExtra("CONVERSATION_ID", conversationId)
-                                        putExtra("CHAT_TITLE", safeProduct.title)
-                                    }
-                                    context.startActivity(intent)
-                                    showChatDialog = false
-                                } else {
-                                    Toast.makeText(context, "Could not start chat.", Toast.LENGTH_SHORT).show()
-                                }
-                            }
+                Button(onClick = {
+                    chatViewModel.startOrGetConversation(product!!.productId, currentUserId!!, product!!.listedBy, chatInitialMessage) { id ->
+                        if (id != null) {
+                            context.startActivity(Intent(context, ChatActivity::class.java).apply {
+                                putExtra("CONVERSATION_ID", id)
+                                putExtra("CHAT_TITLE", product!!.title)
+                            })
+                            showChatDialog = false
                         }
-                    },
-                    enabled = chatInitialMessage.isNotBlank()
-                ) {
-                    Text("Send")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showChatDialog = false }) {
-                    Text("Cancel", color = Color.Gray)
-                }
+                    }
+                }) { Text("Send") }
             },
             containerColor = Color(0xFF1E1E1E)
         )
@@ -198,345 +267,204 @@ fun ProductDisplay(productId: String) {
     Scaffold(
         containerColor = Color.Black,
         bottomBar = {
-            val safeProduct = product
-            if (!isSeller && safeProduct != null) {
+            if (!isSeller && product != null) {
                 ProductBottomBar(
-                    product = safeProduct,
+                    product = product!!,
                     rentalDays = rentalDays,
+                    isRentedOut = isRentedOut,
+                    userAlreadyRequested = userAlreadyRequested,
                     onRentNowClick = {
-                        if (isUserVerified) {
-                            if (currentUserId != null) {
-                                val updatedProduct = safeProduct.copy(
-                                    rentalStatus = "pending",
-                                    rentalRequesterId = currentUserId,
-                                    rentalDays = rentalDays
-                                )
-                                productViewModel.updateProduct(safeProduct.productId, updatedProduct) { success, _ ->
-                                    if (success) {
-                                        Toast.makeText(context, "Rental request sent!", Toast.LENGTH_SHORT).show()
-                                        activity?.finish()
-                                    } else {
-                                        Toast.makeText(context, "Failed to send rental request.", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            }
+                        if (!isUserVerified) {
+                            Toast.makeText(context, "Verify account to rent.", Toast.LENGTH_LONG).show()
                         } else {
-                            Toast.makeText(context, "Please verify yourself to rent items.", Toast.LENGTH_LONG).show()
+                            val updatedProduct = product!!.copy(rentalStatus = "pending", rentalRequesterId = currentUserId ?: "", rentalDays = rentalDays)
+                            productViewModel.updateProduct(product!!.productId, updatedProduct) { success, _ ->
+                                if (success) { Toast.makeText(context, "Request sent!", Toast.LENGTH_SHORT).show(); activity?.finish() }
+                            }
                         }
                     }
                 )
             }
         }
     ) { padding ->
-        val safeProduct = product
-        if (safeProduct == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Orange)
-            }
-            return@Scaffold
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-        ) {
-            val pagerState = rememberPagerState { safeProduct.imageUrl.size }
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(400.dp)
-            ) {
-                if (safeProduct.imageUrl.isNotEmpty()) {
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier.fillMaxSize()
-                    ) { page ->
+        if (product == null) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Orange) }
+        } else {
+            Column(modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
+                // Image Pager Section
+                val pagerState = rememberPagerState { product!!.imageUrl.size }
+                Box(modifier = Modifier.fillMaxWidth().height(400.dp)) {
+                    HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
                         AsyncImage(
-                            model = safeProduct.imageUrl[page],
-                            contentDescription = "Product image",
+                            model = product!!.imageUrl[page],
+                            contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                            placeholder = painterResource(id = R.drawable.rentrimage),
-                            error = painterResource(id = R.drawable.rentrimage)
+                            contentScale = ContentScale.Crop
                         )
                     }
-                } else {
-                    Image(
-                        painter = painterResource(id = R.drawable.rentrimage),
-                        contentDescription = "Product image",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.TopStart)
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = { activity?.finish() },
-                        modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
-                    }
-                    if (!isSeller) {
-                        if (isAlreadyFlagged) {
-                            Card(
-                                shape = RoundedCornerShape(50),
-                                colors = CardDefaults.cardColors(containerColor = Field.copy(alpha = 0.5f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.Flag, contentDescription = "Flagged", tint = Color.White)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Flagged", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                }
-                            }
-                        } else {
-                            IconButton(
-                                onClick = { showFlagDialog = true },
-                                modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
-                            ) {
-                                Icon(Icons.Default.Flag, "Flag item", tint = Color.Red)
-                            }
-                        }
-                    }
-                }
-            }
-            if (safeProduct.imageUrl.size > 1) {
-                Row(
-                    Modifier
-                        .height(20.dp)
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    repeat(pagerState.pageCount) { iteration ->
-                        val color = if (pagerState.currentPage == iteration) Orange else Color.Gray
-                        Box(
-                            modifier = Modifier
-                                .padding(4.dp)
-                                .clip(CircleShape)
-                                .background(color)
-                                .size(8.dp)
-                        )
-                    }
-                }
-            }
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(safeProduct.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    if (safeProduct.availability && !safeProduct.outOfStock) {
-                        Card(
-                            shape = RoundedCornerShape(8.dp),
-                            colors = CardDefaults.cardColors(containerColor = Orange.copy(alpha = 0.15f))
-                        ) {
-                            Text(
-                                text = "Available",
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                color = Orange,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Star, null, tint = Orange, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    val ratingText = if (safeProduct.ratingCount > 0) {
-                        String.format("%.1f (%d ratings)", safeProduct.rating, safeProduct.ratingCount)
-                    } else {
-                        "No reviews yet"
-                    }
-                    Text(ratingText, color = Color.Gray, fontSize = 14.sp)
-                }
-
-                if (!isSeller) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Divider(color = Field)
-                    Spacer(modifier = Modifier.height(16.dp))
-
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.TopStart)
+                            .padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Rental Days", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(
-                                onClick = { if (rentalDays > 1) rentalDays-- },
-                                modifier = Modifier.border(1.dp, Color.Gray, CircleShape)
-                            ) {
-                                Icon(Icons.Default.Remove, contentDescription = "Decrease days", tint = Color.White)
-                            }
-                            Text(
-                                "$rentalDays",
-                                color = Color.White,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-                            IconButton(
-                                onClick = { rentalDays++ },
-                                enabled = true,
-                                modifier = Modifier.border(1.dp, Color.Gray, CircleShape)
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = "Increase days", tint = Color.White)
+                        IconButton(
+                            onClick = { activity?.finish() },
+                            modifier = Modifier.background(Field.copy(alpha = 0.5f), CircleShape)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
+                        }
+
+                        if (!isSeller) {
+                            if (isAlreadyFlagged) {
+                                Card(
+                                    shape = RoundedCornerShape(50),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = Field.copy(
+                                            alpha = 0.5f
+                                        )
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(
+                                            horizontal = 12.dp,
+                                            vertical = 8.dp
+                                        ),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Flag,
+                                            contentDescription = "Flagged",
+                                            tint = Color.White
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            "Flagged",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
+                            } else {
+                                IconButton(
+                                    onClick = { showFlagDialog = true },
+                                    modifier = Modifier.background(
+                                        Field.copy(alpha = 0.5f),
+                                        CircleShape
+                                    )
+                                ) {
+                                    Icon(Icons.Default.Flag, "Flag item", tint = Color.Red)
+                                }
                             }
                         }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                Divider(color = Field)
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Listed By", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    if (!isSeller) {
-                        TextButton(onClick = { showChatDialog = true }) {
-                            Text("Chat with Seller", color = Orange)
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(sellerName, color = Color.Gray, fontSize = 14.sp)
-
-                if (safeProduct.flagged && safeProduct.flaggedReason.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Divider(color = Field)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Flag Information", color = Color.Red, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Reason: ${safeProduct.flaggedReason.joinToString(", ")}",
-                        color = Color.Red.copy(alpha = 0.8f),
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "Flagged by ${safeProduct.flaggedBy.size} user(s)",
-                        color = Color.Gray,
-                        fontSize = 12.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                Divider(color = Field)
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Description", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(safeProduct.description, color = Color.Gray, fontSize = 14.sp)
-
-                if (!isSeller && currentUserId != null) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Divider(color = Field)
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    val currentUserRating = safeProduct.ratedBy[currentUserId] ?: 0
-
+                if (product!!.imageUrl.size > 1) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
+                        Modifier
+                            .height(20.dp)
+                            .fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        RatingBar(
-                            rating = currentUserRating,
-                            onRatingChange = { newRating ->
-                                productViewModel.updateRating(productId, currentUserId, newRating) { success, _ ->
-                                    if (success) {
-                                        Toast.makeText(context, "Rating submitted!", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, "Failed to submit rating.", Toast.LENGTH_SHORT).show()
-                                    }
-                                    productViewModel.getProductById(productId) { _, _, _ -> }
-                                }
-                            }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        if (currentUserRating > 0) {
-                            TextButton(onClick = {
-                                productViewModel.updateRating(productId, currentUserId, 0) { success, _ -> // 0 means remove rating
-                                    if (success) {
-                                        Toast.makeText(context, "Rating removed.", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, "Failed to remove rating.", Toast.LENGTH_SHORT).show()
-                                    }
-                                    productViewModel.getProductById(productId) { _, _, _ -> }
-                                }
-                            }) {
-                                Text("Clear", color = Orange)
-                            }
+                        repeat(pagerState.pageCount) { iteration ->
+                            val color = if (pagerState.currentPage == iteration) Orange else Color.Gray
+                            Box(
+                                modifier = Modifier
+                                    .padding(4.dp)
+                                    .clip(CircleShape)
+                                    .background(color)
+                                    .size(8.dp)
+                            )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(100.dp)) // Padding at the bottom
+                Column(modifier = Modifier.padding(16.dp)) {
+                    // Header Section
+                    Text(product!!.title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
+                        Icon(Icons.Default.Star, null, tint = Orange, modifier = Modifier.size(18.dp))
+                        Text(" ${product!!.rating} (${product!!.ratingCount} ratings)", color = Color.Gray, fontSize = 14.sp)
+                    }
+
+                    if (product!!.rentalStatus == "pending" && !isRentedOut && !userAlreadyRequested) {
+                        Text("Others have also requested this item.", color = Color.Yellow, fontSize = 12.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Description", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(product!!.description, color = Color.Gray)
+
+                    // Rental Duration Selector
+                    if (!isSeller) {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("Rental Days", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = { if (rentalDays > 1) rentalDays-- }, modifier = Modifier.border(1.dp, Color.Gray, CircleShape)) { Icon(Icons.Default.Remove, null, tint = Color.White) }
+                                Text("$rentalDays", color = Color.White, modifier = Modifier.padding(horizontal = 16.dp))
+                                IconButton(onClick = { rentalDays++ }, modifier = Modifier.border(1.dp, Color.Gray, CircleShape)) { Icon(Icons.Default.Add, null, tint = Color.White) }
+                            }
+                        }
+                    }
+
+                    // Seller Info & Chat
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text("Seller: $sellerName", color = Color.Gray)
+                        if (!isSeller) Button(onClick = { showChatDialog = true }, colors = ButtonDefaults.buttonColors(containerColor = Field)) { Text("Chat with Seller", color = Orange) }
+                    }
+
+                    // Rating Bar Section
+                    if (!isSeller && currentUserId != null) {
+                        Spacer(modifier = Modifier.height(24.dp)); Divider(color = Field)
+                        Text("Rate this Product", color = Color.White, modifier = Modifier.padding(top = 16.dp))
+                        RatingBar(rating = product!!.ratedBy[currentUserId] ?: 0) { newRating ->
+                            productViewModel.updateRating(productId, currentUserId, newRating) { _, _ ->
+                                productViewModel.getProductById(productId) { _, _, _ -> }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(100.dp))
+                }
             }
         }
     }
 }
 
 @Composable
-fun RatingBar(
-    modifier: Modifier = Modifier,
-    rating: Int,
-    onRatingChange: (Int) -> Unit
-) {
-    Row(modifier = modifier) {
+fun RatingBar(rating: Int, onRatingChange: (Int) -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
         (1..5).forEach { index ->
             IconButton(onClick = { onRatingChange(index) }) {
-                Icon(
-                    imageVector = Icons.Default.Star,
-                    contentDescription = "Rate $index",
-                    tint = if (index <= rating) Orange else Color.Gray,
-                    modifier = Modifier.size(32.dp)
-                )
+                Icon(Icons.Default.Star, null, tint = if (index <= rating) Orange else Color.Gray, modifier = Modifier.size(32.dp))
             }
         }
     }
 }
 
 @Composable
-fun ProductBottomBar(product: ProductModel, rentalDays: Int, onRentNowClick: () -> Unit) {
-    val rentalPrice = product.price * rentalDays
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.Black)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
+fun ProductBottomBar(product: ProductModel, rentalDays: Int, isRentedOut: Boolean, userAlreadyRequested: Boolean, onRentNowClick: () -> Unit) {
+    val totalPrice = product.price * rentalDays
+    Row(modifier = Modifier.fillMaxWidth().background(Color.Black).padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Column {
-            Text("Total price", color = Color.Gray, fontSize = 12.sp)
-            Text(String.format("NPR. %.2f", rentalPrice), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("Total Price", color = Color.Gray, fontSize = 12.sp)
+            Text("NPR. ${String.format("%.2f", totalPrice)}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
         }
         Button(
             onClick = onRentNowClick,
-            colors = ButtonDefaults.buttonColors(containerColor = if (product.rentalStatus == "pending") Color.Gray else Orange),
-            shape = RoundedCornerShape(16.dp),
-            enabled = product.rentalStatus != "pending",
-            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp)
+            enabled = !isRentedOut && !userAlreadyRequested,
+            colors = ButtonDefaults.buttonColors(containerColor = if (userAlreadyRequested) Color.Gray else Orange),
+            shape = RoundedCornerShape(12.dp)
         ) {
-            Icon(Icons.Default.ShoppingCart, null, tint = Color.Black)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(if (product.rentalStatus == "pending") "Request Sent" else "Request to Rent", color = Color.Black, fontWeight = FontWeight.Bold)
+            Text(text = when {
+                isRentedOut -> "Rented Out"
+                userAlreadyRequested -> "Request Sent"
+                else -> "Request to Rent"
+            }, color = Color.Black, fontWeight = FontWeight.Bold)
         }
     }
 }

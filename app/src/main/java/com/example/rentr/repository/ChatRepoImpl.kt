@@ -16,33 +16,34 @@ class ChatRepoImpl : ChatRepo {
         productId: String,
         renterId: String,
         sellerId: String,
-        initialMessage: String,
+        initialMessage: String?,
         callback: (conversationId: String?) -> Unit
     ) {
-        // First, query to see if a conversation already exists
         conversationsRef
             .orderByChild("productId")
             .equalTo(productId)
             .addListenerForSingleValueEvent(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
-                    val existingConversation = snapshot.children.find { 
+                    val existingConversation = snapshot.children.find {
                         val convo = it.getValue(ChatConversation::class.java)
                         convo?.participants?.containsKey(renterId) == true && convo.participants.containsKey(sellerId)
                     }
 
                     if (existingConversation != null) {
-                        // Conversation exists, send the message to it and return its ID
                         val existingConvoId = existingConversation.key!!
-                        val message = ChatMessage(
-                            conversationId = existingConvoId,
-                            senderId = renterId,
-                            text = initialMessage
-                        )
-                        sendMessage(existingConvoId, message) { success ->
-                            if (success) callback(existingConvoId) else callback(null)
+                        if (initialMessage != null && initialMessage.isNotBlank()) {
+                            val message = ChatMessage(
+                                conversationId = existingConvoId,
+                                senderId = renterId,
+                                text = initialMessage
+                            )
+                            sendMessage(existingConvoId, message) { success ->
+                                if (success) callback(existingConvoId) else callback(null)
+                            }
+                        } else {
+                            callback(existingConvoId)
                         }
                     } else {
-                        // No conversation exists, create a new one
                         val newConversationId = conversationsRef.push().key ?: return
                         val participants = mapOf(renterId to true, sellerId to true)
                         val conversation = ChatConversation(
@@ -51,19 +52,26 @@ class ChatRepoImpl : ChatRepo {
                             renterId = renterId,
                             sellerId = sellerId,
                             participants = participants,
-                            lastMessage = initialMessage,
+                            lastMessage = initialMessage ?: "",  // FIXED: Convert null to empty string
                             lastMessageTimestamp = System.currentTimeMillis()
                         )
-                        conversationsRef.child(newConversationId).setValue(conversation).addOnSuccessListener {
-                            val message = ChatMessage(
-                                conversationId = newConversationId,
-                                senderId = renterId,
-                                text = initialMessage
-                            )
-                            sendMessage(newConversationId, message) { success ->
-                                if (success) callback(newConversationId) else callback(null)
+
+                        conversationsRef.child(newConversationId).setValue(conversation)
+                            .addOnSuccessListener {
+                                if (initialMessage != null && initialMessage.isNotBlank()) {
+                                    val message = ChatMessage(
+                                        conversationId = newConversationId,
+                                        senderId = renterId,
+                                        text = initialMessage
+                                    )
+                                    sendMessage(newConversationId, message) { success ->
+                                        if (success) callback(newConversationId) else callback(null)
+                                    }
+                                } else {
+                                    callback(newConversationId)
+                                }
                             }
-                        }.addOnFailureListener { callback(null) }
+                            .addOnFailureListener { callback(null) }
                     }
                 }
 
@@ -72,6 +80,7 @@ class ChatRepoImpl : ChatRepo {
                 }
             })
     }
+
 
     override fun sendMessage(
         conversationId: String,

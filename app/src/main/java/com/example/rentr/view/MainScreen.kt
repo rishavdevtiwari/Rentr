@@ -36,7 +36,7 @@ val bottomNavItems = listOf(
     NavItem("Home", Icons.Default.Home),
     NavItem("Listings", Icons.Default.ListAlt),
     NavItem("Rentals", Icons.Default.History),
-    NavItem("Chats",Icons.Default.ChatBubble),
+    NavItem("Chats", Icons.Default.ChatBubble),
     NavItem("Profile", Icons.Default.Person)
 )
 
@@ -63,7 +63,7 @@ fun MainScreen() {
                             unselectedIconColor = Color.Gray,
                             selectedTextColor = Orange,
                             unselectedTextColor = Color.Gray,
-                            indicatorColor = Color.Black // Or any other color for the indicator
+                            indicatorColor = Color.Black
                         )
                     )
                 }
@@ -75,7 +75,7 @@ fun MainScreen() {
                 0 -> DashboardScreen()
                 1 -> ListedScreen()
                 2 -> RentalScreen()
-                3 -> ConversationsScreen { }
+                3 -> ConversationsScreen(onBackClicked = { selectedIndex = 0 })
                 4 -> ProfileScreen(userViewModel)
             }
         }

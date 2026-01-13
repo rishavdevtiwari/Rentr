@@ -21,7 +21,11 @@ data class ProductModel(
     val rentalRequesterId: String = "",
     val rentalStatus: String = "",
     val rentalDays: Int = 1,
-    val rentalStartDate: Long = 0L
+    val rentalStartDate: Long = 0L,
+    val rentalEndDate: Long = 0L,
+    val rejectionReason: String? = null,
+    val paymentMethod: String = "",
+    val pickupLocation: String=""
 ){
     fun toMap() : Map < String, Any?> {
         return mapOf(
@@ -35,6 +39,7 @@ data class ProductModel(
             "rating" to rating,
             "ratingCount" to ratingCount,
             "ratedBy" to ratedBy,
+            "category" to category,
             "imageUrl" to imageUrl,
             "verified" to verified,
             "flaggedBy" to flaggedBy,
@@ -44,7 +49,11 @@ data class ProductModel(
             "rentalRequesterId" to rentalRequesterId,
             "rentalStatus" to rentalStatus,
             "rentalDays" to rentalDays,
-            "rentalStartDate" to rentalStartDate
+            "rentalStartDate" to rentalStartDate,
+            "rentalEndDate" to rentalEndDate,
+            "rejectionReason" to rejectionReason,
+            "paymentMethod" to paymentMethod,
+            "pickupLocation" to pickupLocation
         )
     }
 }

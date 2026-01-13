@@ -13,10 +13,18 @@ class TransactionViewModel(private val repository: TransactionRepo) : ViewModel(
     private val _transactionResult = MutableLiveData<Pair<Boolean, String?>>()
     val transactionResult: LiveData<Pair<Boolean, String?>> = _transactionResult
 
+    private val _renterTransactions = MutableLiveData<List<TransactionModel>>()
+    val renterTransactions: LiveData<List<TransactionModel>> = _renterTransactions
+
+    private val _sellerTransactions = MutableLiveData<List<TransactionModel>>()
+    val sellerTransactions: LiveData<List<TransactionModel>> = _sellerTransactions
+
+    private val _singleTransaction = MutableLiveData<TransactionModel?>()
+    val singleTransaction: LiveData<TransactionModel?> = _singleTransaction
+
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> = _isLoading
 
-    // --- NEW: LiveData to hold the PIDX ---
     private val _pidx = MutableLiveData<String?>()
     val pidx: LiveData<String?> = _pidx
 
@@ -28,7 +36,43 @@ class TransactionViewModel(private val repository: TransactionRepo) : ViewModel(
         }
     }
 
-    // --- NEW: Function called by CheckoutActivity to start payment ---
+    fun fetchRenterTransactions(userId: String) {
+        _isLoading.value = true
+        repository.getRenterTransactions(userId) { success, data ->
+            _isLoading.value = false
+            if (success) {
+                _renterTransactions.postValue(data)
+            }
+        }
+    }
+
+    fun fetchSellerTransactions(userId: String) {
+        _isLoading.value = true
+        repository.getSellerTransactions(userId) { success, data ->
+            _isLoading.value = false
+            if (success) {
+                _sellerTransactions.postValue(data)
+            }
+        }
+    }
+
+    fun getTransactionById(transactionId: String) {
+        _isLoading.value = true
+        repository.getTransactionById(transactionId) { success, transaction ->
+            _isLoading.value = false
+            if (success) {
+                _singleTransaction.postValue(transaction)
+            }
+        }
+    }
+
+    fun updateTransaction(transactionId: String, updates: Map<String, Any>) {
+        _isLoading.value = true
+        repository.updateTransaction(transactionId, updates) { success, message ->
+            _isLoading.value = false
+            _transactionResult.value = Pair(success, message)
+        }
+    }
     fun initiateKhaltiPayment(rentalPrice: Double, productId: String, productName: String) {
         viewModelScope.launch {
             _isLoading.value = true
