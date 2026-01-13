@@ -102,6 +102,7 @@ fun FlagReviewScreen(productId: String) {
         return when {
             product?.appealReason?.isNotEmpty() == true -> "APPEALED"
             product?.flagged == true -> "UNDER REVIEW"
+            product?.flaggedBy?.isNotEmpty() == true -> "PENDING REVIEW"
             else -> "RESOLVED"
         }
     }
@@ -140,6 +141,8 @@ fun FlagReviewScreen(productId: String) {
                             .background(
                                 when (getProductStatus()) {
                                     "APPEALED" -> infoColor
+                                    "PENDING REVIEW" -> Color(0xFFFF9800) // Orange
+                                    "UNDER REVIEW" -> warningColor
                                     "RESOLVED" -> successColor
                                     else -> warningColor
                                 }.copy(alpha = 0.9f)
@@ -219,8 +222,21 @@ fun FlagReviewScreen(productId: String) {
                         colors = CardDefaults.cardColors(containerColor = cardBackgroundColor)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Flag Reason:", color = textColor, fontWeight = FontWeight.Medium)
-                            Text(product?.flaggedReason?.joinToString(", ") ?: "None", color = textLightColor, fontSize = 13.sp)
+                            if (product?.flaggedBy?.isNotEmpty() == true) {
+                                Text("Flagged by ${product?.flaggedBy?.size ?: 0} user(s)",
+                                    color = textColor, fontWeight = FontWeight.Medium)
+
+                                if (product?.flaggedReason?.isNotEmpty() == true) {
+                                    Spacer(Modifier.height(8.dp))
+                                    Text("Reasons:", color = textLightColor, fontSize = 13.sp)
+                                    product?.flaggedReason?.forEachIndexed { index, reason ->
+                                        Text("${index + 1}. $reason",
+                                            color = textLightColor, fontSize = 12.sp)
+                                    }
+                                }
+                            } else {
+                                Text("No user flags", color = textLightColor, fontSize = 13.sp)
+                            }
 
                             if (product?.appealReason?.isNotEmpty() == true) {
                                 Spacer(Modifier.height(12.dp))
@@ -233,8 +249,25 @@ fun FlagReviewScreen(productId: String) {
                     Spacer(Modifier.height(24.dp))
 
                     // --- ACTION BUTTONS (Delete, Resolve, Mark) ---
-                    if (product?.flagged == true) {
+                    val hasUserFlags = product?.flaggedBy?.isNotEmpty() == true
+                    val isUnderAdminReview = product?.flagged == true
+
+                    if (hasUserFlags || isUnderAdminReview) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            if (!isUnderAdminReview && hasUserFlags) {
+                                // Show MARK FOR REVIEW button for pending items
+                                Button(
+                                    onClick = { showMarkDialog = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = warningColor),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(Icons.Default.Flag, null, Modifier.size(20.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Mark for Review")
+                                }
+                            }
+
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Button(
                                     onClick = { showDeleteDialog = true },
@@ -256,18 +289,6 @@ fun FlagReviewScreen(productId: String) {
                                     Spacer(Modifier.width(8.dp))
                                     Text("Resolve")
                                 }
-                            }
-
-                            // MARK FOR REVIEW BUTTON
-                            Button(
-                                onClick = { showMarkDialog = true },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = warningColor),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Icon(Icons.Default.Flag, null, Modifier.size(20.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Mark for Review (Hide)")
                             }
                         }
                     } else {
@@ -294,7 +315,13 @@ fun FlagReviewScreen(productId: String) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Delete Product?", color = textColor) },
-            text = { Text("This is permanent. User will be notified.", color = textLightColor) },
+            text = {
+                Column {
+                    Text("This is permanent.", color = textLightColor)
+                    Text("User will be notified.", color = textLightColor)
+                    Text("Seller's flag count will increase.", color = errorColor.copy(alpha = 0.8f))
+                }
+            },
             confirmButton = {
                 Button(onClick = {
                     product?.let { adminFlagViewModel.deleteProduct(it); activity?.finish() }
@@ -310,7 +337,13 @@ fun FlagReviewScreen(productId: String) {
         AlertDialog(
             onDismissRequest = { showResolveDialog = false },
             title = { Text("Resolve Flag?", color = textColor) },
-            text = { Text("Product will be visible again.", color = textLightColor) },
+            text = {
+                Column {
+                    Text("Product will be visible again.", color = textLightColor)
+                    Text("All flags will be cleared.", color = textLightColor)
+                    Text("Seller's flag count will NOT change.", color = successColor.copy(alpha = 0.8f))
+                }
+            },
             confirmButton = {
                 Button(onClick = {
                     product?.let { adminFlagViewModel.resolveFlag(it); activity?.finish() }
@@ -326,11 +359,21 @@ fun FlagReviewScreen(productId: String) {
         AlertDialog(
             onDismissRequest = { showMarkDialog = false },
             title = { Text("Mark for Review?", color = textColor) },
-            text = { Text("This will hide the product from listings. No notification will be sent.", color = textLightColor) },
+            text = {
+                Column {
+                    Text("This will:", color = textLightColor)
+                    Text("• Set flagged = true", color = textLightColor)
+                    Text("• Hide product from listings", color = textLightColor)
+                    Text("• Increase seller's flag count", color = warningColor.copy(alpha = 0.8f))
+                    Text("• Send notification to seller", color = textLightColor)
+                }
+            },
             confirmButton = {
                 Button(onClick = {
                     product?.let { adminFlagViewModel.markForReview(it); activity?.finish() }
-                }, colors = ButtonDefaults.buttonColors(containerColor = warningColor)) { Text("Mark (Hide)") }
+                }, colors = ButtonDefaults.buttonColors(containerColor = warningColor)) {
+                    Text("Mark for Review")
+                }
             },
             dismissButton = { TextButton(onClick = { showMarkDialog = false }) { Text("Cancel") } },
             containerColor = primaryColor

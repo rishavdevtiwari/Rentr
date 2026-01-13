@@ -296,7 +296,7 @@ class ProductRepoImpl : ProductRepo {
                 val updatedProduct = product.copy(
                     flaggedBy = updatedFlaggedBy,
                     flaggedReason = updatedFlaggedReason,
-                    flagged = true
+//                    flagged = true
                 )
 
                 currentData.value = updatedProduct
@@ -618,6 +618,44 @@ class ProductRepoImpl : ProductRepo {
             }
         })
     }
+
+    override fun markProductForReview(productId: String, callback: (Boolean, String) -> Unit) {
+        val productRef = ref.child(productId)
+
+        productRef.runTransaction(object : Transaction.Handler {
+            override fun doTransaction(currentData: MutableData): Transaction.Result {
+                val product = currentData.getValue(ProductModel::class.java)
+                if (product == null) {
+                    return Transaction.success(currentData)
+                }
+
+                // Only mark for review if there are flags
+                if (product.flaggedBy.isEmpty()) {
+                    return Transaction.abort()
+                }
+
+                // Set flagged = true and hide from listings
+                val updatedProduct = product.copy(
+                    flagged = true,
+                    availability = false
+                )
+
+                currentData.value = updatedProduct
+                return Transaction.success(currentData)
+            }
+
+            override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
+                if (error != null) {
+                    callback(false, error.message)
+                } else if (!committed) {
+                    callback(false, "No flags to review or product not found")
+                } else {
+                    callback(true, "Product marked for review")
+                }
+            }
+        })
+    }
+
     override fun updateRentalStatus(
         productId: String,
         status: String,

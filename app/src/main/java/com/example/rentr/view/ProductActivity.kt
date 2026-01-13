@@ -428,47 +428,6 @@ fun ProductDisplay(productId: String) {
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(24.dp))
-                    if (product!!.flagged && product!!.flaggedReason.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Divider(color = Field)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("Flag Information", color = Color.Red, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Show all flagged reasons
-                        val flagInfo = buildString {
-                            append("This item has been flagged for: ")
-                            product!!.flaggedReason.forEachIndexed { index, reason ->
-                                append(reason)
-                                if (index < product!!.flaggedReason.size - 1) {
-                                    append(", ")
-                                }
-                            }
-                        }
-                        Text(
-                            flagInfo,
-                            color = Color.Red.copy(alpha = 0.8f),
-                            fontSize = 14.sp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            "Flagged by ${product!!.flaggedBy.size} user(s)",
-                            color = Color.Gray,
-                            fontSize = 12.sp
-                        )
-
-                        // If current user has flagged, show their specific reason
-                        val userFlagIndex = product!!.flaggedBy.indexOf(currentUserId ?: "")
-                        if (userFlagIndex >= 0 && product!!.flaggedReason.size > userFlagIndex) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                "Your flag reason: ${product!!.flaggedReason[userFlagIndex]}",
-                                color = Color.Yellow,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
                     Spacer(modifier = Modifier.height(100.dp))
                 }
             }

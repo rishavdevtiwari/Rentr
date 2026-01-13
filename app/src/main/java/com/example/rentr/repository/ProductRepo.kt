@@ -61,7 +61,7 @@ interface ProductRepo {
         renterId: String,
         callback: (Boolean, String) -> Unit
     )
-
+    fun markProductForReview(productId: String, callback: (Boolean, String) -> Unit)
     fun verifyReturn(
         productId: String,
         callback: (Boolean, String, Long) -> Unit

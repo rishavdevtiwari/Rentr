@@ -44,9 +44,10 @@ private val Outline = Color(0xFF818181)
 
 enum class FlagCategory(val label: String, val color: Color) {
     ALL("All", Color(0xFF4CAF50)),
-    RESOLVED("Resolved", Color(0xFF4CAF50)),
-    MARKED("Marked", Color(0xFFFFC107)),
+    PENDING("Pending Review", Color(0xFFFF9800)),
+    UNDER_REVIEW("Under Review", Color(0xFFFFC107)),
     APPEALED("Appealed", Color(0xFF2196F3)),
+    RESOLVED("Resolved", Color(0xFF4CAF50)),
     FLAGGED_USERS("Flagged Users", Color(0xFF9C27B0))
 }
 
@@ -90,17 +91,25 @@ fun ReviewScreenContent(
         usersList.filter { it.flagCount > 0 }.sortedByDescending { it.flagCount }
     }
 
-    val filteredProducts = remember(productViewModel.flaggedProducts.value, selectedCategory) {
-        val allFlaggedProducts = productViewModel.flaggedProducts.value ?: emptyList()
-
+    val filteredProducts = remember(products, selectedCategory) {
         when (selectedCategory) {
-            FlagCategory.ALL -> allFlaggedProducts
-            FlagCategory.RESOLVED -> products.filter { !it.flagged }
-            FlagCategory.MARKED -> allFlaggedProducts.filter {
-                !it.availability && it.appealReason.isEmpty()
+            FlagCategory.ALL -> products.filter {
+                it.flaggedBy.isNotEmpty() || it.flagged
             }
-            FlagCategory.APPEALED -> allFlaggedProducts.filter {
-                !it.availability && it.appealReason.isNotEmpty()
+            FlagCategory.PENDING -> products.filter {
+                // Products with user flags but not yet marked by admin
+                it.flaggedBy.isNotEmpty() && !it.flagged
+            }
+            FlagCategory.UNDER_REVIEW -> products.filter {
+                // Products marked for review by admin (flagged=true)
+                it.flagged
+            }
+            FlagCategory.RESOLVED -> products.filter {
+                // Products that were flagged but now resolved
+                !it.flagged && it.flaggedBy.isEmpty()
+            }
+            FlagCategory.APPEALED -> products.filter {
+                it.appealReason.isNotEmpty()
             }
             FlagCategory.FLAGGED_USERS -> emptyList()
         }
@@ -108,13 +117,16 @@ fun ReviewScreenContent(
 
     val categoryCounts = remember(products, flaggedUsers) {
         mapOf(
-            FlagCategory.ALL to products.count { it.flagged && it.flaggedBy.isNotEmpty() },
-            FlagCategory.RESOLVED to products.count { !it.flagged },
-            FlagCategory.MARKED to products.count {
-                it.flagged && it.flaggedBy.isNotEmpty() && !it.availability && it.appealReason.isEmpty()
+            FlagCategory.ALL to products.count { it.flaggedBy.isNotEmpty() || it.flagged },
+            FlagCategory.PENDING to products.count {
+                it.flaggedBy.isNotEmpty() && !it.flagged
+            },
+            FlagCategory.UNDER_REVIEW to products.count { it.flagged },
+            FlagCategory.RESOLVED to products.count {
+                !it.flagged && it.flaggedBy.isEmpty()
             },
             FlagCategory.APPEALED to products.count {
-                it.flagged && it.flaggedBy.isNotEmpty() && !it.availability && it.appealReason.isNotEmpty()
+                it.appealReason.isNotEmpty()
             },
             FlagCategory.FLAGGED_USERS to flaggedUsers.size
         )
@@ -265,8 +277,9 @@ fun ReviewScreenContent(
                                     Text(
                                         text = when (selectedCategory) {
                                             FlagCategory.ALL -> "No flagged items found"
+                                            FlagCategory.PENDING -> "No pending items for review"
+                                            FlagCategory.UNDER_REVIEW -> "No items under review"
                                             FlagCategory.RESOLVED -> "No resolved flags"
-                                            FlagCategory.MARKED -> "No marked items for review"
                                             FlagCategory.APPEALED -> "No appealed items"
                                             else -> "No items"
                                         },
@@ -278,8 +291,9 @@ fun ReviewScreenContent(
                                     Text(
                                         text = when (selectedCategory) {
                                             FlagCategory.ALL -> "All flagged items will appear here"
+                                            FlagCategory.PENDING -> "Items flagged by users awaiting admin review"
+                                            FlagCategory.UNDER_REVIEW -> "Items marked for review by admin"
                                             FlagCategory.RESOLVED -> "Resolved flags will appear here"
-                                            FlagCategory.MARKED -> "Items marked for review will appear here"
                                             FlagCategory.APPEALED -> "Items with seller appeals will appear here"
                                             else -> ""
                                         },
@@ -497,17 +511,19 @@ fun FlaggedProductCardReal(
     sellerName: String,
     onClick: () -> Unit
 ) {
+
     val status = when {
-        !product.flagged -> "RESOLVED"
+        product.flagged -> "UNDER REVIEW"  // Admin marked for review
+        product.flaggedBy.isNotEmpty() -> "PENDING"  // User flags, not reviewed
         product.appealReason.isNotEmpty() -> "APPEALED"
-        !product.availability && product.appealReason.isEmpty() -> "MARKED"
-        else -> "UNDER REVIEW"
+        else -> "RESOLVED"
     }
 
     val statusColor = when (status) {
+        "PENDING" -> Color(0xFFFF9800)
+        "UNDER REVIEW" -> Color(0xFFFFC107)
         "RESOLVED" -> Color(0xFF4CAF50)
         "APPEALED" -> Color(0xFF2196F3)
-        "MARKED" -> Color(0xFFFFC107)
         else -> Color(0xFFFF9800)
     }
 
@@ -559,13 +575,22 @@ fun FlaggedProductCardReal(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            if (product.flaggedReason.isNotEmpty()) {
-                val flagReasonText =product.flaggedReason.joinToString(", ")
+            if (product.flaggedBy.isNotEmpty()) {
                 Text(
-                    text = "Flag Reason: ${flagReasonText.take(50)}${if (flagReasonText.length > 50) "..." else ""}",
+                    text = "Flagged by ${product.flaggedBy.size} user(s)",
                     color = Color.LightGray,
                     fontSize = 14.sp
                 )
+
+                if (product.flaggedReason.isNotEmpty()) {
+                    val flagReasonText = product.flaggedReason.joinToString(", ")
+                    Text(
+                        text = "Reasons: ${flagReasonText.take(50)}${if (flagReasonText.length > 50) "..." else ""}",
+                        color = Color.LightGray,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
             }
 
             if (product.appealReason.isNotEmpty()) {
@@ -595,19 +620,11 @@ fun FlaggedProductCardReal(
             ) {
                 Column {
                     Text(
-                        text = "Flagged by ${product.flaggedBy.size} user(s)",
-                        color = Color.Gray,
-                        fontSize = 12.sp
+                        text = if (product.flagged) "Hidden from listings" else "Visible to users",
+                        color = if (product.flagged) Color.Red.copy(alpha = 0.8f) else Color.Green.copy(alpha = 0.8f),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
                     )
-                    if (!product.availability) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Hidden from listings",
-                            color = Color.Red.copy(alpha = 0.8f),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
                 }
 
                 Text(
@@ -631,7 +648,8 @@ fun FlaggedProductCardReal(
                     text = when (status) {
                         "RESOLVED" -> "View Details"
                         "APPEALED" -> "Review Appeal"
-                        else -> "Review"
+                        "PENDING" -> "Review Flags"
+                        else -> "Manage Review"
                     },
                     color = Color.White,
                     fontWeight = FontWeight.Bold

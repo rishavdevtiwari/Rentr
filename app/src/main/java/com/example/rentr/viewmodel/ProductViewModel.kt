@@ -195,39 +195,6 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
         }
     }
 
-    fun resolveFlaggedProduct(
-        productId: String,
-        callback: (Boolean, String) -> Unit
-    ) {
-        getProductById(productId) { success, message, product ->
-            if (success && product != null) {
-                val updatedProduct = product.copy(
-                    flagged = false,
-                    flaggedBy = emptyList(),
-                    flaggedReason = emptyList(),
-                    appealReason = "",
-                    availability = true
-                )
-                updateProductFlags(productId, updatedProduct, callback)
-            } else {
-                callback(false, "Product not found: $message")
-            }
-        }
-    }
-
-    fun markProductForReview(productId: String, callback: (Boolean, String) -> Unit) {
-        getProductById(productId) { success, message, product ->
-            if (success && product != null) {
-                val updatedProduct = product.copy(
-                    availability = false,
-                    flagged = true
-                )
-                updateProductFlags(productId, updatedProduct, callback)
-            } else {
-                callback(false, "Product not found: $message")
-            }
-        }
-    }
 
     fun endRental(productId: String, callback: (Boolean, String) -> Unit) {
         _loading.postValue(true)
@@ -376,6 +343,41 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
                 updateProduct(productId, updatedProduct, callback)
             } else {
                 _loading.postValue(false)
+                callback(false, "Product not found: $message")
+            }
+        }
+    }
+
+    fun markProductForReview(productId: String, callback: (Boolean, String) -> Unit) {
+        _loading.postValue(true)
+        repo.markProductForReview(productId) { success, message ->
+            if (success) {
+                // Update product in state
+                getProductById(productId) { _, _, _ -> }
+                // Also update flagged products list
+                getFlaggedProducts { _, _, _ -> }
+            }
+            _loading.postValue(false)
+            callback(success, message)
+        }
+    }
+
+    fun resolveFlaggedProduct(
+        productId: String,
+        callback: (Boolean, String) -> Unit
+    ) {
+        getProductById(productId) { success, message, product ->
+            if (success && product != null) {
+                // Clear all flag data but DON'T decrement user flag count
+                val updatedProduct = product.copy(
+                    flagged = false,
+                    flaggedBy = emptyList(),
+                    flaggedReason = emptyList(),
+                    appealReason = "",
+                    availability = true
+                )
+                updateProductFlags(productId, updatedProduct, callback)
+            } else {
                 callback(false, "Product not found: $message")
             }
         }
