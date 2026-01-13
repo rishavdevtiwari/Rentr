@@ -33,6 +33,22 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
     private val _flaggedProducts = MutableLiveData<List<ProductModel>>(emptyList())
     val flaggedProducts: MutableLiveData<List<ProductModel>> = _flaggedProducts
 
+    fun isPaymentPending(product: ProductModel): Boolean {
+        return product.rentalStatus == STATUS_APPROVED
+    }
+
+    fun isReadyForHandover(product: ProductModel): Boolean {
+        return product.rentalStatus == STATUS_PAID
+    }
+
+    fun isRented(product: ProductModel): Boolean {
+        return product.rentalStatus == STATUS_RENTED
+    }
+
+    fun isReturning(product: ProductModel): Boolean {
+        return product.rentalStatus == STATUS_RETURNING
+    }
+
     fun addProduct(product: ProductModel, callback: (Boolean, String, String?) -> Unit) {
         repo.addProduct(product, callback)
     }
@@ -310,15 +326,44 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
             callback(success, message, returnTime)
         }
     }
-
-    fun updateRentalStatus(productId: String, status: String, callback: (Boolean, String) -> Unit) {
+fun updateRentalStatus(productId: String, status: String, callback: (Boolean, String) -> Unit) {
         _loading.postValue(true)
-        repo.updateRentalStatus(productId, status) { success, message ->
-            _loading.postValue(false)
-            if (success) {
-                getProductById(productId) { _, _, _ -> }
+
+
+        getProductById(productId) { success, message, currentProduct ->
+            if (!success || currentProduct == null) {
+                _loading.postValue(false)
+                callback(false, "Product not found")
+                return@getProductById
             }
-            callback(success, message)
+
+
+            if (!isValidStatusTransition(currentProduct.rentalStatus, status)) {
+                _loading.postValue(false)
+                callback(false, "Invalid status transition from ${currentProduct.rentalStatus} to $status")
+                return@getProductById
+            }
+
+            // Update status
+            repo.updateRentalStatus(productId, status) { updateSuccess, updateMessage ->
+                _loading.postValue(false)
+                if (updateSuccess) {
+                    getProductById(productId) { _, _, _ -> }
+                }
+                callback(updateSuccess, updateMessage)
+            }
+        }
+    }
+
+private fun isValidStatusTransition(currentStatus: String, newStatus: String): Boolean {
+        return when (currentStatus) {
+            "" -> newStatus == STATUS_PENDING // Only can go to pending from empty
+            STATUS_PENDING -> newStatus in listOf(STATUS_APPROVED, STATUS_CANCELLED)
+            STATUS_APPROVED -> newStatus in listOf(STATUS_PAID, STATUS_CANCELLED)
+            STATUS_PAID -> newStatus == STATUS_RENTED
+            STATUS_RENTED -> newStatus == STATUS_RETURNING
+            STATUS_RETURNING -> newStatus == STATUS_COMPLETED
+            else -> false
         }
     }
 
@@ -326,25 +371,38 @@ class ProductViewModel(val repo: ProductRepo) : ViewModel() {
         productId: String,
         pickupLocation: String,
         paymentMethod: String,
+        paymentId: String = "",
         callback: (Boolean, String) -> Unit
     ) {
         _loading.postValue(true)
         getProductById(productId) { success, message, product ->
             if (success && product != null) {
                 val updatedProduct = product.copy(
-                    rentalStatus = STATUS_RENTED,
+                    rentalStatus = STATUS_PAID, // Always PAID after checkout
                     pickupLocation = pickupLocation,
                     paymentMethod = paymentMethod,
-                    rentalStartDate = System.currentTimeMillis(),
-                    rentalEndDate = System.currentTimeMillis() + (product.rentalDays * 24 * 60 * 60 * 1000L),
                     availability = false,
                     outOfStock = true
                 )
-                updateProduct(productId, updatedProduct, callback)
+
+                updateProduct(productId, updatedProduct) { updateSuccess, updateMsg ->
+                    _loading.postValue(false)
+                    callback(updateSuccess, updateMsg)
+                }
             } else {
                 _loading.postValue(false)
                 callback(false, "Product not found: $message")
             }
+        }
+    }
+    fun completeCashPayment(productId: String, callback: (Boolean, String) -> Unit) {
+        _loading.postValue(true)
+        repo.completeCashPayment(productId) { success, message ->
+            _loading.postValue(false)
+            if (success) {
+                getProductById(productId) { _, _, _ -> }
+            }
+            callback(success, message)
         }
     }
 

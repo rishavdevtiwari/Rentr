@@ -11,10 +11,12 @@ class ProductRepoImpl : ProductRepo {
     companion object {
         const val STATUS_PENDING = "pending"
         const val STATUS_APPROVED = "approved"
+        const val STATUS_PAID = "paid"
         const val STATUS_RENTED = "rented"
         const val STATUS_RETURNING = "returning"
         const val STATUS_RETURNED = "returned"
         const val STATUS_CANCELLED = "cancelled"
+        const val STATUS_COMPLETED = "completed"
     }
 
     override fun addProduct(
@@ -340,6 +342,8 @@ class ProductRepoImpl : ProductRepo {
         }
     }
 
+
+
     override fun placeRentalRequest(
         productId: String,
         renterId: String,
@@ -348,38 +352,30 @@ class ProductRepoImpl : ProductRepo {
     ) {
         ref.child(productId).runTransaction(object : Transaction.Handler {
             override fun doTransaction(currentData: MutableData): Transaction.Result {
-                val product = currentData.getValue(ProductModel::class.java) ?: return Transaction.success(currentData)
+                val product = currentData.getValue(ProductModel::class.java) ?:
+                return Transaction.success(currentData)
 
-                // Check if product is available
-                if (!product.availability || product.outOfStock) {
+                // Validate product is available for rental
+                if (!product.availability ||
+                    product.outOfStock ||
+                    product.flagged ||
+                    product.rentalStatus.isNotEmpty()) {
                     return Transaction.abort()
                 }
 
-                // Check if there's already a rental request
-                if (product.rentalRequesterId.isNotEmpty()) {
-                    return Transaction.abort()
-                }
-
-                // If same user is requesting again, just update days
-                val updatedProduct = if (product.rentalRequesterId == renterId) {
-                    product.copy(
-                        rentalDays = days,
-                        rentalStatus = "pending"
-                    )
-                } else {
-                    product.copy(
-                        rentalRequesterId = renterId,
-                        rentalDays = days,
-                        rentalStatus = "pending",
-                        rentalStartDate = 0L,
-                        rentalEndDate = 0L
-                    )
-                }
+                // Set rental request - Use explicit status
+                val updatedProduct = product.copy(
+                    rentalRequesterId = renterId,
+                    rentalDays = days,
+                    rentalStatus = "pending",
+                    rentalStartDate = 0L,
+                    rentalEndDate = 0L,
+                    availability = false
+                )
 
                 currentData.value = updatedProduct
                 return Transaction.success(currentData)
             }
-
             override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
                 when {
                     error != null -> callback(false, error.message)
@@ -491,16 +487,18 @@ class ProductRepoImpl : ProductRepo {
             }
         })
     }
+
     override fun handoverProduct(
         productId: String,
         callback: (Boolean, String) -> Unit
     ) {
         ref.child(productId).runTransaction(object : Transaction.Handler {
             override fun doTransaction(currentData: MutableData): Transaction.Result {
-                val product = currentData.getValue(ProductModel::class.java) ?: return Transaction.success(currentData)
+                val product = currentData.getValue(ProductModel::class.java)
+                    ?: return Transaction.success(currentData)
 
-                // Check if product is approved and paid
-                if (product.rentalStatus != "approved") {
+
+                if (product.rentalStatus != STATUS_PAID) {
                     return Transaction.abort()
                 }
 
@@ -508,7 +506,7 @@ class ProductRepoImpl : ProductRepo {
                 val endTime = currentTime + (product.rentalDays * 24 * 60 * 60 * 1000L)
 
                 val updatedProduct = product.copy(
-                    rentalStatus = "rented",
+                    rentalStatus = STATUS_RENTED,
                     rentalStartDate = currentTime,
                     rentalEndDate = endTime,
                     outOfStock = true,
@@ -522,13 +520,42 @@ class ProductRepoImpl : ProductRepo {
             override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
                 when {
                     error != null -> callback(false, error.message)
-                    !committed -> callback(false, "Cannot handover product")
-                    else -> callback(true, "Product handed over")
+                    !committed -> callback(false, "Product must be in 'paid' status for handover")
+                    else -> callback(true, "Product handed over successfully")
                 }
             }
         })
     }
+    override fun completeCashPayment(productId: String, callback: (Boolean, String) -> Unit) {
+        ref.child(productId).runTransaction(object : Transaction.Handler {
+            override fun doTransaction(currentData: MutableData): Transaction.Result {
+                val product = currentData.getValue(ProductModel::class.java)
+                    ?: return Transaction.success(currentData)
 
+                // Only APPROVED Cash on Delivery can be marked as paid
+                if (product.rentalStatus != STATUS_APPROVED || product.paymentMethod != "Cash on Delivery") {
+                    return Transaction.abort()
+                }
+
+                val updatedProduct = product.copy(
+                    rentalStatus = STATUS_PAID,
+                    availability = false,
+                    outOfStock = true
+                )
+
+                currentData.value = updatedProduct
+                return Transaction.success(currentData)
+            }
+
+            override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
+                when {
+                    error != null -> callback(false, error.message)
+                    !committed -> callback(false, "Product not ready for cash payment completion")
+                    else -> callback(true, "Cash payment completed")
+                }
+            }
+        })
+    }
     override fun requestReturn(
         productId: String,
         renterId: String,
@@ -596,7 +623,7 @@ class ProductRepoImpl : ProductRepo {
                     rentalRequesterId = "",
                     rentalDays = 1,
                     rentalStartDate = 0L,
-                    rentalEndDate = 0L,
+                    rentalEndDate = returnTime,
                     outOfStock = false,
                     availability = true
                 )
@@ -661,10 +688,13 @@ class ProductRepoImpl : ProductRepo {
         status: String,
         callback: (Boolean, String) -> Unit
     ) {
-        val updates = mapOf("rentalStatus" to status)
-        ref.child(productId).updateChildren(updates)
-            .addOnSuccessListener { callback(true, "Rental status updated") }
-            .addOnFailureListener { e -> callback(false, e.message ?: "Failed to update rental status") }
+        ref.child(productId).child("rentalStatus").setValue(status)
+            .addOnSuccessListener {
+                callback(true, "Rental status updated to $status")
+            }
+            .addOnFailureListener { e ->
+                callback(false, e.message ?: "Failed to update rental status")
+            }
     }
 
     override fun clearFlags(productId: String, callback: (Boolean, String) -> Unit) {

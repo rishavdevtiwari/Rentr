@@ -111,13 +111,22 @@ fun ListedScreen() {
     }
 
     val filteredList = when (selectedTabIndex) {
-        0 -> products.filter { it.rentalStatus == "" && !it.outOfStock && !it.flagged && it.availability }
-        1 -> products.filter { it.rentalStatus == ProductViewModel.STATUS_PENDING && !it.flagged }
-        2 -> products.filter { it.rentalStatus in listOf(
-            ProductViewModel.STATUS_PAID,
-            ProductViewModel.STATUS_RENTED,
-            ProductViewModel.STATUS_RETURNING
-        ) && !it.flagged }
+        0 -> products.filter {
+            it.rentalStatus == "" && !it.outOfStock && !it.flagged && it.availability
+        }
+        1 -> products.filter {
+            it.rentalStatus in listOf(
+                ProductViewModel.STATUS_PENDING,
+                ProductViewModel.STATUS_APPROVED,
+                ProductViewModel.STATUS_PAID
+            ) && !it.flagged
+        }
+        2 -> products.filter {
+            it.rentalStatus in listOf(
+                ProductViewModel.STATUS_RENTED,
+                ProductViewModel.STATUS_RETURNING
+            ) && !it.flagged
+        }
         3 -> products.filter { it.flagged }
         else -> emptyList()
     }
@@ -282,6 +291,7 @@ fun ProductItemCard(
     ListedItemCard(
         product = product,
         isFlaggedTab = isFlaggedTab,
+        dialogState = dialogState,
         onEditClicked = {
             if (product.flagged && product.flaggedBy.isNotEmpty()) {
                 Toast.makeText(context, "Cannot edit flagged item. Submit appeal first.", Toast.LENGTH_SHORT).show()
@@ -356,6 +366,13 @@ class DialogState {
     var productToHandover by mutableStateOf<ProductModel?>(null)
     var showVerifyReturnDialog by mutableStateOf(false)
     var productToVerifyReturn by mutableStateOf<ProductModel?>(null)
+    var showCodPaymentDialog by mutableStateOf(false)
+    var productToMarkPaid by mutableStateOf<ProductModel?>(null)
+
+    fun showCodPaymentDialog(product: ProductModel) {
+        productToMarkPaid = product
+        showCodPaymentDialog = true
+    }
 
     fun showDeleteDialog(product: ProductModel) {
         productToDelete = product
@@ -531,6 +548,62 @@ fun RenderDialogs(
             )
         }
 
+        if (showCodPaymentDialog && productToMarkPaid != null) {
+            AlertDialog(
+                onDismissRequest = {
+                    showCodPaymentDialog = false
+                    productToMarkPaid = null
+                },
+                title = { Text("Confirm Cash Payment", color = Color.White) },
+                text = {
+                    Column {
+                        Text("Product: ${productToMarkPaid?.title}", color = Color.LightGray)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Amount: NPR. ${String.format("%.2f", productToMarkPaid?.price?.times(productToMarkPaid?.rentalDays ?: 1) ?: 0.0)}",
+                            color = Color.LightGray
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Have you received cash payment from the renter?", color = Color.LightGray)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "⚠️ This will mark the product as PAID and allow handover.",
+                            color = Color.Yellow,
+                            fontSize = 12.sp
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            productToMarkPaid?.let { product ->
+                                productViewModel.completeCashPayment(product.productId) { success, message ->
+                                    if (success) {
+                                        Toast.makeText(context, "Cash payment confirmed", Toast.LENGTH_SHORT).show()
+                                        refreshData()
+                                    } else {
+                                        Toast.makeText(context, "Failed: $message", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                            showCodPaymentDialog = false
+                            productToMarkPaid = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Green)
+                    ) { Text("Yes, Received Payment") }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showCodPaymentDialog = false
+                        productToMarkPaid = null
+                    }) {
+                        Text("Cancel", color = Color.Gray)
+                    }
+                },
+                containerColor = Color(0xFF1E1E1E)
+            )
+        }
+
         if (showHandoverDialog && productToHandover != null) {
             AlertDialog(
                 onDismissRequest = { showHandoverDialog = false },
@@ -623,6 +696,7 @@ fun RenderDialogs(
 fun ListedItemCard(
     product: ProductModel,
     isFlaggedTab: Boolean,
+    dialogState: DialogState,
     onEditClicked: () -> Unit,
     onDeleteClicked: () -> Unit,
     onAppealClicked: () -> Unit,
@@ -644,7 +718,14 @@ fun ListedItemCard(
         isFlagged && hasAppeal -> "APPEAL PENDING"
         isFlagged -> "FLAGGED"
         product.rentalStatus == ProductViewModel.STATUS_PENDING -> "PENDING APPROVAL"
-        product.rentalStatus == ProductViewModel.STATUS_APPROVED -> "APPROVED - AWAITING PAYMENT"
+        product.rentalStatus == ProductViewModel.STATUS_APPROVED -> {
+            if (product.paymentMethod == "Cash on Delivery") {
+                "APPROVED - AWAITING PICKUP"
+            } else {
+                "APPROVED - AWAITING PAYMENT"
+            }
+        }
+        product.rentalStatus == ProductViewModel.STATUS_PAID -> "PAID - AWAITING HANDOVER"
         product.rentalStatus == ProductViewModel.STATUS_RENTED -> "RENTED OUT"
         product.rentalStatus == ProductViewModel.STATUS_RETURNING -> "RETURN REQUESTED"
         product.outOfStock -> "UNAVAILABLE"
@@ -654,6 +735,7 @@ fun ListedItemCard(
     val showChatButton = product.rentalRequesterId.isNotEmpty() &&
             (product.rentalStatus == ProductViewModel.STATUS_PENDING ||
                     product.rentalStatus == ProductViewModel.STATUS_APPROVED ||
+                    product.rentalStatus == ProductViewModel.STATUS_PAID ||
                     product.rentalStatus == ProductViewModel.STATUS_RENTED ||
                     product.rentalStatus == ProductViewModel.STATUS_RETURNING)
 
@@ -700,8 +782,17 @@ fun ListedItemCard(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(product.title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        product.title,
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
 
                     Box(
                         modifier = Modifier.background(
@@ -732,101 +823,47 @@ fun ListedItemCard(
                     }
 
                     if (product.rentalRequesterId.isNotEmpty() && requesterName != null) {
-                        Text("Requested by: $requesterName", color = Color.LightGray, fontSize = 12.sp, maxLines = 1)
+                        Text(
+                            "Requested by: $requesterName",
+                            color = Color.LightGray,
+                            fontSize = 12.sp,
+                            maxLines = 1
+                        )
                     }
 
                     if (isFlagged && !isFlaggedTab) {
-                        Text("Flagged by ${product.flaggedBy.size} user(s)", color = Color.Red.copy(alpha = 0.8f), fontSize = 10.sp)
+                        Text(
+                            "Flagged by ${product.flaggedBy.size} user(s)",
+                            color = Color.Red.copy(alpha = 0.8f),
+                            fontSize = 10.sp
+                        )
                     }
 
                     if (hasAppeal) {
                         Text("✓ Appeal submitted", color = Color.Cyan, fontSize = 10.sp)
                     }
 
-                    Text("NPR. ${String.format("%.2f", product.price)}/day", color = Color.White, fontSize = 13.sp)
+                    Text(
+                        "NPR. ${String.format("%.2f", product.price)}/day",
+                        color = Color.White,
+                        fontSize = 13.sp
+                    )
                 }
 
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    when {
-                        isFlaggedTab -> {
-                            Button(
-                                onClick = onAppealClicked,
-                                enabled = !hasAppeal,
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (hasAppeal) Color.Gray else Orange,
-                                    contentColor = Color.Black
-                                ),
-                                modifier = Modifier.height(35.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Gavel, "Appeal", Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(if (hasAppeal) "Appealed" else "Appeal", fontSize = 10.sp)
-                                }
-                            }
+                if (!isFlagged && product.rentalStatus.isEmpty() && !product.outOfStock) {
+                    Row {
+                        IconButton(
+                            onClick = onEditClicked,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.Edit, "Edit", tint = Color.LightGray)
                         }
-
-                        product.rentalStatus == ProductViewModel.STATUS_PENDING -> {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                IconButton(
-                                    onClick = onRejectClicked,
-                                    modifier = Modifier.size(28.dp).background(Color.Red.copy(alpha = 0.2f), CircleShape)
-                                ) {
-                                    Icon(Icons.Default.Close, "Reject", tint = Color.Red, modifier = Modifier.size(16.dp))
-                                }
-                                IconButton(
-                                    onClick = onAcceptClicked,
-                                    modifier = Modifier.size(28.dp).background(Color(0xFF4CAF50).copy(alpha = 0.2f), CircleShape)
-                                ) {
-                                    Icon(Icons.Default.Check, "Accept", tint = Color(0xFF4CAF50), modifier = Modifier.size(16.dp))
-                                }
-                            }
-                        }
-
-                        product.rentalStatus == ProductViewModel.STATUS_APPROVED -> {
-                            Button(
-                                onClick = onHandoverClicked,
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Orange),
-                                modifier = Modifier.height(35.dp)
-                            ) {
-                                Text("Handover", fontSize = 12.sp)
-                            }
-                        }
-
-                        product.rentalStatus == ProductViewModel.STATUS_RETURNING -> {
-                            Button(
-                                onClick = onVerifyReturnClicked,
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.Green),
-                                modifier = Modifier.height(35.dp)
-                            ) {
-                                Text("Verify Return", fontSize = 12.sp)
-                            }
-                        }
-
-                        else -> {
-                            if (!isFlagged && product.rentalStatus.isEmpty() && !product.outOfStock) {
-                                Row {
-                                    IconButton(
-                                        onClick = onEditClicked,
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(Icons.Default.Edit, "Edit", tint = Color.LightGray)
-                                    }
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    IconButton(
-                                        onClick = onDeleteClicked,
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(Icons.Default.Delete, "Delete", tint = Color.Red)
-                                    }
-                                }
-                            }
+                        Spacer(modifier = Modifier.width(4.dp))
+                        IconButton(
+                            onClick = onDeleteClicked,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.Delete, "Delete", tint = Color.Red)
                         }
                     }
                 }
@@ -834,7 +871,9 @@ fun ListedItemCard(
 
             if (showChatButton ||
                 product.rentalStatus == ProductViewModel.STATUS_PENDING ||
-                product.rentalStatus == ProductViewModel.STATUS_APPROVED) {
+                product.rentalStatus == ProductViewModel.STATUS_APPROVED ||
+                product.rentalStatus == ProductViewModel.STATUS_PAID ||
+                product.rentalStatus == ProductViewModel.STATUS_RETURNING) {
 
                 Divider(
                     color = Color.Gray.copy(alpha = 0.2f),
@@ -857,9 +896,11 @@ fun ListedItemCard(
                             ),
                             modifier = Modifier.height(36.dp)
                         ) {
-                            Icon(Icons.Default.Chat, null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Chat with Renter", fontSize = 12.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Chat, null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Chat with Renter", fontSize = 12.sp)
+                            }
                         }
                     } else {
                         Spacer(modifier = Modifier.weight(1f))
@@ -874,10 +915,10 @@ fun ListedItemCard(
                                         containerColor = Color.Red.copy(alpha = 0.9f),
                                         contentColor = Color.White
                                     ),
-                                    modifier = Modifier.height(32.dp),
-                                    contentPadding = PaddingValues(horizontal = 16.dp)
+                                    modifier = Modifier.height(36.dp),
+                                    contentPadding = PaddingValues(horizontal = 20.dp)
                                 ) {
-                                    Text("Reject", fontSize = 11.sp)
+                                    Text("Reject", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                                 }
 
                                 Button(
@@ -886,22 +927,72 @@ fun ListedItemCard(
                                         containerColor = Color.Green.copy(alpha = 0.9f),
                                         contentColor = Color.White
                                     ),
-                                    modifier = Modifier.height(32.dp),
-                                    contentPadding = PaddingValues(horizontal = 16.dp)
+                                    modifier = Modifier.height(36.dp),
+                                    contentPadding = PaddingValues(horizontal = 20.dp)
                                 ) {
-                                    Text("Accept", fontSize = 11.sp)
+                                    Text("Accept", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                                 }
                             }
                         }
 
                         ProductViewModel.STATUS_APPROVED -> {
+                            if (product.paymentMethod == "Cash on Delivery") {
+                                Button(
+                                    onClick = { dialogState.showCodPaymentDialog(product) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.Green),
+                                    modifier = Modifier.height(36.dp),
+                                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.AttachMoney, null, modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("Cash Received", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                    }
+                                }
+                            } else {
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        "Payment: ${product.paymentMethod}",
+                                        color = if (product.paymentMethod == "Cash on Delivery") Color.Yellow else Color.Cyan,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        "Awaiting ${if (product.paymentMethod == "Cash on Delivery") "pickup & payment" else "payment"}",
+                                        color = Color.LightGray,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                        }
+
+                        ProductViewModel.STATUS_PAID -> {
                             Button(
                                 onClick = onHandoverClicked,
                                 colors = ButtonDefaults.buttonColors(containerColor = Orange),
-                                modifier = Modifier.height(32.dp),
-                                contentPadding = PaddingValues(horizontal = 16.dp)
+                                modifier = Modifier.height(36.dp),
+                                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                             ) {
-                                Text("Handover Product", fontSize = 11.sp)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Handshake, null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Handover Product", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                        }
+
+                        ProductViewModel.STATUS_RETURNING -> {
+                            Button(
+                                onClick = onVerifyReturnClicked,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Green),
+                                modifier = Modifier.height(36.dp),
+                                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Verify Return", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                }
                             }
                         }
                     }
