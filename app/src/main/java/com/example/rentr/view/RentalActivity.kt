@@ -9,10 +9,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -49,6 +51,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.Int
+import kotlin.collections.List
 
 class RentalActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,6 +109,7 @@ fun RentalScreen() {
     val pendingRentals = products.filter {
         it.rentalRequesterId == userId && it.rentalStatus == ProductViewModel.STATUS_PENDING
     }
+
     val activeRentals = products.filter {
         it.rentalRequesterId == userId && it.rentalStatus in listOf(
             ProductViewModel.STATUS_APPROVED,
@@ -370,8 +375,14 @@ fun ActiveRentalCard(
                     Text("NPR. ${rental.price}/day", color = Orange, fontSize = 14.sp)
 
                     val (statusText, statusColor) = when(rental.rentalStatus) {
-                        ProductViewModel.STATUS_APPROVED -> Pair("APPROVED - PAYMENT PENDING", Color.Green)
-                        ProductViewModel.STATUS_PAID -> Pair("PAID - AWAITING HANDOVER", Color.Green)
+                        ProductViewModel.STATUS_APPROVED -> {
+                            if (rental.paymentMethod == "Cash on Delivery") {
+                                Pair("APPROVED - PAYMENT PENDING", Color.Green)
+                            } else {
+                                Pair("APPROVED - PAYMENT PENDING", Color.Green)
+                            }
+                        }
+                        ProductViewModel.STATUS_PAID -> Pair("PAID - AWAITING HANDOVER", Color.Cyan)
                         ProductViewModel.STATUS_RENTED -> Pair("RENTED", Orange)
                         ProductViewModel.STATUS_RETURNING -> Pair("RETURN REQUESTED", Color.Cyan)
                         else -> Pair("ACTIVE", Color.White)
@@ -418,47 +429,78 @@ fun ActiveRentalCard(
                         Text(
                             "Period: $startDate - $endDate",
                             color = Color.LightGray,
-                            fontSize = 12.sp
+                            fontSize = 10.sp
                         )
                     }
                     Text(
                         "Duration: ${rental.rentalDays} days",
                         color = Color.LightGray,
-                        fontSize = 12.sp
+                        fontSize = 10.sp
                     )
                 }
 
                 when {
                     rental.rentalStatus == ProductViewModel.STATUS_APPROVED -> {
-                        Button(
-                            onClick = {
-                                val intent = Intent(context, CheckoutActivity::class.java).apply {
-                                    putExtra("productId", rental.productId)
-                                    putExtra("productTitle", rental.title)
-                                    putExtra("basePrice", rental.price)
-                                    putExtra("rentalPrice", rental.price * rental.rentalDays)
-                                    putExtra("days", rental.rentalDays)
-                                    putExtra("sellerId", rental.listedBy)
+                        if (rental.paymentMethod == "Cash on Delivery") {
+                            Surface(
+                                color = Color.Yellow.copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, Color.Yellow.copy(alpha = 0.3f))
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                                ) {
+                                    Icon(Icons.Default.Money, "Cash", tint = Color.Yellow, modifier = Modifier.size(18.dp))
+                                    Text("Awaiting Pickup & Payment", color = Color.Yellow, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                                 }
-                                context.startActivity(intent)
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Orange),
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Icon(Icons.Default.CreditCard, null, modifier = Modifier.size(16.dp), tint = Color.Black)
-                            Spacer(Modifier.width(4.dp))
-                            Text("Pay Now", color = Color.Black, fontSize = 12.sp)
+                            }
+                        } else {
+                            Button(
+                                onClick = {
+                                    val intent = Intent(context, CheckoutActivity::class.java).apply {
+                                        putExtra("productId", rental.productId)
+                                        putExtra("productTitle", rental.title)
+                                        putExtra("basePrice", rental.price)
+                                        putExtra("rentalPrice", rental.price * rental.rentalDays)
+                                        putExtra("days", rental.rentalDays)
+                                        putExtra("sellerId", rental.listedBy)
+                                    }
+                                    context.startActivity(intent)
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Orange),
+                                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.CreditCard, null, modifier = Modifier.size(18.dp), tint = Color.Black)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        "Pay Now",
+                                        color = Color.Black,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
                         }
                     }
 
                     rental.rentalStatus == ProductViewModel.STATUS_PAID -> {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        Surface(
+                            color = Color.Cyan.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Color.Cyan.copy(alpha = 0.3f))
                         ) {
-                            Icon(Icons.Default.HourglassEmpty, "Waiting", tint = Color.Yellow, modifier = Modifier.size(16.dp))
-                            Text("Awaiting Handover", color = Color.Yellow, fontSize = 12.sp)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                            ) {
+                                Icon(Icons.Default.HourglassEmpty, "Waiting", tint = Color.Cyan, modifier = Modifier.size(18.dp))
+                                Text("Awaiting Handover", color = Color.Cyan, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            }
                         }
                     }
 
@@ -468,27 +510,38 @@ fun ActiveRentalCard(
                                 viewModel.requestReturn(rental.productId, userId) { success, message ->
                                     if (success) {
                                         Toast.makeText(context, "Return request sent to owner", Toast.LENGTH_SHORT).show()
+                                        viewModel.getAllProducts { _, _, _ -> }
                                     } else {
                                         Toast.makeText(context, "Failed: $message", Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                         ) {
-                            Icon(Icons.Default.KeyboardReturn, null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Return", fontSize = 12.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.KeyboardReturn, null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Request Return", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            }
                         }
                     }
 
                     rental.rentalStatus == ProductViewModel.STATUS_RETURNING -> {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        Surface(
+                            color = Color.Cyan.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Color.Cyan.copy(alpha = 0.3f))
                         ) {
-                            Icon(Icons.Default.Info, "Awaiting", tint = Color.Cyan, modifier = Modifier.size(16.dp))
-                            Text("Awaiting Verification", color = Color.Cyan, fontSize = 12.sp)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                            ) {
+                                Icon(Icons.Default.Info, "Awaiting", tint = Color.Cyan, modifier = Modifier.size(18.dp))
+                                Text("Awaiting Verification", color = Color.Cyan, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            }
                         }
                     }
                 }
@@ -496,6 +549,7 @@ fun ActiveRentalCard(
         }
     }
 }
+
 
 @Composable
 fun TransactionProductCard(
