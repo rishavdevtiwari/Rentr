@@ -73,7 +73,7 @@ class ProductRepoImpl : ProductRepo {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val product = snapshot.getValue(ProductModel::class.java)
                 if (product != null) {
-                    callback(true, "Product fetched", product)
+                    callback(true, "Product fetched",  product.copy(productId = snapshot.key ?: productId))
                 } else {
                     callback(false, "Product not found", null)
                 }
@@ -90,7 +90,8 @@ class ProductRepoImpl : ProductRepo {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val products = mutableListOf<ProductModel>()
                 for (data in snapshot.children) {
-                    data.getValue(ProductModel::class.java)?.let { products.add(it) }
+                    data.getValue(ProductModel::class.java)?.let { product ->
+                        products.add(product.copy(productId = data.key ?: "")) }
                 }
                 callback(true, "Products fetched", products)
             }
@@ -110,7 +111,8 @@ class ProductRepoImpl : ProductRepo {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val products = mutableListOf<ProductModel>()
                     for (data in snapshot.children) {
-                        data.getValue(ProductModel::class.java)?.let { products.add(it) }
+                        data.getValue(ProductModel::class.java)?.let { product ->
+                            products.add(product.copy(productId = data.key ?: "")) }
                     }
                     callback(true, "Products fetched", products)
                 }
@@ -127,7 +129,9 @@ class ProductRepoImpl : ProductRepo {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val products = mutableListOf<ProductModel>()
                     for (data in snapshot.children) {
-                        data.getValue(ProductModel::class.java)?.let { products.add(it) }
+                        data.getValue(ProductModel::class.java)?.let { product ->
+                            // Copy productId from document key
+                            products.add(product.copy(productId = data.key ?: ""))}
                     }
                     callback(true, "Available products fetched", products)
                 }
@@ -147,7 +151,8 @@ class ProductRepoImpl : ProductRepo {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val products = mutableListOf<ProductModel>()
                     for (data in snapshot.children) {
-                        data.getValue(ProductModel::class.java)?.let { products.add(it) }
+                        data.getValue(ProductModel::class.java)?.let {  product ->
+                            products.add(product.copy(productId = data.key ?: "")) }
                     }
                     callback(true, "User's products fetched", products)
                 }
@@ -232,8 +237,9 @@ class ProductRepoImpl : ProductRepo {
                     val products = mutableListOf<ProductModel>()
                     for (data in snapshot.children) {
                         data.getValue(ProductModel::class.java)?.let { product ->
-                            if (product.flagged) {
-                                products.add(product)
+                            val productWithId = product.copy(productId = data.key ?: "")
+                            if (productWithId.flagged) {
+                                products.add(productWithId)
                             }
                         }
                     }

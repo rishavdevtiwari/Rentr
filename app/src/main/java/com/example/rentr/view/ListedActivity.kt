@@ -112,12 +112,12 @@ fun ListedScreen() {
 
     val filteredList = when (selectedTabIndex) {
         0 -> products.filter { it.rentalStatus == "" && !it.outOfStock && !it.flagged && it.availability }
-        1 -> products.filter { it.rentalStatus == ProductViewModel.STATUS_PENDING }
+        1 -> products.filter { it.rentalStatus == ProductViewModel.STATUS_PENDING && !it.flagged }
         2 -> products.filter { it.rentalStatus in listOf(
             ProductViewModel.STATUS_PAID,
             ProductViewModel.STATUS_RENTED,
             ProductViewModel.STATUS_RETURNING
-        ) }
+        ) && !it.flagged }
         3 -> products.filter { it.flagged }
         else -> emptyList()
     }
