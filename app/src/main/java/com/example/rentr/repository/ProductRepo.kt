@@ -34,7 +34,36 @@ interface ProductRepo {
     )
 
     fun endRental(productId: String, callback: (Boolean, String) -> Unit)
+    fun placeRentalRequest(
+        productId: String,
+        renterId: String,
+        days: Int,
+        callback: (Boolean, String) -> Unit
+    )
 
+    fun cancelRentalRequest(
+        productId: String,
+        renterId: String,
+        callback: (Boolean, String) -> Unit
+    )
+    fun approveRentalRequest(productId: String, callback: (Boolean, String) -> Unit)
+    fun rejectRentalRequest(productId: String, callback: (Boolean, String) -> Unit)
+    fun handoverProduct(
+        productId: String,
+        callback: (Boolean, String) -> Unit
+    )
+
+    fun requestReturn(
+        productId: String,
+        renterId: String,
+        callback: (Boolean, String) -> Unit
+    )
+
+    fun verifyReturn(
+        productId: String,
+        callback: (Boolean, String, Long) -> Unit
+    )
+    fun updateRentalStatus(productId: String, status: String, callback: (Boolean, String) -> Unit)
     fun clearFlags(productId: String, callback: (Boolean, String) -> Unit)
 }
 

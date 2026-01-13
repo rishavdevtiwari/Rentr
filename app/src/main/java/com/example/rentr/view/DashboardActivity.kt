@@ -1,9 +1,11 @@
 package com.example.rentr.view
 
+import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -21,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
@@ -48,11 +51,11 @@ import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.promo
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
-import android.Manifest
-import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class DashboardActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,35 +64,17 @@ class DashboardActivity : ComponentActivity() {
         if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) && (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
         }
-        // 2. FORCE SAVE TOKEN (The "Nuclear" Option)
-        // We use the Hardcoded URL here to ensure it works even if google-services.json is wrong.
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 val token = task.result
                 val currentUser = FirebaseAuth.getInstance().currentUser
-
                 if (currentUser != null) {
-                    Log.d("FCM_DEBUG", "Found User: ${currentUser.uid}")
-                    Log.d("FCM_DEBUG", "Token to save: $token")
-
-                    // --- KEY FIX: Hardcoded Database URL ---
                     val database = FirebaseDatabase.getInstance("https://rentr-db9e6-default-rtdb.firebaseio.com/")
-
                     database.getReference("users")
                         .child(currentUser.uid)
                         .child("fcmToken")
                         .setValue(token)
-                        .addOnSuccessListener {
-                            Log.d("FCM_DEBUG", "✅ SUCCESS! Token saved to Realtime DB.")
-                        }
-                        .addOnFailureListener { e ->
-                            Log.e("FCM_DEBUG", "❌ FAILED to save token.", e)
-                        }
-                } else {
-                    Log.e("FCM_DEBUG", "❌ User is null in Dashboard.")
                 }
-            } else {
-                Log.e("FCM_DEBUG", "❌ Failed to get FCM token", task.exception)
             }
         }
         setContent {
@@ -109,34 +94,46 @@ val categories = listOf(
     Category("Sports & Adventure", Icons.Default.DirectionsBike),
     Category("Baby Items", Icons.Default.Toys)
 )
-private val primaryColor = Color.Black
-private val secondaryColor = Color(0xFF2A2A2A)
-private val accentColor = Color(0xFFFF6200)
 private val textColor = Color.White
-private val textLightColor = Color(0xFFAFAFAF)
+private val accentColor = Color(0xFFFF6200)
 private val cardBackgroundColor = Color(0xFF2C2C2E)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen() {
-
     val userViewModelDash = remember { UserViewModel(UserRepoImpl()) }
     val productViewModel = remember { ProductViewModel(ProductRepoImpl()) }
     val user by userViewModelDash.user.observeAsState(null)
     val products by productViewModel.allProducts.observeAsState()
 
-    LaunchedEffect(Unit) {
-        userViewModelDash.getCurrentUser()?.uid?.let { userId ->
-            userViewModelDash.getUserById(userId) { _, _, _ ->
-            }
-        }
-    }
+    var isRefreshing by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     var selectedCategoryName by remember { mutableStateOf("All") }
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
 
-    val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
+    fun refreshData() {
+        coroutineScope.launch {
+            isRefreshing = true
+            userViewModelDash.getCurrentUser()?.uid?.let { userId ->
+                userViewModelDash.getUserById(userId) { _, _, _ -> }
+            }
+            if (selectedCategoryName == "All") {
+                productViewModel.getAllProducts { _, _, _ -> }
+            } else {
+                productViewModel.getAllProductsByCategory(selectedCategoryName) { _, _, _ -> }
+            }
+            delay(1000)
+            isRefreshing = false
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        userViewModelDash.getCurrentUser()?.uid?.let { userId ->
+            userViewModelDash.getUserById(userId) { _, _, _ -> }
+        }
+    }
 
     LaunchedEffect(selectedCategoryName) {
         if (selectedCategoryName == "All") {
@@ -147,159 +144,153 @@ fun DashboardScreen() {
     }
 
     val filteredProducts = products?.filter {
-        it.verified && !it.flagged //&& it.title.contains(searchQuery, ignoreCase = true)
+        it.verified && !it.flagged
     } ?: emptyList()
 
-    // Limit to 6 items for the dashboard preview
     val displayedProducts = filteredProducts.take(6)
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = Color.Black,
         modifier = Modifier.pointerInput(Unit) {
             detectTapGestures { focusManager.clearFocus() }
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { refreshData() },
+            modifier = Modifier.padding(paddingValues)
         ) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                TopBar(userName = user?.fullName, userViewModelDash)
-                Spacer(modifier = Modifier.height(20.dp))
-                DashboardSearchBar()
-                Spacer(modifier = Modifier.height(20.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp)
-                        .padding(vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Card(
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    TopBar(userName = user?.fullName, userViewModelDash)
+                    Spacer(modifier = Modifier.height(20.dp))
+                    DashboardSearchBar()
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(140.dp),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                            .height(160.dp)
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-
-                        Box(
+                        Card(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.linearGradient(
-                                        colors = listOf(promo, Color(0xFF1A1A1A)), // Fades from your promo color to dark
-                                        start = androidx.compose.ui.geometry.Offset(0f, 0f),
-                                        end = androidx.compose.ui.geometry.Offset(1000f, 1000f)
-                                    )
-                                )
-                                .padding(20.dp)
+                                .fillMaxWidth()
+                                .height(140.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Don't Buy, Just Rent!",
-                                        color = Orange,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 14.sp,
-                                        letterSpacing = 1.sp
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "Experience more for less. Rent quality items near you.",
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 16.sp,
-                                        lineHeight = 20.sp
-                                    )
-                                    Spacer(modifier = Modifier.height(10.dp))
-
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = Orange.copy(alpha = 0.2f)
-                                    ) {
-                                        Text(
-                                            text = "Explore Now",
-                                            color = Orange,
-                                            fontSize = 12.sp,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                            fontWeight = FontWeight.Bold
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.linearGradient(
+                                            colors = listOf(promo, Color(0xFF1A1A1A)),
+                                            start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                                            end = androidx.compose.ui.geometry.Offset(1000f, 1000f)
                                         )
+                                    )
+                                    .padding(20.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Don't Buy, Just Rent!",
+                                            color = Orange,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 14.sp,
+                                            letterSpacing = 1.sp
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Experience more for less. Rent quality items near you.",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Medium,
+                                            fontSize = 16.sp,
+                                            lineHeight = 20.sp
+                                        )
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = Orange.copy(alpha = 0.2f)
+                                        ) {
+                                            Text(
+                                                text = "Explore Now",
+                                                color = Orange,
+                                                fontSize = 12.sp,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
                                     }
+                                    Spacer(modifier = Modifier.width(80.dp))
                                 }
-
-                                Spacer(modifier = Modifier.width(80.dp))
                             }
                         }
+                        Image(
+                            painter = painterResource(R.drawable.rentrimage),
+                            contentDescription = "Rentr Logo",
+                            modifier = Modifier
+                                .size(160.dp)
+                                .align(Alignment.CenterEnd)
+                                .offset(x = 20.dp, y = (-5).dp)
+                        )
                     }
-
-                    //logoo
-                    Image(
-                        painter = painterResource(R.drawable.rentrimage),
-                        contentDescription = "Rentr Logo",
-                        modifier = Modifier
-                            .size(160.dp) // Large enough to overlap slightly for depth
-                            .align(Alignment.CenterEnd)
-                            .offset(x = 20.dp, y = (-5).dp) // Artistic offset
-                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Categories", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Show All",
+                            color = Orange.copy(0.7f),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.clickable {
+                                val intent = Intent(context, CategoryActivity::class.java)
+                                intent.putExtra("Category", selectedCategoryName)
+                                context.startActivity(intent)
+                            }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
                 }
-                Spacer(modifier = Modifier.height(20.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text("Categories", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    Text(
-                        "Show All",
-                        color = Orange.copy(0.7f),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.clickable {
-//                            val targetCategory = if (selectedCategoryName == "All") "All" else selectedCategoryName
-                            val intent = Intent(context, CategoryActivity::class.java)
-                            intent.putExtra("Category", selectedCategoryName)
-                            context.startActivity(intent)
+                    item {
+                        CategorySearchChip("All", selectedCategoryName == "All") {
+                            selectedCategoryName = "All"
                         }
-                    )
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-            }
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                item {
-                    CategorySearchChip("All", selectedCategoryName == "All") {
-                        selectedCategoryName = "All"
+                    }
+                    items(categories) { category ->
+                        CategorySearchChip(category.name, selectedCategoryName == category.name) {
+                            selectedCategoryName = category.name
+                        }
                     }
                 }
-                items(categories) { category ->
-                    CategorySearchChip(category.name, selectedCategoryName == category.name) {
-                        selectedCategoryName = category.name
-                    }
+                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    Spacer(modifier = Modifier.height(20.dp))
+                    ProductGrid(products = displayedProducts)
+                    Spacer(modifier = Modifier.height(100.dp))
                 }
-            }
-
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                Spacer(modifier = Modifier.height(20.dp))
-                ProductGrid(products = displayedProducts)
-                Spacer(modifier = Modifier.height(100.dp))
             }
         }
     }
 }
 
-
-
 @Composable
-fun TopBar(userName: String?,userViewModel: UserViewModel) {
+fun TopBar(userName: String?, userViewModel: UserViewModel) {
     val user by userViewModel.user.observeAsState(null)
     val context = LocalContext.current
     Row(
@@ -321,7 +312,7 @@ fun TopBar(userName: String?,userViewModel: UserViewModel) {
                     .size(37.dp)
                     .clip(CircleShape)
                     .background(Brush.verticalGradient(listOf(accentColor, Color(0xFFFFC66C))))
-                    .padding(2.dp) // Simulates border
+                    .padding(2.dp)
                     .clip(CircleShape)
                     .background(cardBackgroundColor)
             ) {
@@ -352,7 +343,8 @@ fun TopBar(userName: String?,userViewModel: UserViewModel) {
                 )
             }
         }
-        IconButton(onClick = {val intent = Intent (context, NotificationActivity::class.java)
+        IconButton(onClick = {
+            val intent = Intent (context, NotificationActivity::class.java)
             context.startActivity(intent)
         }) {
             Icon(Icons.Default.Notifications, contentDescription = null, tint = Color.White)
@@ -379,38 +371,13 @@ fun DashboardSearchBar() {
             placeholder = { Text("Search for items...", color = Color.Gray) },
             leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
             shape = RoundedCornerShape(18.dp),
-            colors = TextFieldDefaults.colors(
+            colors = OutlinedTextFieldDefaults.colors(
                 disabledContainerColor = Field,
-                disabledIndicatorColor = Color.Transparent,
+                disabledBorderColor = Color.Transparent,
                 disabledPlaceholderColor = Color.Gray,
                 disabledLeadingIconColor = Color.Gray
             )
         )
-    }
-}
-
-@Composable
-fun CategorySelection(selectedCategory: String?, onCategorySelected: (String) -> Unit) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp)
-    ) {
-        items(categories) { category ->
-            val isSelected = selectedCategory == category.name
-            Box(
-                modifier = Modifier
-                    .clickable { onCategorySelected(category.name) }
-                    .background(if (isSelected) Orange else Field, RoundedCornerShape(16.dp))
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    category.name,
-                    color = Color.White,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                )
-            }
-        }
     }
 }
 
@@ -442,8 +409,6 @@ fun ProductGrid(products: List<ProductModel>) {
 @Composable
 fun ProductCard(product: ProductModel) {
     val context = LocalContext.current
-    val imageUrl = product.imageUrl.firstOrNull()
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -457,7 +422,7 @@ fun ProductCard(product: ProductModel) {
         colors = CardDefaults.cardColors(containerColor = Field)
     ) {
         AsyncImage(
-            model = imageUrl,
+            model = product.imageUrl.firstOrNull(),
             placeholder = painterResource(id = R.drawable.rentrimage),
             error = painterResource(id = R.drawable.rentrimage),
             contentDescription = product.title,
@@ -465,10 +430,4 @@ fun ProductCard(product: ProductModel) {
             contentScale = ContentScale.Crop
         )
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun DashboardScreenPreview() {
-    DashboardScreen()
 }

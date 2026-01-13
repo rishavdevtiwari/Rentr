@@ -29,6 +29,7 @@ import com.example.rentr.model.TransactionModel
 import com.example.rentr.repository.ProductRepoImpl
 import com.example.rentr.repository.TransactionRepoImpl
 import com.example.rentr.repository.UserRepoImpl
+import com.example.rentr.ui.theme.Field
 import com.example.rentr.ui.theme.Orange
 import com.example.rentr.ui.theme.RentrTheme
 import com.example.rentr.viewmodel.ProductViewModel
@@ -37,7 +38,8 @@ import com.example.rentr.viewmodel.UserViewModel
 import com.khalti.checkout.Khalti
 import com.khalti.checkout.data.Environment
 import com.khalti.checkout.data.KhaltiPayConfig
-import java.util.UUID
+import java.text.SimpleDateFormat
+import java.util.*
 
 class CheckoutActivity : ComponentActivity() {
 
@@ -110,8 +112,14 @@ fun CheckoutScreen(
 
     // Handlers for Transaction Creation
     val createTransactionRecord: (String) -> Unit = { paymentMethod ->
+        val currentTime = System.currentTimeMillis()
+        val endTime = currentTime + (days * 24L * 60 * 60 * 1000)
+
+        val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+        val transactionId = "TRX_${currentTime}_${UUID.randomUUID().toString().substring(0, 8)}"
+
         val transaction = TransactionModel(
-            transactionId = UUID.randomUUID().toString(),
+            transactionId = transactionId,
             productId = productId,
             renterId = currentUser?.uid ?: "",
             sellerId = sellerId,
@@ -119,9 +127,10 @@ fun CheckoutScreen(
             rentalPrice = rentalPrice,
             days = days,
             paymentOption = paymentMethod,
+            startTime = dateFormat.format(Date(currentTime)),
+            endTime = dateFormat.format(Date(endTime)),
             pickupLocation = location,
-            startTime = System.currentTimeMillis().toString(),
-            endTime = (System.currentTimeMillis() + (days * 24L * 60 * 60 * 1000)).toString()
+            paymentId = "PAY_$currentTime"
         )
         transactionViewModel.addTransaction(transaction)
     }
@@ -147,22 +156,29 @@ fun CheckoutScreen(
         }
     }
 
-    // Final Success Logic: Syncing Product State
+    // Final Success Logic: Syncing Product State - UPDATED
     LaunchedEffect(transactionResult) {
         transactionResult?.let { (success, _) ->
             if (success) {
-                productViewModel.getProductById(productId) { pSuccess, _, product ->
-                    if (pSuccess && product != null) {
-                        // Crucial Update: outOfStock = true makes it invisible to others
-                        // rentalStatus = "rented" moves it to Active tab in dashboards
-                        val updated = product.copy(outOfStock = true, rentalStatus = "rented")
-                        productViewModel.updateProduct(productId, updated) { uSuccess, _ ->
+                if (selectedPayment == "Cash on Delivery") {
+                    // For Cash on Delivery, just create transaction record
+                    Toast.makeText(context, "Order placed successfully!", Toast.LENGTH_LONG).show()
+                    activity?.finish()
+                } else {
+                    // For online payment, product status will be updated after payment
+                    productViewModel.completeCheckout(
+                        productId = productId,
+                        pickupLocation = location,
+                        paymentMethod = selectedPayment,
+                        callback = { uSuccess, message ->
                             if (uSuccess) {
-                                Toast.makeText(context, "Handshake Complete!", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, "Payment successful! Rental started.", Toast.LENGTH_LONG).show()
                                 activity?.finish()
+                            } else {
+                                Toast.makeText(context, "Error: $message", Toast.LENGTH_LONG).show()
                             }
                         }
-                    }
+                    )
                 }
             }
         }
@@ -198,7 +214,11 @@ fun CheckoutScreen(
                 enabled = !isLoading
             ) {
                 if (isLoading) CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(24.dp))
-                else Text("Confirm & Pay", fontWeight = FontWeight.Bold, color = Color.Black)
+                else Text(
+                    if (selectedPayment == "Cash on Delivery") "Place Order" else "Confirm & Pay",
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
             }
         }
     ) { padding ->
@@ -230,8 +250,10 @@ fun CheckoutScreen(
                 label = { Text("Pickup Location Details") },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-                    focusedBorderColor = Orange, cursorColor = Orange
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Orange,
+                    cursorColor = Orange
                 )
             )
 
