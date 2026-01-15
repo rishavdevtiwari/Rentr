@@ -80,7 +80,7 @@ fun LoginBody() {
     fun onGoogleSignInClicked() {
         val googleIdOption = GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)
-            .setServerClientId("REPLACE_WITH_YOUR_WEB_CLIENT_ID.apps.googleusercontent.com")
+            .setServerClientId("603256134770-utm1u6ee3jnohkna3vo7peii3k6ejuhh.apps.googleusercontent.com")
             .build()
 
         val request = GetCredentialRequest.Builder()
