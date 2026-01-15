@@ -2,7 +2,6 @@ package com.example.rentr.view
 
 import android.app.Activity
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -31,12 +30,15 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.rentr.R
+import com.example.rentr.model.UserModel
+import com.example.rentr.repository.NotificationRepoImpl
 import com.example.rentr.repository.ProductRepoImpl
 import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.viewmodel.AdminFlagViewModel
 import com.example.rentr.viewmodel.ProductViewModel
 import com.example.rentr.viewmodel.UserViewModel
 
+// --- Colors ---
 private val primaryColor = Color(0xFF1E1E1E)
 private val accentColor = Color(0xFFFF6200)
 private val successColor = Color(0xFF4CAF50)
@@ -65,13 +67,30 @@ fun FlagReviewScreen(productId: String) {
     val context = LocalContext.current
     val activity = context as? Activity
 
-    val productViewModel = remember { ProductViewModel(ProductRepoImpl()) }
-    val userViewModel = remember { UserViewModel(UserRepoImpl()) }
-    val adminFlagViewModel: AdminFlagViewModel = viewModel()
+    val productRepo = remember { ProductRepoImpl() }
+    val userRepo = remember { UserRepoImpl() }
+    val notifRepo = remember { NotificationRepoImpl(context.applicationContext) }
+
+
+    // A. Product ViewModel
+    val productViewModel: ProductViewModel = viewModel(
+        factory = ProductViewModel.Factory(productRepo)
+    )
+
+    // B. User ViewModel
+    val userViewModel: UserViewModel = viewModel(
+        factory = UserViewModel.Factory(userRepo)
+    )
+
+    // C. Admin Flag ViewModel
+    val adminFlagViewModel: AdminFlagViewModel = viewModel(
+        factory = AdminFlagViewModel.Factory(productRepo, userRepo, notifRepo)
+    )
+
 
     val product by productViewModel.product.observeAsState()
-    var sellerInfo by remember { mutableStateOf<com.example.rentr.model.UserModel?>(null) }
-    var flaggerInfo by remember { mutableStateOf<com.example.rentr.model.UserModel?>(null) }
+    var sellerInfo by remember { mutableStateOf<UserModel?>(null) }
+    var flaggerInfo by remember { mutableStateOf<UserModel?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
     // Dialog States
@@ -80,13 +99,16 @@ fun FlagReviewScreen(productId: String) {
     var showMarkDialog by remember { mutableStateOf(false) }
     var showDeleteUserDialog by remember { mutableStateOf(false) }
 
+
     LaunchedEffect(productId) {
         if (productId.isNotEmpty()) {
             productViewModel.getProductById(productId) { success, _, productData ->
                 if (success && productData != null) {
+                    // Fetch Seller Info
                     userViewModel.getUserById(productData.listedBy) { sellerSuccess, _, seller ->
                         if (sellerSuccess) sellerInfo = seller
                     }
+                    // Fetch Flagger Info (Optional)
                     productData.flaggedBy.firstOrNull()?.let { flaggerId ->
                         userViewModel.getUserById(flaggerId) { flaggerSuccess, _, flagger ->
                             if (flaggerSuccess) flaggerInfo = flagger
@@ -95,9 +117,12 @@ fun FlagReviewScreen(productId: String) {
                 }
                 isLoading = false
             }
+        } else {
+            isLoading = false
         }
     }
 
+    // Helper to determine status badge text
     fun getProductStatus(): String {
         return when {
             product?.appealReason?.isNotEmpty() == true -> "APPEALED"
@@ -107,6 +132,9 @@ fun FlagReviewScreen(productId: String) {
         }
     }
 
+    // ---------------------------------------------------------
+    // 5. UI LAYOUT
+    // ---------------------------------------------------------
     Scaffold(
         topBar = {
             TopAppBar(
@@ -122,9 +150,13 @@ fun FlagReviewScreen(productId: String) {
         containerColor = primaryColor
     ) { paddingValues ->
         if (isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = accentColor) }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = accentColor)
+            }
         } else if (product == null) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Product not found", color = textColor) }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Product not found", color = textColor)
+            }
         } else {
             Column(
                 modifier = Modifier
@@ -132,7 +164,7 @@ fun FlagReviewScreen(productId: String) {
                     .padding(paddingValues)
                     .verticalScroll(rememberScrollState())
             ) {
-                // Status Badge
+                // --- Status Badge ---
                 Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                     Box(
                         Modifier
@@ -141,8 +173,8 @@ fun FlagReviewScreen(productId: String) {
                             .background(
                                 when (getProductStatus()) {
                                     "APPEALED" -> infoColor
-                                    "PENDING REVIEW" -> Color(0xFFFF9800) // Orange
-                                    "UNDER REVIEW" -> warningColor
+                                    "PENDING REVIEW" -> warningColor
+                                    "UNDER REVIEW" -> errorColor
                                     "RESOLVED" -> successColor
                                     else -> warningColor
                                 }.copy(alpha = 0.9f)
@@ -155,7 +187,7 @@ fun FlagReviewScreen(productId: String) {
 
                 Column(Modifier.fillMaxWidth().padding(16.dp)) {
 
-                    // --- SELLER INFO (With Delete User Button) ---
+                    // --- 1. SELLER INFO CARD ---
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -180,13 +212,13 @@ fun FlagReviewScreen(productId: String) {
                                 FlagInfoRow(Icons.Default.Person, "Name", seller.fullName, textLightColor)
                                 FlagInfoRow(Icons.Default.Email, "Email", seller.email, textLightColor)
                                 FlagInfoRow(Icons.Default.Flag, "Flags", seller.flagCount.toString(), textLightColor)
-                            } ?: Text("Loading...", color = textLightColor)
+                            } ?: Text("Loading seller info...", color = textLightColor)
                         }
                     }
 
                     Spacer(Modifier.height(16.dp))
 
-                    // --- PRODUCT DETAILS ---
+                    // --- 2. PRODUCT DETAILS CARD ---
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -204,7 +236,8 @@ fun FlagReviewScreen(productId: String) {
                                     contentDescription = null,
                                     modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(8.dp)),
                                     contentScale = ContentScale.Crop,
-                                    placeholder = painterResource(R.drawable.rentrimage)
+                                    placeholder = painterResource(R.drawable.rentrimage),
+                                    error = painterResource(R.drawable.rentrimage)
                                 )
                                 Spacer(Modifier.height(12.dp))
                             }
@@ -215,7 +248,7 @@ fun FlagReviewScreen(productId: String) {
 
                     Spacer(Modifier.height(16.dp))
 
-                    // --- FLAG DETAILS ---
+                    // --- 3. FLAG REASON CARD ---
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -235,12 +268,12 @@ fun FlagReviewScreen(productId: String) {
                                     }
                                 }
                             } else {
-                                Text("No user flags", color = textLightColor, fontSize = 13.sp)
+                                Text("No active user flags", color = textLightColor, fontSize = 13.sp)
                             }
 
                             if (product?.appealReason?.isNotEmpty() == true) {
                                 Spacer(Modifier.height(12.dp))
-                                Text("Appeal:", color = Color.Cyan, fontWeight = FontWeight.Medium)
+                                Text("Appeal Message:", color = Color.Cyan, fontWeight = FontWeight.Medium)
                                 Text(product!!.appealReason, color = Color.Cyan.copy(alpha = 0.8f), fontStyle = FontStyle.Italic)
                             }
                         }
@@ -248,7 +281,7 @@ fun FlagReviewScreen(productId: String) {
 
                     Spacer(Modifier.height(24.dp))
 
-                    // --- ACTION BUTTONS (Delete, Resolve, Mark) ---
+                    // --- 4. ACTION BUTTONS ---
                     val hasUserFlags = product?.flaggedBy?.isNotEmpty() == true
                     val isUnderAdminReview = product?.flagged == true
 
@@ -264,7 +297,7 @@ fun FlagReviewScreen(productId: String) {
                                 ) {
                                     Icon(Icons.Default.Flag, null, Modifier.size(20.dp))
                                     Spacer(Modifier.width(8.dp))
-                                    Text("Mark for Review")
+                                    Text("Mark for Review (Notify User)")
                                 }
                             }
 
@@ -308,9 +341,11 @@ fun FlagReviewScreen(productId: String) {
         }
     }
 
-    // --- DIALOGS ---
+    // ---------------------------------------------------------
+    // 6. DIALOGS
+    // ---------------------------------------------------------
 
-    // 1. DELETE PRODUCT
+    // 1. DELETE PRODUCT DIALOG
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -324,7 +359,10 @@ fun FlagReviewScreen(productId: String) {
             },
             confirmButton = {
                 Button(onClick = {
-                    product?.let { adminFlagViewModel.deleteProduct(it); activity?.finish() }
+                    product?.let {
+                        adminFlagViewModel.deleteProduct(it)
+                        activity?.finish()
+                    }
                 }, colors = ButtonDefaults.buttonColors(containerColor = errorColor)) { Text("Delete") }
             },
             dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") } },
@@ -332,7 +370,7 @@ fun FlagReviewScreen(productId: String) {
         )
     }
 
-    // 2. RESOLVE FLAG
+    // 2. RESOLVE FLAG DIALOG
     if (showResolveDialog) {
         AlertDialog(
             onDismissRequest = { showResolveDialog = false },
@@ -346,7 +384,10 @@ fun FlagReviewScreen(productId: String) {
             },
             confirmButton = {
                 Button(onClick = {
-                    product?.let { adminFlagViewModel.resolveFlag(it); activity?.finish() }
+                    product?.let {
+                        adminFlagViewModel.resolveFlag(it)
+                        activity?.finish()
+                    }
                 }, colors = ButtonDefaults.buttonColors(containerColor = successColor)) { Text("Resolve") }
             },
             dismissButton = { TextButton(onClick = { showResolveDialog = false }) { Text("Cancel") } },
@@ -354,7 +395,7 @@ fun FlagReviewScreen(productId: String) {
         )
     }
 
-    // 3. MARK FOR REVIEW
+    // 3. MARK FOR REVIEW DIALOG
     if (showMarkDialog) {
         AlertDialog(
             onDismissRequest = { showMarkDialog = false },
@@ -362,7 +403,6 @@ fun FlagReviewScreen(productId: String) {
             text = {
                 Column {
                     Text("This will:", color = textLightColor)
-                    Text("• Set flagged = true", color = textLightColor)
                     Text("• Hide product from listings", color = textLightColor)
                     Text("• Increase seller's flag count", color = warningColor.copy(alpha = 0.8f))
                     Text("• Send notification to seller", color = textLightColor)
@@ -370,9 +410,12 @@ fun FlagReviewScreen(productId: String) {
             },
             confirmButton = {
                 Button(onClick = {
-                    product?.let { adminFlagViewModel.markForReview(it); activity?.finish() }
+                    product?.let {
+                        adminFlagViewModel.markForReview(it)
+                        activity?.finish()
+                    }
                 }, colors = ButtonDefaults.buttonColors(containerColor = warningColor)) {
-                    Text("Mark for Review")
+                    Text("Confirm")
                 }
             },
             dismissButton = { TextButton(onClick = { showMarkDialog = false }) { Text("Cancel") } },
@@ -380,7 +423,7 @@ fun FlagReviewScreen(productId: String) {
         )
     }
 
-    // 4. DELETE USER
+    // 4. DELETE USER DIALOG
     if (showDeleteUserDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteUserDialog = false },
@@ -388,7 +431,10 @@ fun FlagReviewScreen(productId: String) {
             text = { Text("This will delete the user's data permanently. A notification will be sent.", color = errorColor) },
             confirmButton = {
                 Button(onClick = {
-                    product?.listedBy?.let { adminFlagViewModel.deleteUserAccount(it); activity?.finish() }
+                    product?.listedBy?.let {
+                        adminFlagViewModel.deleteUserAccount(it)
+                        activity?.finish()
+                    }
                 }, colors = ButtonDefaults.buttonColors(containerColor = errorColor)) { Text("Delete User") }
             },
             dismissButton = { TextButton(onClick = { showDeleteUserDialog = false }) { Text("Cancel") } },
@@ -397,6 +443,7 @@ fun FlagReviewScreen(productId: String) {
     }
 }
 
+// --- Helper Composable ---
 @Composable
 fun FlagInfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String, color: Color) {
     Row(Modifier.padding(vertical = 4.dp)) {

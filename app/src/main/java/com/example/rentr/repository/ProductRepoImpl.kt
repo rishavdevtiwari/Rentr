@@ -1,5 +1,6 @@
 package com.example.rentr.repository
 
+import android.util.Log
 import com.example.rentr.model.ProductModel
 import com.google.firebase.database.*
 
@@ -45,7 +46,7 @@ class ProductRepoImpl : ProductRepo {
         product: ProductModel,
         callback: (Boolean, String) -> Unit
     ) {
-        ref.child(productId).updateChildren(product.toMap()).addOnCompleteListener { 
+        ref.child(productId).updateChildren(product.toMap()).addOnCompleteListener {
             if (it.isSuccessful) {
                 callback(true, "Product updated")
             } else {
@@ -67,17 +68,30 @@ class ProductRepoImpl : ProductRepo {
         }
     }
 
+    // --- CRASH FIX APPLIED HERE ---
     override fun getProductById(
         productId: String,
         callback: (Boolean, String, ProductModel?) -> Unit
     ) {
+        if (productId.isEmpty()) {
+            callback(false, "Invalid Product ID", null)
+            return
+        }
+
         ref.child(productId).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val product = snapshot.getValue(ProductModel::class.java)
-                if (product != null) {
-                    callback(true, "Product fetched",  product.copy(productId = snapshot.key ?: productId))
-                } else {
-                    callback(false, "Product not found", null)
+                try {
+                    // Try to parse the product
+                    val product = snapshot.getValue(ProductModel::class.java)
+                    if (product != null) {
+                        callback(true, "Fetched", product.copy(productId = snapshot.key ?: productId))
+                    } else {
+                        callback(false, "Product data is null", null)
+                    }
+                } catch (e: Exception) {
+                    // CATCH THE CRASH (Data Mismatch)
+                    android.util.Log.e("Repo", "Crash prevented: ${e.message}")
+                    callback(false, "Error loading data: ${e.message}", null)
                 }
             }
 
@@ -92,8 +106,13 @@ class ProductRepoImpl : ProductRepo {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val products = mutableListOf<ProductModel>()
                 for (data in snapshot.children) {
-                    data.getValue(ProductModel::class.java)?.let { product ->
-                        products.add(product.copy(productId = data.key ?: "")) }
+                    try {
+                        data.getValue(ProductModel::class.java)?.let { product ->
+                            products.add(product.copy(productId = data.key ?: ""))
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ProductRepo", "Skipping bad product in getAllProducts: ${data.key}")
+                    }
                 }
                 callback(true, "Products fetched", products)
             }
@@ -113,8 +132,13 @@ class ProductRepoImpl : ProductRepo {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val products = mutableListOf<ProductModel>()
                     for (data in snapshot.children) {
-                        data.getValue(ProductModel::class.java)?.let { product ->
-                            products.add(product.copy(productId = data.key ?: "")) }
+                        try {
+                            data.getValue(ProductModel::class.java)?.let { product ->
+                                products.add(product.copy(productId = data.key ?: ""))
+                            }
+                        } catch (e: Exception) {
+                            Log.e("ProductRepo", "Skipping bad product in category: ${data.key}")
+                        }
                     }
                     callback(true, "Products fetched", products)
                 }
@@ -131,9 +155,13 @@ class ProductRepoImpl : ProductRepo {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val products = mutableListOf<ProductModel>()
                     for (data in snapshot.children) {
-                        data.getValue(ProductModel::class.java)?.let { product ->
-                            // Copy productId from document key
-                            products.add(product.copy(productId = data.key ?: ""))}
+                        try {
+                            data.getValue(ProductModel::class.java)?.let { product ->
+                                products.add(product.copy(productId = data.key ?: ""))
+                            }
+                        } catch (e: Exception) {
+                            Log.e("ProductRepo", "Skipping bad product in available: ${data.key}")
+                        }
                     }
                     callback(true, "Available products fetched", products)
                 }
@@ -153,8 +181,13 @@ class ProductRepoImpl : ProductRepo {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val products = mutableListOf<ProductModel>()
                     for (data in snapshot.children) {
-                        data.getValue(ProductModel::class.java)?.let {  product ->
-                            products.add(product.copy(productId = data.key ?: "")) }
+                        try {
+                            data.getValue(ProductModel::class.java)?.let { product ->
+                                products.add(product.copy(productId = data.key ?: ""))
+                            }
+                        } catch (e: Exception) {
+                            Log.e("ProductRepo", "Skipping bad product in user list: ${data.key}")
+                        }
                     }
                     callback(true, "User's products fetched", products)
                 }
@@ -170,7 +203,7 @@ class ProductRepoImpl : ProductRepo {
         available: Boolean,
         callback: (Boolean, String) -> Unit
     ) {
-        ref.child(productId).child("availability").setValue(available).addOnCompleteListener { 
+        ref.child(productId).child("availability").setValue(available).addOnCompleteListener {
             if (it.isSuccessful) {
                 callback(true, "Availability updated")
             } else {
@@ -188,13 +221,10 @@ class ProductRepoImpl : ProductRepo {
                 }
 
                 val updatedRatedBy = product.ratedBy.toMutableMap()
-                val alreadyRated = updatedRatedBy.containsKey(userId)
 
                 if (rating > 0) {
-                    // Add or update rating
                     updatedRatedBy[userId] = rating
                 } else {
-                    // Remove rating
                     updatedRatedBy.remove(userId)
                 }
 
@@ -238,11 +268,15 @@ class ProductRepoImpl : ProductRepo {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val products = mutableListOf<ProductModel>()
                     for (data in snapshot.children) {
-                        data.getValue(ProductModel::class.java)?.let { product ->
-                            val productWithId = product.copy(productId = data.key ?: "")
-                            if (productWithId.flagged) {
-                                products.add(productWithId)
+                        try {
+                            data.getValue(ProductModel::class.java)?.let { product ->
+                                val productWithId = product.copy(productId = data.key ?: "")
+                                if (productWithId.flagged) {
+                                    products.add(productWithId)
+                                }
                             }
+                        } catch (e: Exception) {
+                            Log.e("ProductRepo", "Skipping bad flagged product: ${data.key}")
                         }
                     }
                     callback(true, "Flagged products fetched", products)
@@ -277,28 +311,24 @@ class ProductRepoImpl : ProductRepo {
                     return Transaction.success(currentData)
                 }
 
-                // Check if user already flagged
                 if (product.flaggedBy.contains(userId)) {
-                    return Transaction.success(currentData) // User already flagged
+                    return Transaction.success(currentData)
                 }
 
-                // Add user to flaggedBy list
                 val updatedFlaggedBy = product.flaggedBy.toMutableList().apply {
                     add(userId)
                 }
 
-                // Add reason to flaggedReason list (avoid duplicates)
                 val updatedFlaggedReason = product.flaggedReason.toMutableList().apply {
                     if (!contains(reason)) {
                         add(reason)
                     }
                 }
 
-                // Update product
                 val updatedProduct = product.copy(
                     flaggedBy = updatedFlaggedBy,
-                    flaggedReason = updatedFlaggedReason,
-//                    flagged = true
+                    flaggedReason = updatedFlaggedReason
+                    // flagged = true // Optional: depends if you want to auto-flag on first report
                 )
 
                 currentData.value = updatedProduct
@@ -309,7 +339,6 @@ class ProductRepoImpl : ProductRepo {
                 if (error != null) {
                     callback(false, error.message)
                 } else if (committed) {
-                    // Check if user was actually added
                     val product = currentData?.getValue(ProductModel::class.java)
                     if (product?.flaggedBy?.contains(userId) == true) {
                         callback(true, "Product flagged successfully")
@@ -342,8 +371,6 @@ class ProductRepoImpl : ProductRepo {
         }
     }
 
-
-
     override fun placeRentalRequest(
         productId: String,
         renterId: String,
@@ -355,7 +382,6 @@ class ProductRepoImpl : ProductRepo {
                 val product = currentData.getValue(ProductModel::class.java) ?:
                 return Transaction.success(currentData)
 
-                // Validate product is available for rental
                 if (!product.availability ||
                     product.outOfStock ||
                     product.flagged ||
@@ -363,7 +389,6 @@ class ProductRepoImpl : ProductRepo {
                     return Transaction.abort()
                 }
 
-                // Set rental request - Use explicit status
                 val updatedProduct = product.copy(
                     rentalRequesterId = renterId,
                     rentalDays = days,
@@ -395,12 +420,10 @@ class ProductRepoImpl : ProductRepo {
             override fun doTransaction(currentData: MutableData): Transaction.Result {
                 val product = currentData.getValue(ProductModel::class.java) ?: return Transaction.success(currentData)
 
-                // Check if this user placed the request
                 if (product.rentalRequesterId != renterId) {
                     return Transaction.abort()
                 }
 
-                // Check if request can be cancelled (only if pending)
                 if (product.rentalStatus != "pending") {
                     return Transaction.abort()
                 }
@@ -426,13 +449,13 @@ class ProductRepoImpl : ProductRepo {
             }
         })
     }
+
     override fun approveRentalRequest(productId: String, callback: (Boolean, String) -> Unit) {
         ref.child(productId).runTransaction(object : Transaction.Handler {
             override fun doTransaction(currentData: MutableData): Transaction.Result {
                 val product = currentData.getValue(ProductModel::class.java) ?:
                 return Transaction.success(currentData)
 
-                // Check if product has a pending request
                 if (product.rentalStatus != "pending") {
                     return Transaction.abort()
                 }
@@ -461,7 +484,6 @@ class ProductRepoImpl : ProductRepo {
                 val product = currentData.getValue(ProductModel::class.java) ?:
                 return Transaction.success(currentData)
 
-                // Check if product has a pending request
                 if (product.rentalStatus != "pending") {
                     return Transaction.abort()
                 }
@@ -497,7 +519,6 @@ class ProductRepoImpl : ProductRepo {
                 val product = currentData.getValue(ProductModel::class.java)
                     ?: return Transaction.success(currentData)
 
-
                 if (product.rentalStatus != STATUS_PAID) {
                     return Transaction.abort()
                 }
@@ -526,36 +547,7 @@ class ProductRepoImpl : ProductRepo {
             }
         })
     }
-    override fun completeCashPayment(productId: String, callback: (Boolean, String) -> Unit) {
-        ref.child(productId).runTransaction(object : Transaction.Handler {
-            override fun doTransaction(currentData: MutableData): Transaction.Result {
-                val product = currentData.getValue(ProductModel::class.java)
-                    ?: return Transaction.success(currentData)
 
-                // Only APPROVED Cash on Delivery can be marked as paid
-                if (product.rentalStatus != STATUS_APPROVED || product.paymentMethod != "Cash on Delivery") {
-                    return Transaction.abort()
-                }
-
-                val updatedProduct = product.copy(
-                    rentalStatus = STATUS_PAID,
-                    availability = false,
-                    outOfStock = true
-                )
-
-                currentData.value = updatedProduct
-                return Transaction.success(currentData)
-            }
-
-            override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
-                when {
-                    error != null -> callback(false, error.message)
-                    !committed -> callback(false, "Product not ready for cash payment completion")
-                    else -> callback(true, "Cash payment completed")
-                }
-            }
-        })
-    }
     override fun requestReturn(
         productId: String,
         renterId: String,
@@ -565,12 +557,10 @@ class ProductRepoImpl : ProductRepo {
             override fun doTransaction(currentData: MutableData): Transaction.Result {
                 val product = currentData.getValue(ProductModel::class.java) ?: return Transaction.success(currentData)
 
-                // Check if product is currently rented by this user
                 if (product.rentalRequesterId != renterId || product.rentalStatus != "rented") {
                     return Transaction.abort()
                 }
 
-                // Check if rental period has ended or is about to end
                 val currentTime = System.currentTimeMillis()
                 val isWithinRentalPeriod = currentTime <= product.rentalEndDate
 
@@ -578,7 +568,7 @@ class ProductRepoImpl : ProductRepo {
                     // Auto-return if rental period ended
                     val updatedProduct = product.copy(
                         rentalStatus = "returning",
-                        rentalEndDate = currentTime // Update end time to actual return time
+                        rentalEndDate = currentTime
                     )
                     currentData.value = updatedProduct
                 } else {
@@ -610,13 +600,11 @@ class ProductRepoImpl : ProductRepo {
             override fun doTransaction(currentData: MutableData): Transaction.Result {
                 val product = currentData.getValue(ProductModel::class.java) ?: return Transaction.success(currentData)
 
-                // Check if return was requested
                 if (product.rentalStatus != "returning") {
                     return Transaction.abort()
                 }
 
                 val returnTime = System.currentTimeMillis()
-                val actualRentalDays = ((returnTime - product.rentalStartDate) / (24 * 60 * 60 * 1000)).toInt()
 
                 val updatedProduct = product.copy(
                     rentalStatus = "",
@@ -637,10 +625,40 @@ class ProductRepoImpl : ProductRepo {
                     error != null -> callback(false, error.message, 0L)
                     !committed -> callback(false, "Cannot verify return", 0L)
                     else -> {
-                        val product = currentData?.getValue(ProductModel::class.java)
                         val returnTime = System.currentTimeMillis()
                         callback(true, "Return verified", returnTime)
                     }
+                }
+            }
+        })
+    }
+
+    override fun completeCashPayment(productId: String, callback: (Boolean, String) -> Unit) {
+        ref.child(productId).runTransaction(object : Transaction.Handler {
+            override fun doTransaction(currentData: MutableData): Transaction.Result {
+                val product = currentData.getValue(ProductModel::class.java)
+                    ?: return Transaction.success(currentData)
+
+                // Only APPROVED Cash on Delivery can be marked as paid
+                if (product.rentalStatus != STATUS_APPROVED || product.paymentMethod != "Cash on Delivery") {
+                    return Transaction.abort()
+                }
+
+                val updatedProduct = product.copy(
+                    rentalStatus = STATUS_PAID,
+                    availability = false,
+                    outOfStock = true
+                )
+
+                currentData.value = updatedProduct
+                return Transaction.success(currentData)
+            }
+
+            override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
+                when {
+                    error != null -> callback(false, error.message)
+                    !committed -> callback(false, "Product not ready for cash payment completion")
+                    else -> callback(true, "Cash payment completed")
                 }
             }
         })
@@ -656,12 +674,10 @@ class ProductRepoImpl : ProductRepo {
                     return Transaction.success(currentData)
                 }
 
-                // Only mark for review if there are flags
                 if (product.flaggedBy.isEmpty()) {
                     return Transaction.abort()
                 }
 
-                // Set flagged = true and hide from listings
                 val updatedProduct = product.copy(
                     flagged = true,
                     availability = false
@@ -681,6 +697,24 @@ class ProductRepoImpl : ProductRepo {
                 }
             }
         })
+    }
+
+    // --- FIX 2: Ensure updateProductVerification exists if used by Admin ---
+    // Note: If you implemented this in ProductRepo interface, here is the impl:
+    override fun updateProductVerification(productId: String, verified: Boolean, reason: String?, callback: (Boolean, String) -> Unit) {
+        val updates = mutableMapOf<String, Any>(
+            "verified" to verified
+        )
+        if (!verified && reason != null) {
+            updates["rejectionReason"] = reason
+        } else {
+            updates["rejectionReason"] = ""
+        }
+
+        ref.child(productId).updateChildren(updates).addOnCompleteListener {
+            if (it.isSuccessful) callback(true, "Verification Updated")
+            else callback(false, it.exception?.message ?: "Failed")
+        }
     }
 
     override fun updateRentalStatus(
@@ -729,4 +763,3 @@ class ProductRepoImpl : ProductRepo {
             }
     }
 }
-
