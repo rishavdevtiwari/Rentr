@@ -1,103 +1,80 @@
 package com.example.rentr.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
-import com.example.rentr.model.NotificationModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import com.example.rentr.model.ProductModel
-import com.example.rentr.utils.FcmSenderV1
-import com.google.firebase.database.FirebaseDatabase
-import kotlinx.coroutines.launch
-import java.util.UUID
+import com.example.rentr.repository.NotificationRepo
+import com.example.rentr.repository.ProductRepo
+import com.example.rentr.repository.UserRepo
 
-class AdminFlagViewModel(application: Application) : AndroidViewModel(application) {
+class AdminFlagViewModel(
+    private val productRepo: ProductRepo,
+    private val userRepo: UserRepo,
+    private val notifRepo: NotificationRepo
+) : ViewModel() {
 
-    private val db = FirebaseDatabase.getInstance()
-    private val productsRef = db.getReference("products")
-    private val usersRef = db.getReference("users")
+    // 1. Mark for Review
+    fun markForReview(product: ProductModel) {
+        // A. Mark product in DB
+        productRepo.markProductForReview(product.productId) { success, _ ->
+            if (success) {
+                // B. Increment Seller Flag Count
+                userRepo.incrementFlagCount(product.listedBy) { _, _ -> }
 
-    // Helper function to increment user flag count
-    private fun incrementUserFlagCount(userId: String) {
-        usersRef.child(userId).child("flagCount").get().addOnSuccessListener { snapshot ->
-            val currentCount = (snapshot.value as? Long)?.toInt() ?: 0
-            usersRef.child(userId).child("flagCount").setValue(currentCount + 1)
+                // C. Send Notification
+                val title = "Product Under Review"
+                val body = "Your product '${product.title}' is under review by admins."
+                notifRepo.sendAndSaveNotification(product.listedBy, title, body) { _, _ -> }
+            }
         }
     }
 
-    // 1. Mark for Review (SENDS NOTIFICATION + increments user flag count)
-    fun markForReview(product: ProductModel) {
-        // Update product: set flagged=true and hide from listings
-        val updates = mapOf<String, Any>(
-            "flagged" to true,
-            "availability" to false
-        )
-        productsRef.child(product.productId).updateChildren(updates)
-
-        // Increment the seller's flag count
-        incrementUserFlagCount(product.listedBy)
-
-        // Send notification
-        val title = "Product Under Review"
-        val body = "Your product '${product.title}' is under review by admins."
-        sendAndSaveNotification(product.listedBy, title, body)
-    }
-
-    // 2. Delete Product (SENDS NOTIFICATION + increments user flag count)
+    // 2. Delete Product
     fun deleteProduct(product: ProductModel) {
-        // Increment flag count first
-        incrementUserFlagCount(product.listedBy)
+        // A. Increment Seller Flag Count (Done first to ensure it happens before product deletion issues)
+        userRepo.incrementFlagCount(product.listedBy) { _, _ -> }
 
-        // Delete product
-        productsRef.child(product.productId).removeValue()
-
-        // Send notification
-        val title = "Product Deleted !!!"
-        val body = "Your product '${product.title}' was deleted due to policy violations."
-        sendAndSaveNotification(product.listedBy, title, body)
+        // B. Delete Product
+        productRepo.deleteProduct(product.productId) { success, _ ->
+            if (success) {
+                // C. Send Notification
+                val title = "Product Deleted !!!"
+                val body = "Your product '${product.title}' was deleted due to policy violations."
+                notifRepo.sendAndSaveNotification(product.listedBy, title, body) { _, _ -> }
+            }
+        }
     }
 
-    // 3. Resolve Flag (SENDS NOTIFICATION - NO change to user flag count)
+    // 3. Resolve Flag
     fun resolveFlag(product: ProductModel) {
-        // Clear all flag data but DON'T affect user flag count
-        val updates = mapOf<String, Any>(
-            "flagged" to false,
-            "flaggedBy" to emptyList<String>(),
-            "flaggedReason" to emptyList<String>(),
-            "appealReason" to "",
-            "availability" to true
-        )
-
-        productsRef.child(product.productId).updateChildren(updates)
-
-        // Send notification
-        val title = "Flag Resolved !!!"
-        val body = "The flag on '${product.title}' has been removed. Your product is active."
-        sendAndSaveNotification(product.listedBy, title, body)
-
-        // NO change to user flag count for resolution
+        productRepo.clearFlags(product.productId) { success, _ ->
+            if (success) {
+                val title = "Flag Resolved !!!"
+                val body = "The flag on '${product.title}' has been removed. Your product is active."
+                notifRepo.sendAndSaveNotification(product.listedBy, title, body) { _, _ -> }
+            }
+        }
     }
 
-    // 4. Delete User Account (SENDS NOTIFICATION)
+    // 4. Delete User Account
     fun deleteUserAccount(userId: String) {
+        // Send notification FIRST because once account is deleted, we might lose token access or permission
         val title = "Account Suspended !!!"
         val body = "Your account has been permanently suspended due to violations."
-        sendAndSaveNotification(userId, title, body)
+        notifRepo.sendAndSaveNotification(userId, title, body) { _, _ -> }
 
-        usersRef.child(userId).removeValue()
+        userRepo.deleteAccount(userId) { _, _ -> }
     }
 
-    private fun sendAndSaveNotification(userId: String, title: String, body: String) {
-        val notifId = UUID.randomUUID().toString()
-        val notification = NotificationModel(notifId, title, body, System.currentTimeMillis(), false)
-        db.getReference("notifications").child(userId).child(notifId).setValue(notification)
-
-        usersRef.child(userId).child("fcmToken").get().addOnSuccessListener {
-            val token = it.value as? String
-            if (!token.isNullOrEmpty()) {
-                viewModelScope.launch {
-                    FcmSenderV1(getApplication(), token, title, body).send()
-                }
-            }
+    // Factory to inject Repos
+    class Factory(
+        private val productRepo: ProductRepo,
+        private val userRepo: UserRepo,
+        private val notifRepo: NotificationRepo
+    ) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            return AdminFlagViewModel(productRepo, userRepo, notifRepo) as T
         }
     }
 }

@@ -2,6 +2,7 @@ package com.example.rentr.view
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.*
@@ -97,12 +98,10 @@ fun AdminMainParent() {
 
                 // 2. SETTINGS TAB - Show Settings screen directly
                 composable(BottomNavItem.Settings.route) {
-                    // Launch Settings Activity
                     LaunchedEffect(Unit) {
                         val intent = Intent(context, AdminSettings::class.java)
                         context.startActivity(intent)
                     }
-                    // Show loading or empty screen while launching
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -112,6 +111,11 @@ fun AdminMainParent() {
                         CircularProgressIndicator(color = Orange)
                     }
                 }
+
+                // Add placeholder routes for other tabs
+                composable(BottomNavItem.KYC.route) { PlaceholdersScreen("KYC Management") }
+                composable(BottomNavItem.Product.route) { PlaceholdersScreen("Product Management") }
+                composable(BottomNavItem.Review.route) { PlaceholdersScreen("Review Management") }
             }
         }
     }
@@ -173,7 +177,6 @@ fun AdminBottomNavBar(navController: NavController) {
                                 context.startActivity(intent)
                             }
                             BottomNavItem.Settings -> {
-                                // Navigate within NavHost to show Settings
                                 navController.navigate(item.route) {
                                     popUpTo(0) { saveState = true }
                                     launchSingleTop = true
@@ -233,7 +236,6 @@ enum class VerificationStatus(val color: Color, val text: String) {
     VERIFIED(Orange, "Verified"),
     PENDING(Color.Yellow, "Pending"),
     REJECTED(Color.Red, "Rejected"),
-
     FLAGGED(Color.Red, "Flagged")
 }
 
@@ -289,36 +291,56 @@ fun SectionHeader(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminDashboardScreen(
-    productViewModel: ProductViewModel = viewModel(
-        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                return ProductViewModel(ProductRepoImpl()) as T
-            }
-        }
-    ),
-    userViewModel: UserViewModel = viewModel(
-        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                return UserViewModel(UserRepoImpl()) as T
-            }
-        }
-    ),
     onNavigateToProduct: () -> Unit,
     onNavigateToKYC: () -> Unit,
     onNavigateToReview: () -> Unit
 ) {
     val context = LocalContext.current
+
+    // 1. Initialize Repositories
+    val productRepo = remember { ProductRepoImpl() }
+    val userRepo = remember { UserRepoImpl() }
+
+    // 2. Initialize ViewModels using Factories
+    val productViewModel: ProductViewModel = viewModel(
+        factory = ProductViewModel.Factory(productRepo)
+    )
+    val userViewModel: UserViewModel = viewModel(
+        factory = UserViewModel.Factory(userRepo)
+    )
+
+    // 3. Observe Data
     val products by productViewModel.allProducts.observeAsState(initial = emptyList())
     val usersMap by userViewModel.allUsersMap.observeAsState(initial = emptyMap())
     val flaggedProducts by productViewModel.flaggedProducts.observeAsState(initial = emptyList())
+    val currentUser = userViewModel.getCurrentUser()
 
+    // 4. Trigger Data Loading & DEBUGGING
     LaunchedEffect(Unit) {
-        productViewModel.getAllProducts { _, _, _ -> }
-        userViewModel.getAllUsers { _, _, _ -> }
+        // A. Check if logged in
+        if (currentUser == null) {
+            Toast.makeText(context, "⚠️ ALERT: You are NOT logged in!", Toast.LENGTH_LONG).show()
+        }
+
+        // B. Fetch Products with Error Toast
+        productViewModel.getAllProducts { success, msg, _ ->
+            if (!success) {
+                Toast.makeText(context, "Products Error: $msg", Toast.LENGTH_LONG).show()
+            }
+        }
+
+        // C. Fetch Users with Error Toast
+        userViewModel.getAllUsers { success, msg, _ ->
+            if (!success) {
+                Toast.makeText(context, "Users Error: $msg", Toast.LENGTH_LONG).show()
+            }
+        }
+
+        // D. Fetch Flagged
         productViewModel.getFlaggedProducts { _, _, _ -> }
     }
+
+    // --- MAPPING DATA TO UI MODELS ---
 
     val adminProducts = remember(products, usersMap) {
         products.map { product ->
@@ -347,7 +369,6 @@ fun AdminDashboardScreen(
         }
     }
 
-    // Create flagged products list
     val flaggedProductItems = remember(flaggedProducts, usersMap) {
         flaggedProducts.map { product ->
             val sellerName = usersMap[product.listedBy]?.fullName ?: "Unknown"
@@ -357,7 +378,7 @@ fun AdminDashboardScreen(
                 listedBy = sellerName,
                 price = product.price.toInt(),
                 imageRes = product.imageUrl.firstOrNull() ?: "",
-                verificationStatus = VerificationStatus.REJECTED // Flagged products should show as rejected/flagged status
+                verificationStatus = VerificationStatus.REJECTED // Flagged products show as rejected
             )
         }
     }
@@ -382,15 +403,14 @@ fun AdminDashboardScreen(
             ProductListSection(
                 products = adminProducts.take(3),
                 onProductClick = { product ->
-                    val intent =
-                        Intent(context, AdminProductVerificationActivity::class.java).apply {
-                            putExtra("productId", product.id)
-                            putExtra("productName", product.name)
-                            putExtra("listedBy", product.listedBy)
-                            putExtra("price", product.price)
-                            putExtra("imageUrl", product.imageRes)
-                            putExtra("verificationStatus", product.verificationStatus.name)
-                        }
+                    val intent = Intent(context, AdminProductVerificationActivity::class.java).apply {
+                        putExtra("productId", product.id)
+                        putExtra("productName", product.name)
+                        putExtra("listedBy", product.listedBy)
+                        putExtra("price", product.price)
+                        putExtra("imageUrl", product.imageRes)
+                        putExtra("verificationStatus", product.verificationStatus.name)
+                    }
                     context.startActivity(intent)
                 }
             )
@@ -410,10 +430,9 @@ fun AdminDashboardScreen(
                 UserKycListSection(
                     users = pendingKYCUsers.take(3),
                     onUserClick = { user ->
-                        val intent =
-                            Intent(context, AdminKYCVerificationActivity::class.java).apply {
-                                putExtra("userId", user.userId)
-                            }
+                        val intent = Intent(context, AdminKYCVerificationActivity::class.java).apply {
+                            putExtra("userId", user.userId)
+                        }
                         context.startActivity(intent)
                     }
                 )
@@ -427,7 +446,7 @@ fun AdminDashboardScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Section 3: Flagged Reviews - FIXED VERSION
+            // Section 3: Flagged Reviews
             SectionHeader(
                 title = "Flagged Reviews",
                 subtitle = "Moderate flagged products",
@@ -447,24 +466,17 @@ fun AdminDashboardScreen(
                             putExtra("price", product.price)
                             putExtra("imageUrl", product.imageRes)
                             putExtra("verificationStatus", product.verificationStatus.name)
-                            putExtra(
-                                "isFlagged",
-                                true
-                            ) // Add flag to indicate it's a flagged product
+                            putExtra("isFlagged", true)
                         }
                         context.startActivity(intent)
                     }
                 )
             } else {
-
                 Text(
                     "No flagged products at the moment",
                     color = Color.Gray,
                     modifier = Modifier.padding(start = 16.dp, top = 8.dp)
                 )
-
-
-
             }
         }
     }
@@ -484,7 +496,7 @@ fun AdminTopBar() {
             Text("Admin", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         }
         Image(
-            painter = painterResource(id = R.drawable.ic_launcher_background),
+            painter = painterResource(id = R.drawable.ic_launcher_background), // MAKE SURE THIS EXISTS
             contentDescription = "Admin Profile",
             modifier = Modifier
                 .size(50.dp)
@@ -493,6 +505,8 @@ fun AdminTopBar() {
         )
     }
 }
+
+// --- LIST SECTIONS & ITEMS ---
 
 @Composable
 fun ProductListSection(
