@@ -151,5 +151,7 @@ class UserViewModel(val repo : UserRepo): ViewModel(){
     fun incrementFlagCount(userId: String, callback: (Boolean, String) -> Unit) {
         repo.incrementFlagCount(userId, callback)
     }
-
+    fun signInWithGoogle(idToken: String, callback: (Boolean, String) -> Unit) {
+        repo.signInWithGoogle(idToken, callback)
+    }
 }
