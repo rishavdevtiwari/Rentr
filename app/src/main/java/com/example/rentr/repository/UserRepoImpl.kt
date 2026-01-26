@@ -353,7 +353,7 @@ class UserRepoImpl : UserRepo {
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val user = auth.currentUser
-                    // Check if user is new; if so, you might want to call addUserToDatabase() here
+                    // Check if user is new; if so, you might want to call addUserToDatabase() here 
                     callback(true, "Login Successful")
                 } else {
                     callback(false, task.exception?.message ?: "Authentication Failed")

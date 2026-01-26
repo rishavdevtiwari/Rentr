@@ -98,6 +98,10 @@ dependencies {
     // --- 3. Images ---
     implementation("io.coil-kt:coil-compose:2.6.0")
 
+    // Unit Testing
+    testImplementation("org.mockito:mockito-core:5.11.0")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
+
     // --- 4. Android & Compose ---
     // FORCE stable version to avoid "SDK 36" error
     implementation("androidx.activity:activity-compose:1.9.3")
@@ -152,5 +156,6 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    testImplementation(kotlin("test"))
 
 }
