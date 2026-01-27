@@ -192,6 +192,13 @@ fun LoginBody() {
                     colors = CheckboxDefaults.colors(checkedColor = BG40, checkmarkColor = Orange)
                 )
                 Text("Remember Me", color = Color.White, fontSize = 15.sp)
+                Spacer(modifier = Modifier.weight(1f))
+                TextButton(
+                    onClick = { context.startActivity(Intent(context, ForgotPassGmailActivity::class.java)) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Forgot password?", color = Color.Gray)
+                }
             }
 
             // Manual Login Button
@@ -238,12 +245,12 @@ fun LoginBody() {
                 }
             }
 
-            TextButton(
-                onClick = { context.startActivity(Intent(context, ForgotPassGmailActivity::class.java)) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Forgot the password?", color = Color.Gray)
-            }
+//            TextButton(
+//                onClick = { context.startActivity(Intent(context, ForgotPassGmailActivity::class.java)) },
+//                modifier = Modifier.fillMaxWidth()
+//            ) {
+//                Text("Forgot password?", color = Color.Gray)
+//            }
 
             Spacer(modifier = Modifier.weight(1f))
 
