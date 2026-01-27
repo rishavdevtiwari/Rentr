@@ -1,11 +1,15 @@
 package com.example.rentr.view
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -35,6 +39,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,11 +48,26 @@ import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
 import com.example.rentr.model.UserModel
+import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.viewmodel.UserViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+
+class ProfileActivity : ComponentActivity() {
+
+    @SuppressLint("ViewModelConstructorInComposable")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        setContent {
+            ProfileScreen(
+                userViewModel = UserViewModel(UserRepoImpl())
+            )
+        }
+    }
+}
 
 // region Palette
 private val primaryColor = Color.Black
@@ -370,6 +390,9 @@ private fun SettingsList(onEditProfile: () -> Unit, userViewModel : UserViewMode
     val context = LocalContext.current
     val activity = context as? Activity
 
+    var showLogoutDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
     val settings = listOf(
         SettingInfo(Icons.Default.Person, "Edit Profile", action = onEditProfile),
         SettingInfo(Icons.Default.LocationOn, "Address"),
@@ -398,42 +421,130 @@ private fun SettingsList(onEditProfile: () -> Unit, userViewModel : UserViewMode
             }
         }
         Spacer(modifier = Modifier.height(20.dp))
-        TextButton(onClick = {
-                val sharedPreferences = context.getSharedPreferences("rentr_prefs", Context.MODE_PRIVATE)
-                with(sharedPreferences.edit()) {
-                    putBoolean("remember_me", false)
-                    apply()
-                }
-                userViewModel.logout { success,message ->
-                    if(success){
-                        Toast.makeText(context, "Logged Out!", Toast.LENGTH_SHORT).show()
-                    }else{
-                        Toast.makeText(context,"Unsuccessful logout!",Toast.LENGTH_SHORT).show()
-                    }
-                }
-                val intent = Intent(context, LoginActivity::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                context.startActivity(intent)
-                activity?.finish()
-        }) {
+//        TextButton(onClick = {
+////                val sharedPreferences = context.getSharedPreferences("rentr_prefs", Context.MODE_PRIVATE)
+////                with(sharedPreferences.edit()) {
+////                    putBoolean("remember_me", false)
+////                    apply()
+////                }
+////                userViewModel.logout { success,message ->
+////                    if(success){
+////                        Toast.makeText(context, "Logged Out!", Toast.LENGTH_SHORT).show()
+////                    }else{
+////                        Toast.makeText(context,"Unsuccessful logout!",Toast.LENGTH_SHORT).show()
+////                    }
+////                }
+////                val intent = Intent(context, LoginActivity::class.java)
+////                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+////                context.startActivity(intent)
+////                activity?.finish()
+////        },
+////            modifier = Modifier.testTag("logoutButton")   ) {
+////            Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Logout", tint = Color.Red)
+////            Spacer(modifier = Modifier.size(8.dp))
+////            Text("Logout", color = Color.Red, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+////        }
+        TextButton(
+            onClick = { showLogoutDialog = true },
+            modifier = Modifier.testTag("logoutButton")
+        ){
             Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Logout", tint = Color.Red)
             Spacer(modifier = Modifier.size(8.dp))
             Text("Logout", color = Color.Red, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         }
-        TextButton(onClick = {
-            val currentUserId = userViewModel.getCurrentUser()?.uid
-            if (currentUserId != null) {
-                userViewModel.deleteAccount(currentUserId) { _, _ ->
-                    context.startActivity(Intent(context, LoginActivity::class.java))
-                    activity?.finish()
-                }
-            }
-        }) {
-            Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Delete Account", tint = Color.Red)
+
+//        TextButton(onClick = {
+//            val currentUserId = userViewModel.getCurrentUser()?.uid
+//            if (currentUserId != null) {
+//                userViewModel.deleteAccount(currentUserId) { _, _ ->
+//                    context.startActivity(Intent(context, LoginActivity::class.java))
+//                    activity?.finish()
+//                }
+//            }
+//        })
+       TextButton(onClick = { showDeleteDialog = true }){
+            Icon(
+                Icons.AutoMirrored.Filled.ExitToApp,
+                contentDescription = "Delete Account",
+                tint = Color.Red
+            )
             Spacer(modifier = Modifier.size(8.dp))
-            Text("Delete Account", color = Color.Red, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+            Text(
+                "Delete Account",
+                color = Color.Red,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium
+            )
         }
 
+    }
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("Logout") },
+            text = { Text("Are you sure you want to logout?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showLogoutDialog = false
+
+                    val sharedPreferences =
+                        context.getSharedPreferences("rentr_prefs", Context.MODE_PRIVATE)
+                    with(sharedPreferences.edit()) {
+                        putBoolean("remember_me", false)
+                        apply()
+                    }
+
+                    userViewModel.logout { success, _ ->
+                        if (success) {
+                            Toast.makeText(context, "Logged Out!", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+
+                    val intent = Intent(context, LoginActivity::class.java)
+                    intent.flags =
+                        Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    context.startActivity(intent)
+                    activity?.finish()
+                }) {
+                    Text("Yes", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Account") },
+            text = {
+                Text("This action is permanent and cannot be undone.\n\nDo you really want to delete your account?")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+
+                    val currentUserId = userViewModel.getCurrentUser()?.uid
+                    if (currentUserId != null) {
+                        userViewModel.deleteAccount(currentUserId) { _, _ ->
+                            context.startActivity(Intent(context, LoginActivity::class.java))
+                            activity?.finish()
+                        }
+                    }
+                }) {
+                    Text("Delete", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
