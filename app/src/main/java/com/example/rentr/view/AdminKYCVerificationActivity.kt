@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.SubcomposeAsyncImage
 import com.example.rentr.model.UserModel
+import com.example.rentr.repository.NotificationRepoImpl
 import com.example.rentr.repository.UserRepoImpl
 import com.example.rentr.ui.theme.RentrTheme // Make sure this import matches your theme package
 import com.example.rentr.viewmodel.AdminKYCViewModel // Import the Notification ViewModel
@@ -73,8 +74,15 @@ fun KYCVerificationScreen(userId: String) {
         }
     )
 
-    // 2. NEW Notification ViewModel
-    val adminKYCViewModel: AdminKYCViewModel = viewModel()
+    // Initialize Repos
+    val userRepo = remember { UserRepoImpl() }
+    val notifRepo = remember { NotificationRepoImpl(context.applicationContext) }
+
+
+    val adminKYCViewModel: AdminKYCViewModel = viewModel(
+        factory = AdminKYCViewModel.Factory(userRepo, notifRepo)
+    )
+
 
     // State variables
     var userData by remember { mutableStateOf<UserModel?>(null) }

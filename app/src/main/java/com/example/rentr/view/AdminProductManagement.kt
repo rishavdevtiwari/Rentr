@@ -1,6 +1,8 @@
 package com.example.rentr.view
 
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.*
@@ -8,7 +10,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -52,20 +53,10 @@ class AdminProductManagementActivity : ComponentActivity() {
 @Composable
 fun AdminProductManagementScreen(
     productViewModel: ProductViewModel = viewModel(
-        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                return ProductViewModel(ProductRepoImpl()) as T
-            }
-        }
+        factory = ProductViewModel.Factory(ProductRepoImpl())
     ),
     userViewModel: UserViewModel = viewModel(
-        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                return UserViewModel(UserRepoImpl()) as T
-            }
-        }
+        factory = UserViewModel.Factory(UserRepoImpl())
     )
 ) {
     val context = LocalContext.current
@@ -145,10 +136,12 @@ fun AdminProductManagementScreen(
                 containerColor = Color.Black,
                 contentColor = Orange,
                 indicator = { tabPositions ->
-                    TabRowDefaults.Indicator(
-                        Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                        color = Orange
-                    )
+                    if (selectedTab < tabPositions.size) {
+                        TabRowDefaults.Indicator(
+                            Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                            color = Orange
+                        )
+                    }
                 }
             ) {
                 Tab(
@@ -198,7 +191,7 @@ fun AdminProductManagementScreen(
                                     modifier = Modifier.size(64.dp)
                                 )
                                 Text(
-                                    if (selectedTab == 1) "No pending products for verification" else "No products found",
+                                    if (selectedTab == 1) "No pending products" else "No products found",
                                     color = Color.Gray,
                                     fontSize = 16.sp
                                 )
@@ -210,15 +203,30 @@ fun AdminProductManagementScreen(
                         AdminProductListItem(
                             productData = productData,
                             onClick = {
-                                val intent = android.content.Intent(context, AdminProductVerificationActivity::class.java).apply {
-                                    putExtra("productId", productData.product.productId)
-                                    putExtra("productName", productData.product.title)
-                                    putExtra("listedBy", productData.product.listedBy)
-                                    putExtra("price", productData.product.price)
-                                    putExtra("imageUrl", productData.product.imageUrl.firstOrNull() ?: "")
-                                    putExtra("verificationStatus", if (productData.product.verified) "VERIFIED" else "PENDING")
+                                try {
+                                    // --- 1. SAFE DATA EXTRACTION ---
+                                    val safeImageUrl = if (productData.product.imageUrl != null && productData.product.imageUrl.isNotEmpty()) {
+                                        productData.product.imageUrl.firstOrNull() ?: ""
+                                    } else {
+                                        ""
+                                    }
+
+                                    // --- 2. INTENT CREATION ---
+                                    val intent = Intent(context, AdminProductVerificationActivity::class.java).apply {
+                                        putExtra("productId", productData.product.productId ?: "")
+                                        putExtra("productName", productData.product.title ?: "Unknown")
+                                        putExtra("listedBy", productData.product.listedBy ?: "")
+                                        putExtra("price", productData.product.price)
+                                        putExtra("imageUrl", safeImageUrl)
+                                        putExtra("verificationStatus", if (productData.product.verified) "VERIFIED" else "PENDING")
+                                    }
+                                    context.startActivity(intent)
+
+                                } catch (e: Exception) {
+                                    // --- 3. ERROR CATCHING (Prevents Crash) ---
+                                    e.printStackTrace()
+                                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
                                 }
-                                context.startActivity(intent)
                             }
                         )
                     }
@@ -241,6 +249,13 @@ fun AdminProductListItem(
 ) {
     val product = productData.product
 
+    // Safe image for UI
+    val displayImage = if (product.imageUrl != null && product.imageUrl.isNotEmpty()) {
+        product.imageUrl.firstOrNull()
+    } else {
+        null
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -255,7 +270,7 @@ fun AdminProductListItem(
         ) {
             // Product Image
             AsyncImage(
-                model = product.imageUrl.firstOrNull(),
+                model = displayImage,
                 contentDescription = product.title,
                 placeholder = painterResource(id = R.drawable.rentrimage),
                 error = painterResource(id = R.drawable.rentrimage),
@@ -276,7 +291,7 @@ fun AdminProductListItem(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        product.title,
+                        product.title ?: "No Title",
                         color = Color.White,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
@@ -324,7 +339,7 @@ fun AdminProductListItem(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Price, Category and etc.
+                // Price & Category
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -338,7 +353,7 @@ fun AdminProductListItem(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            product.category,
+                            product.category ?: "Uncategorized",
                             color = Color.Gray,
                             fontSize = 12.sp,
                             maxLines = 1

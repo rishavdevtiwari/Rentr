@@ -42,6 +42,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag // IMPORT THIS!
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -74,9 +75,8 @@ fun ChangePassBody() {
     var oldPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    var visibility by remember { mutableStateOf(false) } // Control visibility for all fields
+    var visibility by remember { mutableStateOf(false) }
 
-    // Button is enabled only when all three fields are not blank
     val isEnabled = oldPassword.isNotBlank() &&
             newPassword.isNotBlank() &&
             confirmPassword.isNotBlank()
@@ -105,7 +105,7 @@ fun ChangePassBody() {
                 },
                 title = {
                     Text(
-                        text = "Change Password", // Title changed
+                        text = "Change Password",
                         style = MaterialTheme.typography.titleLarge,
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
@@ -175,11 +175,12 @@ fun ChangePassBody() {
                         }
                     },
                     placeholder = {
-                        Text(text = "Old Password", color = Color.Gray) // Placeholder changed
+                        Text(text = "Old Password", color = Color.Gray)
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
+                        .padding(horizontal = 20.dp)
+                        .testTag("oldPasswordInput"), // <--- ADDED TAG HERE
                     shape = RoundedCornerShape(15.dp),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.White,
@@ -224,7 +225,8 @@ fun ChangePassBody() {
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
+                        .padding(horizontal = 20.dp)
+                        .testTag("newPasswordInput"), // <--- ADDED TAG HERE
                     shape = RoundedCornerShape(15.dp),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.White,
@@ -269,7 +271,8 @@ fun ChangePassBody() {
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
+                        .padding(horizontal = 20.dp)
+                        .testTag("confirmPasswordInput"), // <--- ADDED TAG HERE
                     shape = RoundedCornerShape(15.dp),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.White,
@@ -316,9 +319,10 @@ fun ChangePassBody() {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(90.dp)
-                    .padding(horizontal = 15.dp, vertical = 20.dp),
+                    .padding(horizontal = 15.dp, vertical = 20.dp)
+                    .testTag("changePasswordButton"), // <--- ADDED TAG HERE
             ) {
-                Text("Change Password", fontSize = 18.sp, fontWeight = FontWeight.Bold) // Button text changed
+                Text("Change Password", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

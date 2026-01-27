@@ -66,7 +66,10 @@ interface ProductRepo {
         productId: String,
         callback: (Boolean, String, Long) -> Unit
     )
+    fun completeCashPayment(productId: String, callback: (Boolean, String) -> Unit)
     fun updateRentalStatus(productId: String, status: String, callback: (Boolean, String) -> Unit)
     fun clearFlags(productId: String, callback: (Boolean, String) -> Unit)
+
+    fun updateProductVerification(productId: String, verified: Boolean, reason: String? = null, callback: (Boolean, String) -> Unit)
 }
 

@@ -16,11 +16,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Rentr"
         android:usesCleartextTraffic="true">
-        <activity
-            android:name=".utils.TransactionService"
-            android:exported="false"
-            android:label="@string/title_activity_transaction_service"
-            android:theme="@style/Theme.Rentr" />
+<!--        <activity-->
+<!--            android:name=".utils.TransactionService"-->
+<!--            android:exported="false"-->
+<!--            android:label="@string/title_activity_transaction_service"-->
+<!--            android:theme="@style/Theme.Rentr" />-->
         <activity
             android:name=".view.SplashActivity"
             android:exported="true"
@@ -51,6 +51,11 @@
             android:name=".view.ChatActivity"
             android:exported="false"
             android:theme="@style/Theme.Rentr" />
+        <activity
+            android:name=".view.ProfileActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Rentr" />
+
         <activity
             android:name=".view.KYC"
             android:exported="false"
