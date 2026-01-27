@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -140,13 +141,13 @@ fun LoginBody() {
                 value = email,
                 onValueChange = { email = it },
                 leadingIcon = { Icon(painter = painterResource(id = R.drawable.baseline_email_24), contentDescription = null) },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).testTag("email"),
                 shape = RoundedCornerShape(15.dp),
-                colors = TextFieldDefaults.colors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Field,
-                    focusedIndicatorColor = Orange,
-                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedBorderColor = Orange,
+                    unfocusedBorderColor = Color.Transparent,
                     focusedTextColor = Color.Black,
                     unfocusedTextColor = Color.White
                 )
@@ -159,7 +160,7 @@ fun LoginBody() {
                 value = password,
                 onValueChange = { password = it },
                 visualTransformation = if (visibility) VisualTransformation.None else PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).testTag("password"),
                 trailingIcon = {
                     IconButton(onClick = { visibility = !visibility }) {
                         Icon(
@@ -170,11 +171,11 @@ fun LoginBody() {
                     }
                 },
                 shape = RoundedCornerShape(15.dp),
-                colors = TextFieldDefaults.colors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Field,
-                    focusedIndicatorColor = Orange,
-                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedBorderColor = Orange,
+                    unfocusedBorderColor = Color.Transparent,
                     focusedTextColor = Color.Black,
                     unfocusedTextColor = Color.White
                 )
@@ -220,7 +221,7 @@ fun LoginBody() {
                 enabled = isEnabled,
                 colors = ButtonDefaults.buttonColors(containerColor = Orange, disabledContainerColor = Button),
                 shape = RoundedCornerShape(25.dp),
-                modifier = Modifier.fillMaxWidth().height(90.dp).padding(horizontal = 15.dp, vertical = 15.dp),
+                modifier = Modifier.fillMaxWidth().height(90.dp).padding(horizontal = 15.dp, vertical = 15.dp).testTag("login"),
             ) {
                 Text("Log In", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
@@ -228,12 +229,11 @@ fun LoginBody() {
             // --- GOOGLE LOGIN BUTTON ---
             OutlinedButton(
                 onClick = { onGoogleSignInClicked() },
-                modifier = Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 15.dp),
+                modifier = Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 15.dp).testTag("google_login"),
                 colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White),
                 shape = RoundedCornerShape(25.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Make sure you have a google icon in drawable or use a text label
                     Text("Continue with Google", color = Color.Black, fontWeight = FontWeight.Medium)
                 }
             }
@@ -258,7 +258,7 @@ fun LoginBody() {
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.clickable {
                         context.startActivity(Intent(context, RegistrationActivity::class.java))
-                    }
+                    }.testTag("register")
                 )
             }
         }
