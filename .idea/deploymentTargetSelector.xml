@@ -2,6 +2,12 @@
 <project version="4">
   <component name="deploymentTargetSelector">
     <selectionStates>
+<<<<<<< HEAD
+=======
+      <SelectionState runConfigName="app">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
+>>>>>>> 52edc380edbe8ffd75a9202d0e48f69efc547960
       <SelectionState runConfigName="LogoutInstrumentedTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
